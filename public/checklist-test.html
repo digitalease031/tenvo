@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<title>Checklist Layout Test — Open in browser, should show 219px wide strip</title>
+<style>
+/* Exact mirror of the generated CSS (58mm / non-80mm) */
+/* ROW_H = 13+3+3 = 19px, TICK_W=20, TICK_H=13 */
+@page { size: 58mm auto; margin: 0; }
+@media print {
+  @page { size: 58mm auto; margin: 0; }
+  html, body { width: 219px !important; max-width: 219px !important; margin: 0 !important; padding: 0 !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 219px; max-width: 219px; margin: 0 auto; background: #fff; overflow-x: hidden; }
+body { padding: 8px; font-family: 'Courier New', Courier, monospace; font-size: 6px; color: #111; line-height: 1.3; }
+.biz-name { font-size: 10px; font-weight: 800; text-align: center; margin-bottom: 2px; }
+.biz-sub  { font-size: 6px; text-align: center; color: #555; margin-bottom: 1px; }
+.doc-title { font-size: 8px; font-weight: 800; text-align: center; text-transform: uppercase; letter-spacing: .5px; margin: 3px 0 1px; }
+.meta-line { font-size: 6px; text-align: center; font-weight: 700; margin-bottom: 1px; }
+.meta-light { font-weight: 400; }
+hr.solid { border: none; border-top: 1px solid #222; margin: 3px 0; }
+
+table.main { width: 203px; border-collapse: collapse; table-layout: fixed; margin-top: 2px; }
+
+/* Header — 21px tall */
+table.main thead th {
+  background: #222; color: #fff; font-size: 6px; font-weight: 700;
+  text-transform: uppercase; text-align: center; padding: 3px 1px;
+  height: 21px; border: none; white-space: nowrap; overflow: hidden; vertical-align: middle;
+}
+table.main thead th.tl { text-align: left; padding-left: 2px; }
+
+/* Data cells — 19px tall with 3px padding top/bottom */
+table.main tbody td {
+  font-size: 6px; padding: 3px 1px; border: none;
+  border-bottom: 1px solid #e0e0e0; vertical-align: middle;
+  overflow: hidden; white-space: nowrap; height: 19px;
+}
+
+/* Columns: H#30 + CU70 + TGT20 + DEL26 + REC26 + BAL24 = 196px */
+.h  { width: 30px; font-weight: 800; text-align: left;   padding-left: 2px !important; }
+.cu { width: 70px; font-weight: 400; text-align: left;   padding-left: 2px !important; overflow: hidden; text-overflow: ellipsis; }
+.tg { width: 20px; font-weight: 800; text-align: center; font-size: 7px; }
+.bx { width: 26px; text-align: center; padding: 0 !important; vertical-align: middle; overflow: hidden; }
+.bl { width: 24px; text-align: right;  font-size: 6px; padding-right: 2px !important; }
+
+/* Reconciliation */
+.recon { margin-top: 6px; }
+.recon-hdr { font-weight: 800; text-align: center; font-size: 6px; border-top: 1px solid #222; padding-top: 3px; margin-bottom: 2px; text-transform: uppercase; }
+table.recon-t { width: 100%; border-collapse: collapse; }
+table.recon-t td { font-size: 6px; padding: 1.5px 0; border: none; line-height: 1.2; }
+td.rl { font-weight: 700; width: 55%; white-space: nowrap; }
+td.rv { border-bottom: 1px solid #333; width: 45%; }
+.sig-wrap { margin-top: 8px; text-align: center; font-size: 6px; color: #555; }
+.sig-line { border-bottom: 1px solid #555; width: 110px; height: 18px; margin: 0 auto 3px; }
+</style>
+</head><body>
+
+<div class="biz-name">Tenvo Water Supply</div>
+<div class="biz-sub">DHA Phase 6, Korangi Industrial Area</div>
+<div class="biz-sub">plant + city riders</div>
+<hr class="solid"/>
+<div class="doc-title">Route Delivery Checklist</div>
+<div class="meta-line">Date: 2026-08-07</div>
+<div class="meta-line meta-light">Stops: 10&nbsp;&nbsp;Target Load: 30 Pcs</div>
+<hr class="solid"/>
+
+<table class="main">
+  <thead>
+    <tr>
+      <th class="h">H#</th>
+      <th class="cu tl">CUSTOMER</th>
+      <th class="tg">TGT</th>
+      <th class="bx">DEL</th>
+      <th class="bx">REC</th>
+      <th class="bl">BAL</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- TICK BOX: inline-table 20x13px -->
+    <tr>
+      <td class="h">-</td><td class="cu">Casa Bel</td>
+      <td class="tg">1</td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bl">1</td>
+    </tr>
+    <tr style="background:#f7f7f7;">
+      <td class="h">-</td><td class="cu">Casa P26</td>
+      <td class="tg">8</td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bl">8</td>
+    </tr>
+    <tr>
+      <td class="h">11-B</td><td class="cu">Gul 11-B</td>
+      <td class="tg">1</td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bl">1</td>
+    </tr>
+    <tr style="background:#f7f7f7;">
+      <td class="h">23</td><td class="cu">Block 23</td>
+      <td class="tg">9</td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bl">9</td>
+    </tr>
+    <tr>
+      <td class="h">41</td><td class="cu">Block 41</td>
+      <td class="tg">1</td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bx"><table style="display:inline-table;border-collapse:collapse;width:20px;height:13px;border:1px dashed #444;background:#fff;"><tr><td style="padding:0;"></td></tr></table></td>
+      <td class="bl">1</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="recon">
+  <div class="recon-hdr">End of Shift Reconciliation</div>
+  <table class="recon-t">
+    <tr><td class="rl">Total Loaded:</td><td class="rv"></td></tr>
+    <tr><td class="rl">Total Delivered:</td><td class="rv"></td></tr>
+    <tr><td class="rl">Empties Collected:</td><td class="rv"></td></tr>
+    <tr><td class="rl">Cash Collected:</td><td class="rv"></td></tr>
+    <tr><td class="rl">Shortage / Surplus:</td><td class="rv"></td></tr>
+  </table>
+</div>
+<div class="sig-wrap">
+  <div class="sig-line"></div>
+  Rider / Employee Signature
+</div>
+
+<div style="margin-top:12px;padding:6px;background:#eef;font-size:9px;font-family:sans-serif;">
+  Preview: 219px wide. Each row = 19px. Tick table = 20×13px inline-table.<br>
+  Open in browser → should look like 58mm thermal receipt.
+</div>
+</body></html>

@@ -1,0 +1,3594 @@
+'use client';
+
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import {
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  AlertTriangle,
+  Package,
+  Layers,
+  Hash,
+  Eye,
+  Edit,
+  Factory,
+  Warehouse,
+  FileText,
+  BarChart3,
+  TrendingUp,
+  Settings,
+  AlertCircle,
+  Repeat,
+  Tag,
+  Archive,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
+import { DataTable } from './DataTable';
+import { cn } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+import { BusyGrid } from './BusyGrid';
+import { readDomainFieldValue } from '@/lib/utils/domainHelpers';
+import { buildInventoryGridColumns, readGridCellValue } from '@/lib/utils/inventoryGridColumns';
+import { inventoryRowsDiffer } from '@/lib/utils/inventoryRowDiff';
+import { mapExcelRowForSave, prepareCompositeUpsertFromRow } from '@/lib/utils/excelProductPayload';
+import { buildNewInventoryRow, getLastRowForDefaults } from '@/lib/utils/inventoryRowDefaults';
+import { getInventoryFieldSuggestions } from '@/lib/utils/inventoryFieldSuggestions';
+import { mapProductField, preserveRelationalData, processFieldValue } from '@/lib/utils/productFieldMapper';
+import { scopeProductsToBusiness, isForeignTenantProduct } from '@/lib/utils/inventoryTenancy';
+import { ShortcutsHelp } from './inventory/ShortcutsHelp';
+import { AdvancedSearch } from './AdvancedSearch';
+import { InventoryCommandBar } from './inventory/InventoryCommandBar';
+import { InventoryMobileHub } from './inventory/mobile/InventoryMobileHub';
+import { InventoryMobileProductList } from './inventory/mobile/InventoryMobileProductList';
+import { InventoryMobileViewToggle } from './inventory/mobile/InventoryMobileViewToggle';
+import {
+  readInventoryMobileViewPreference,
+  writeInventoryMobileViewPreference,
+  DEFAULT_INVENTORY_MOBILE_VIEW,
+  normalizeInventoryMobileView,
+} from '@/lib/utils/inventoryMobileView';
+import { resolveExcelMobileEssentialKeys } from '@/lib/utils/inventoryExcelMobile';
+import { useCompactViewport } from '@/lib/hooks/useCompactViewport';
+import { MOBILE_BOTTOM_NAV_CLASS, MOBILE_FLOATING_Z, MOBILE_MODULE_FAB_RIGHT } from '@/lib/utils/mobileLayout';
+import { MOBILE_DIALOG_SHELL_WIDE } from '@/lib/utils/formMobileStyles';
+import { ProductCardGrid } from './inventory/ProductCardGrid';
+import { getTemplatesForDomain } from '@/lib/data/productTemplates';
+import { QuickAddTemplates } from '@/components/QuickAddTemplates';
+import { PosCameraScanner } from '@/components/pos/shared/PosCameraScanner';
+import { mergeScannedProductIntoList } from '@/lib/utils/productScanLookup';
+import { canUseBarcodeScan } from '@/lib/utils/barcodeAccess';
+import { useInventoryScan } from '@/lib/hooks/useInventoryScan';
+import { AdvancedInventoryFeatures } from './AdvancedInventoryFeatures';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from 'react-hot-toast';
+import notify, { TOAST_IDS } from '@/lib/utils/appToast';
+import { useBusiness } from '@/lib/context/BusinessContext';
+import { useDataOptional } from '@/lib/context/DataContext';
+import { usePermissions } from '@/lib/hooks/usePermissions';
+import { ProductThumbnail } from '@/components/product/ProductThumbnail';
+import { formatCurrency } from '@/lib/utils/formatting';
+import { VariantMatrixEditor } from './inventory/VariantMatrixEditor';
+import { BatchManager } from './inventory/BatchManager';
+import { SerialScanner } from './inventory/SerialScanner';
+import { PriceListManager } from './inventory/PriceListManager';
+import { DiscountSchemeManager } from './inventory/DiscountSchemeManager';
+import { StockReservation } from './inventory/StockReservation';
+import { StockAdjustmentManager } from './inventory/StockAdjustmentManager';
+import { AutoReorderManager } from './inventory/AutoReorderManager';
+import { StockTransferForm } from './inventory/StockTransferForm';
+import { LowStockAlerts } from './inventory/LowStockAlerts';
+import { CycleCountManager } from './inventory/CycleCountManager';
+import { exportProducts } from '@/lib/utils/export';
+import { productAPI } from '@/lib/api/product';
+import {
+  runWithConcurrency,
+  leanProductPayloadForCreate,
+  leanProductPayloadForUpdate,
+  formatInventoryActionError,
+} from '@/lib/utils/productMutationPayload';
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ProductForm } from './ProductForm';
+import { isSizeColorMatrixEnabled } from '@/lib/utils/domainHelpers';
+import {
+  filterMeaningfulBatches,
+  filterMeaningfulSerials,
+} from '@/lib/utils/inventoryTrackingHelpers';
+import { ProductDetailsDialog } from './ProductDetailsDialog';
+// CustomParametersManager reserved for future advanced inventory parameters UI
+import { ExcelModeModal } from './ExcelModeModal';
+import { ExcelImportModal } from './ExcelImportModal';
+import { SmartQuickAddModal } from './QuickAddProductModal';
+import { VisualInventoryQuickEdit } from './inventory/VisualInventoryQuickEdit';
+import { buildSparseDomainColumnVisibility } from '@/lib/utils/inventoryVisualColumnVisibility';
+import {
+  consumePendingInventoryFocus,
+  consumePendingExcelMode,
+  inventoryFocusModeToStockFilter,
+} from '@/lib/utils/hubNavigationIntent';
+import { resolveInventoryDomainFeatures } from '@/lib/utils/inventoryDomainFeatures';
+
+/**
+ * Inventory Manager Component
+ * A comprehensive dashboard for managing products, batches, serials, and inventory logistics.
+ */
+import { getProductsAction, getProductAction, deleteProductAction, createProductAction, updateProductAction, toggleProductActiveAction } from '@/lib/actions/standard/inventory/product';
+
+const SmartRestockEngine = dynamic(
+  () => import('./SmartRestockEngine').then((m) => m.SmartRestockEngine),
+  { ssr: false }
+);
+const DemandForecast = dynamic(
+  () => import('./DemandForecast').then((m) => m.DemandForecast),
+  { ssr: false }
+);
+const MultiLocationInventory = dynamic(
+  () => import('./MultiLocationInventory').then((m) => m.MultiLocationInventory),
+  { ssr: false }
+);
+const ManufacturingModule = dynamic(
+  () => import('./ManufacturingModule').then((m) => m.ManufacturingModule),
+  { ssr: false }
+);
+const QuotationOrderChallanManager = dynamic(
+  () => import('./QuotationOrderChallanManager').then((m) => m.QuotationOrderChallanManager),
+  { ssr: false }
+);
+
+/** Paged grid catalog for standalone InventoryManager (never unbounded findMany). */
+async function fetchInventoryGridPages(businessId, { pageSize = 200, maxPages = 50 } = {}) {
+  const all = [];
+  let offset = 0;
+  let hasMore = true;
+  let page = 0;
+  let lastError = null;
+  while (hasMore && page < maxPages) {
+    const res = await getProductsAction(businessId, {
+      includeSerials: false,
+      detailLevel: 'grid',
+      limit: pageSize,
+      offset,
+    });
+    if (!res?.success) {
+      lastError = res?.error || 'Failed to load inventory';
+      break;
+    }
+    const pageProducts = res.products || [];
+    all.push(...pageProducts);
+    hasMore = Boolean(res.hasMore);
+    offset += pageSize;
+    page += 1;
+    if (pageProducts.length === 0) break;
+  }
+  if (lastError && all.length === 0) {
+    return { success: false, error: lastError, products: [] };
+  }
+  return { success: true, products: all };
+}
+
+/** Normalize domain_data before merging, JSON strings must not be object-spread or saves corrupt */
+function parseProductDomainData(raw) {
+  if (raw == null) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return { ...raw };
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t || t === '[object Object]') return {};
+    try {
+      return JSON.parse(t);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+/** Same grid row whether keyed by persisted `id` or client-only `_tempId`. */
+function rowsMatchInventoryRow(p, row) {
+  if (!p || !row) return false;
+  if (row.id != null && row.id !== '') {
+    return p.id === row.id;
+  }
+  if (row._tempId) {
+    return p._tempId === row._tempId;
+  }
+  return false;
+}
+
+function readInventoryFieldValue(row, field, _domainKnowledge, category) {
+  if (!row || !field) return undefined;
+  return readGridCellValue(row, field, category);
+}
+
+function busyFieldValueUnchanged(prevVal, nextVal) {
+  if (prevVal === nextVal) return true;
+  if (typeof nextVal === 'number' && Number(prevVal) === nextVal) return true;
+  return String(prevVal ?? '') === String(nextVal ?? '');
+}
+
+/** Merge server payload without letting `undefined` wipe existing client fields. */
+function mergeInventoryServerRow(prev, srv) {
+  if (!srv || typeof srv !== 'object') return prev;
+  const out = { ...prev };
+  for (const [k, v] of Object.entries(srv)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * @param {Object} props
+ * @param {any[]} [props.products]
+ * @param {any[]} [props.invoices]
+ * @param {any[]} [props.customers]
+ * @param {any[]} [props.locations]
+ * @param {any[]} [props.bomList]
+ * @param {any[]} [props.productionOrders]
+ * @param {any[]} [props.quotations]
+ * @param {any[]} [props.salesOrders]
+ * @param {any[]} [props.challans]
+ * @param {any[]} [props.vendors]
+ * @param {string} props.businessId
+ * @param {string} [props.category]
+ * @param {any} [props.domainKnowledge]
+ * @param {() => void} [props.refreshData] Soft grid refresh after single-product mutations
+ * @param {() => void} [props.resyncCatalog] Full catalog resync (import, lean→grid upgrade)
+ * @param {Function} [props.onUpdate]
+ * @param {Function} [props.onAdd]
+ * @param {Function} [props.onEdit]
+ * @param {Function} [props.onDelete]
+ * @param {Function} [props.onIssueInvoice]
+ * @param {Function} [props.onLocationAdd]
+ * @param {Function} [props.onLocationUpdate]
+ * @param {Function} [props.onLocationDelete]
+ * @param {Function} [props.onStockTransfer]
+ * @param {Function} [props.onGeneratePO]
+ */
+export function InventoryManager({
+  products: initialProducts = [],
+  invoices = [],
+  customers = [],
+  locations = [],
+  bomList = [],
+  productionOrders = [],
+  quotations = [],
+  salesOrders = [],
+  challans = [],
+  vendors = [],
+  businessId,
+  category = 'retail-shop',
+  domainKnowledge = {},
+  onUpdate,
+  onAdd,
+  onEdit,
+  onDelete,
+  onIssueInvoice,
+  onLocationAdd,
+  onLocationUpdate,
+  onLocationDelete,
+  onStockTransfer,
+  onGeneratePO,
+  refreshData,
+  resyncCatalog,
+}) {
+  const { regionalStandards, currency, currencySymbol, regionalPack, business } = useBusiness();
+  const dataCtx = useDataOptional();
+  const upsertProductInState = dataCtx?.upsertProductInState;
+  const scheduleAnalyticsRefresh = dataCtx?.scheduleAnalyticsRefresh;
+  /** Prefer full catalog when provided; fall back to soft refresh for standalone hosts. */
+  const runCatalogResync = useCallback(async () => {
+    if (typeof resyncCatalog === 'function') {
+      await resyncCatalog();
+      return;
+    }
+    if (typeof refreshData === 'function') {
+      await refreshData();
+    }
+  }, [resyncCatalog, refreshData]);
+  const runSoftRefresh = useCallback(async () => {
+    if (typeof refreshData === 'function') {
+      await refreshData();
+      return;
+    }
+    if (typeof resyncCatalog === 'function') {
+      await resyncCatalog();
+    }
+  }, [refreshData, resyncCatalog]);
+  const standards = regionalStandards || {
+    currencySymbol: currencySymbol || '₨',
+    currency: currency || 'PKR',
+    taxLabel: regionalPack?.taxLabel || 'Sales Tax',
+    taxIdLabel: regionalPack?.taxIdLabel || 'NTN',
+    countryCode: regionalPack?.countryIso || 'PK',
+  };
+
+  // Helper to strictly deduplicate products and prevent React key errors
+  const deduplicateProducts = (items) => {
+    if (!items || !Array.isArray(items)) return [];
+    const seen = new Set();
+    return items.filter(item => {
+      const key = item.id || item._tempId;
+      if (key) {
+        if (seen.has(key)) return false;
+        seen.add(key);
+      }
+      return true;
+    });
+  };
+
+  // Initialize local state with strict deduplication + tenant scope.
+  // Parent remounts via key={businessId}; this sync only scopes soft-merges.
+  const [products, setProducts] = useState(() =>
+    deduplicateProducts(scopeProductsToBusiness(initialProducts, businessId))
+  );
+  /** Avoid hydration mismatch: server and client must not render different `Date` / locale strings. */
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [, setError] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setLastSyncedAt(new Date());
+    });
+  }, []);
+
+  // Sync internal state when prop changes (from parent refresh).
+  // Soft-merge by id so in-flight optimistic Busy edits are not hard-clobbered.
+  // Never keep rows whose business_id belongs to another shop.
+  useEffect(() => {
+    const next = deduplicateProducts(scopeProductsToBusiness(initialProducts || [], businessId));
+    queueMicrotask(() => {
+      setProducts((prev) => {
+        const scopedPrev = scopeProductsToBusiness(prev, businessId);
+        if (!Array.isArray(scopedPrev) || scopedPrev.length === 0) return next;
+        if ((prev || []).some((p) => isForeignTenantProduct(p, businessId))) return next;
+        const prevById = new Map(scopedPrev.filter((p) => p?.id).map((p) => [p.id, p]));
+        const temps = scopedPrev.filter((p) => p?._tempId && !p?.id);
+        const merged = next.map((n) => {
+          if (!n?.id) return n;
+          const existing = prevById.get(n.id);
+          return existing ? mergeInventoryServerRow(existing, n) : n;
+        });
+        return deduplicateProducts([...temps, ...merged]);
+      });
+      setLastSyncedAt(new Date());
+    });
+  }, [initialProducts, businessId]);
+
+  // Internal Data Fetching (Only if products not passed or empty, and not controlled by parent)
+  const fetchProducts = useCallback(async () => {
+    // If businessId missing OR products provided OR parent controls data refresh => SKIP
+    if (!businessId || (initialProducts?.length > 0) || refreshData || resyncCatalog) return;
+    setLoading(true);
+    try {
+      const res = await fetchInventoryGridPages(businessId);
+      if (res.success) {
+        setProducts(deduplicateProducts(scopeProductsToBusiness(res.products, businessId)));
+        setLastSyncedAt(new Date());
+      } else {
+        setError(res.error);
+        toast.error('Failed to load inventory');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Connection error');
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId, refreshData, resyncCatalog]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void fetchProducts();
+    });
+  }, [fetchProducts]);
+
+  const refreshInventory = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (typeof resyncCatalog === 'function' || typeof refreshData === 'function') {
+        await runCatalogResync();
+      } else if (businessId) {
+        const res = await fetchInventoryGridPages(businessId);
+        if (res.success) {
+          setProducts(deduplicateProducts(res.products));
+        } else {
+          toast.error(res.error || 'Failed to refresh inventory');
+          return;
+        }
+      }
+      setLastSyncedAt(new Date());
+      toast.success('Inventory refreshed', { duration: 1200 });
+    } catch (err) {
+      console.error(err);
+      toast.error('Refresh failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [resyncCatalog, refreshData, runCatalogResync, businessId]);
+
+  const reloadProductsSilent = useCallback(async () => {
+    if (typeof resyncCatalog === 'function' || typeof refreshData === 'function') {
+      await runSoftRefresh();
+      return;
+    }
+    if (businessId) {
+      const res = await fetchInventoryGridPages(businessId);
+      if (res.success) {
+        setProducts(deduplicateProducts(res.products));
+      }
+    }
+  }, [resyncCatalog, refreshData, runSoftRefresh, businessId]);
+
+  const hasQuickAddTemplates = useMemo(
+    () => getTemplatesForDomain(category).length > 0,
+    [category]
+  );
+
+  /** Direct create fallback when composite `onUpdate` is unavailable. */
+  const createProductDirect = async (productData) => {
+    setLoading(true);
+    try {
+      const res = await createProductAction({
+        ...productData,
+        business_id: businessId,
+      });
+      if (res.success) {
+        setProducts((prev) => [res.product, ...prev]);
+        notify.compactSave('Created');
+        onAdd?.(res.product);
+        return res.product;
+      }
+      toast.error(res.error || 'Failed to create product');
+      return null;
+    } catch (error) {
+      console.error('Quick Add Error:', error);
+      toast.error('An error occurred');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Create via composite upsert (unified path for all creates).
+   * Always routes through onUpdate/handleSaveProduct when available for consistent ledger.
+   */
+  const handleCreateProduct = async (productData, opts = {}) => {
+    const { closeForm = true, silentToast = false } = opts;
+
+    if (typeof onUpdate === 'function') {
+      try {
+        setLoading(true);
+        await onUpdate(buildFlatOnUpdatePayload(productData));
+
+        if (!silentToast) {
+          notify.compactSave('Created');
+        }
+        onAdd?.(productData);
+        if (closeForm) {
+          setShowProductFormInternal(false);
+          setEditingProduct(null);
+        }
+      } catch (error) {
+        console.error('Create error:', error);
+        toast.error(formatInventoryActionError(error));
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    await createProductDirect(productData);
+    if (closeForm) {
+      setShowProductFormInternal(false);
+      setEditingProduct(null);
+    }
+  };
+
+  // Handlers for CRUD to update local state immediately
+  const handleDeleteProduct = async (id) => {
+    // Optimistic Update
+    const old = [...products];
+    setProducts(prev => prev.filter(p => p.id !== id));
+    try {
+      const res = await deleteProductAction(id, businessId);
+      if (!res.success) {
+        setProducts(old); // Revert
+        toast.error(res.error || 'Failed to delete product');
+      } else {
+        toast.success('Product archived');
+        onDelete?.(id, { alreadyDeleted: true });
+      }
+    } catch (err) {
+      setProducts(old); // Revert on network error
+      console.error('Delete error:', err);
+      toast.error('Connection error while deleting');
+    }
+  };
+
+  // Toggle active/inactive without archiving
+  const handleToggleActive = async (product) => {
+    const newActive = !product.is_active;
+    const old = [...products];
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_active: newActive } : p));
+    try {
+      const res = await toggleProductActiveAction(product.id, businessId, newActive);
+      if (!res.success) {
+        setProducts(old);
+        toast.error(res.error || 'Failed to update status');
+      } else {
+        toast.success(newActive ? 'Product activated' : 'Product deactivated');
+      }
+    } catch (err) {
+      setProducts(old);
+      console.error('Toggle active error:', err);
+      toast.error('Connection error');
+    }
+  };
+
+  // Excel Import Handler
+  const handleExcelImport = async (importPayload) => {
+    // ExcelImportModal sends { rows: validatedRows[], file, selectedSheet }
+    // File objects cannot cross the server-action boundary, always use the
+    // already-parsed/validated rows directly.
+    const importedRows = Array.isArray(importPayload) ? importPayload : (importPayload?.rows || []);
+
+    if (!importedRows.length) {
+      toast.error('No rows to import');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await productAPI.bulkImport(businessId, importedRows, {
+        category,
+        allowDuplicates: false,
+        skipExisting: false
+      });
+      
+      const failed = Array.isArray(res?.warnings) ? res.warnings.length : 0;
+      const errRows = Array.isArray(res?.errors) ? res.errors.length : 0;
+      const failCount = Math.max(failed, errRows);
+      if (failCount > 0) {
+        toast.success(
+          `Import: ${res.imported || 0} added, ${res.updated || 0} updated, ${failCount} row(s) skipped.`
+        );
+      } else {
+        toast.success(`Import completed: ${res.imported} imported, ${res.updated} updated.`);
+      }
+      setShowImportModal(false);
+      
+      // Full catalog resync — import can add/update many rows
+      if (typeof resyncCatalog === 'function' || typeof refreshData === 'function') {
+        await runCatalogResync();
+      } else {
+        await fetchProducts();
+      }
+    } catch (error) {
+      console.error('Excel import error:', error);
+      toast.error(`Import failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // State Management
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [activeTab, setActiveTab] = useState('products');
+  const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
+  const [viewMode, setViewMode] = useState('visual');
+  const isCompactViewport = useCompactViewport();
+  const [mobileViewMode, setMobileViewMode] = useState(() =>
+    typeof window !== 'undefined' ? readInventoryMobileViewPreference() : DEFAULT_INVENTORY_MOBILE_VIEW
+  );
+
+  const handleViewModeChange = useCallback((mode) => {
+    setViewMode(mode);
+    const normalized = normalizeInventoryMobileView(mode);
+    setMobileViewMode(normalized);
+    writeInventoryMobileViewPreference(normalized);
+  }, [setViewMode, setMobileViewMode]);
+
+  const gridUpgradeInFlightRef = useRef(false);
+  const needsLeanGridUpgrade = useMemo(
+    () =>
+      products.some(
+        (p) => p?._detailLevel === 'list' || p?._batchesDeferred || p?._variantsDeferred
+      ),
+    [products]
+  );
+
+  // Busy/Excel need batch + full variant fields; shell paints lean list for Visual first.
+  useEffect(() => {
+    if (viewMode !== 'busy' && viewMode !== 'cards') return;
+    if (!businessId || !needsLeanGridUpgrade || gridUpgradeInFlightRef.current) return;
+    gridUpgradeInFlightRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (typeof resyncCatalog === 'function' || typeof refreshData === 'function') {
+          await runCatalogResync();
+        } else {
+          const res = await fetchInventoryGridPages(businessId);
+          if (!cancelled && res.success) {
+            setProducts(deduplicateProducts(scopeProductsToBusiness(res.products, businessId)));
+          }
+        }
+      } catch (err) {
+        console.warn('Inventory grid upgrade skipped:', err?.message || err);
+      } finally {
+        if (!cancelled) gridUpgradeInFlightRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, businessId, refreshData, resyncCatalog, runCatalogResync, needsLeanGridUpgrade]);
+
+  const handleMobileViewModeChange = useCallback((mode) => {
+    const normalized = normalizeInventoryMobileView(mode);
+    setMobileViewMode(normalized);
+    writeInventoryMobileViewPreference(normalized);
+    if (normalized === 'visual' || normalized === 'busy' || normalized === 'cards') {
+      setViewMode(normalized);
+    }
+  }, [setViewMode, setMobileViewMode]);
+
+  const [showBatchManager, setShowBatchManager] = useState(false);
+  const [showSerialScanner, setShowSerialScanner] = useState(false);
+  const [showVariantEditor, setShowVariantEditor] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [showProductFormInternal, setShowProductFormInternal] = useState(false);
+  const [productToView, setProductToView] = useState(null);
+  const [productToDelete, setProductToDelete] = useState(null);
+
+  // Clear row menus / editors when the active shop changes.
+  useEffect(() => {
+    setSelectedProduct(null);
+    setEditingProduct(null);
+    setProductToView(null);
+    setProductToDelete(null);
+    setShowProductFormInternal(false);
+  }, [businessId]);
+  const [productsToBulkDelete, setProductsToBulkDelete] = useState([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [activeDomainFilters, setActiveDomainFilters] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [showExcelMode, setShowExcelMode] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [showStockAdjustment, setShowStockAdjustment] = useState(false);
+  const [showStockTransferForm, setShowStockTransferForm] = useState(false);
+
+  const buildFlatOnUpdatePayload = useCallback(
+    (row, { productId } = {}) => {
+      const mapped = mapExcelRowForSave({ ...row, business_id: businessId }, category);
+      const original = productId ? products.find((p) => p.id === productId) : null;
+      const batches = filterMeaningfulBatches(mapped.batches ?? original?.batches ?? []);
+      const serials = filterMeaningfulSerials(
+        mapped.serial_numbers ??
+          mapped.serialNumbers ??
+          original?.serial_numbers ??
+          original?.serialNumbers ??
+          []
+      );
+      const flat = {
+        ...leanProductPayloadForUpdate(mapped),
+        business_id: businessId,
+        batches,
+        serial_numbers: serials,
+      };
+      if (productId) flat.id = productId;
+      return flat;
+    },
+    [businessId, category, products]
+  );
+
+  /** Per persisted product id: monotonically increasing save generation to drop stale async results. */
+  const busyCellSaveGenRef = useRef(new Map());
+  /** Busy inline draft rows (_tempId): create at most once per temp id after name is set. */
+  const busyDraftCreateRef = useRef(new Set());
+
+  // Helper: Extract batches from Excel row (including flat Excel columns)
+  const extractBatchesFromExcelRow = (row) => {
+    // Start with existing batches array from the row
+    const existingBatches = Array.isArray(row.batches) ? row.batches : [];
+    
+    // If Excel batch columns were filled, merge into batches array
+    if (row.batch_number && String(row.batch_number).trim()) {
+      const batchQty = row.batch_quantity || row.batch_qty || row.stock || 0;
+      
+      // Check if this batch already exists in array (by batch_number)
+      const existingBatch = existingBatches.find(
+        b => b.batch_number === row.batch_number || b.batchNumber === row.batch_number
+      );
+      
+      if (existingBatch) {
+        // Update existing batch
+        existingBatch.quantity = Number(batchQty);
+        existingBatch.expiry_date = row.expiry_date || existingBatch.expiry_date || null;
+        existingBatch.manufacturing_date = row.manufacturing_date || existingBatch.manufacturing_date || null;
+        existingBatch.cost_price = Number(row.cost_price || row.costPrice || existingBatch.cost_price || 0);
+      } else {
+        // Add new batch from Excel columns
+        existingBatches.push({
+          batch_number: row.batch_number,
+          batchNumber: row.batch_number, // Support both snake_case and camelCase
+          quantity: Number(batchQty),
+          expiry_date: row.expiry_date || null,
+          expiryDate: row.expiry_date || null,
+          manufacturing_date: row.manufacturing_date || null,
+          manufacturingDate: row.manufacturing_date || null,
+          cost_price: Number(row.cost_price || row.costPrice || 0),
+          costPrice: Number(row.cost_price || row.costPrice || 0),
+          warehouse_id: row.warehouse_id || null,
+          warehouseId: row.warehouse_id || null,
+        });
+      }
+    }
+    
+    // Filter out empty batches using helper (meaningful batch validation)
+    return filterMeaningfulBatches(existingBatches);
+  };
+
+  // Helper: Extract serials from Excel row (comma/semicolon/newline-separated string to array)
+  const extractSerialsFromExcelRow = (row) => {
+    // Start with existing serials array from the row
+    const existingSerials = Array.isArray(row.serial_numbers || row.serialNumbers)
+      ? (row.serial_numbers || row.serialNumbers)
+      : [];
+
+    // If Excel serial_number column was filled (comma-separated or multi-line string)
+    if (row.serial_number && typeof row.serial_number === 'string') {
+      const serialString = String(row.serial_number).trim();
+      if (serialString) {
+        // Split by comma, semicolon, newline, or pipe
+        const serialList = serialString
+          .split(/[,;\n|]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        serialList.forEach((sn) => {
+          // Avoid duplicates
+          const isDuplicate = existingSerials.some(
+            (existing) => (existing.serial_number || existing.serialNumber) === sn
+          );
+          if (!isDuplicate) {
+            existingSerials.push({
+              serial_number: sn,
+              serialNumber: sn, // Support both snake_case and camelCase
+              status: 'available',
+              imei: row.imei || null,
+              warehouse_id: row.warehouse_id || null,
+              warehouseId: row.warehouse_id || null,
+            });
+          }
+        });
+      }
+    }
+
+    // Filter out empty serials using helper (meaningful serial validation)
+    return filterMeaningfulSerials(existingSerials);
+  };
+
+  const handleExcelSave = async (updatedData) => {
+    setLoading(true);
+    const results = { updated: 0, created: 0, failed: 0 };
+
+    try {
+      // Find what actually changed or is new
+      const changedItems = updatedData.filter(item => {
+        // New item (has _tempId but no real ID)
+        if (item._tempId && !item.id) return true;
+
+        // Edited item (compare with original)
+        const original = products.find((p) => rowsMatchInventoryRow(p, item));
+        if (!original) return true; // Should not happen for edits
+
+        return inventoryRowsDiffer(original, mapExcelRowForSave(item, category));
+      });
+
+      if (changedItems.length === 0) {
+        toast('No changes to save', { id: 'excel-no-changes', duration: 2000 });
+        setShowExcelMode(false);
+        setLoading(false);
+        return;
+      }
+
+      toast.loading(`Saving ${changedItems.length} changes...`, { id: 'excel-save' });
+
+      const useCompositeSave = typeof onUpdate === 'function' && businessId;
+      const successfulTempIds = new Set();
+      // compositeSuccess tracking removed — bulk results checked via results.created/updated
+      let compositeProducts = [];
+
+      if (useCompositeSave) {
+        const bulkItems = changedItems.map((item) => {
+          const mapped = mapExcelRowForSave(item, category);
+          const isNew = Boolean(mapped._tempId && !mapped.id);
+          const original = !isNew ? products.find((p) => rowsMatchInventoryRow(p, mapped)) : null;
+          
+          // Extract batches from Excel columns + existing batches array
+          const extractedBatches = extractBatchesFromExcelRow(mapped);
+          
+          // Extract serials from Excel serial_number column (comma-separated string)
+          const extractedSerials = extractSerialsFromExcelRow(mapped);
+          
+          const rowForComposite = isNew
+            ? { ...mapped, batches: extractedBatches, serial_numbers: extractedSerials }
+            : {
+                ...mapped,
+                batches: extractedBatches.length > 0 
+                  ? extractedBatches 
+                  : filterMeaningfulBatches(original?.batches ?? mapped.batches ?? []),
+                serial_numbers: extractedSerials.length > 0
+                  ? extractedSerials
+                  : filterMeaningfulSerials(
+                      original?.serial_numbers ??
+                        original?.serialNumbers ??
+                        mapped.serial_numbers ??
+                        mapped.serialNumbers ??
+                        []
+                    ),
+              };
+          const params = prepareCompositeUpsertFromRow(rowForComposite, category, businessId);
+          params.productData = isNew
+            ? leanProductPayloadForCreate(params.productData)
+            : { ...leanProductPayloadForUpdate(params.productData), id: mapped.id };
+          return params;
+        });
+
+        const bulkRes = await productAPI.bulkUpsertIntegrated(businessId, bulkItems);
+        results.created = bulkRes.created ?? 0;
+        results.updated = bulkRes.updated ?? 0;
+        results.failed = bulkRes.failed?.length ?? 0;
+        compositeProducts = Array.isArray(bulkRes.products) ? bulkRes.products : [];
+        // results tracked via results.created/updated counters
+        changedItems.forEach((item, idx) => {
+          if (item._tempId && !bulkRes.failed?.some((f) => f.index === idx)) {
+            successfulTempIds.add(item._tempId);
+          }
+        });
+        if (bulkRes.failed?.length) {
+          bulkRes.failed.forEach((f) => {
+            console.error(`Failed to save row ${f.index + 1} (${f.name}):`, f.error);
+          });
+        }
+      } else {
+        const settled = await runWithConcurrency(changedItems, 5, async (item) => {
+          const mapped = mapExcelRowForSave(item, category);
+          const isNew = Boolean(mapped._tempId && !mapped.id);
+
+          if (isNew) {
+            const res = await createProductAction(
+              leanProductPayloadForCreate({ ...mapped, business_id: businessId })
+            );
+            return { mode: 'action', res, item: mapped, isNew };
+          }
+          const res = await updateProductAction(mapped.id, businessId, leanProductPayloadForUpdate(mapped));
+          return { mode: 'action', res, item: mapped, isNew: false };
+        });
+
+        const activeUpdates = [];
+        const newRealItems = [];
+
+        for (const result of settled) {
+          if (result.status === 'fulfilled') {
+            const { res, item, isNew } = result.value;
+            if (res.success) {
+              if (isNew) {
+                results.created++;
+                successfulTempIds.add(item._tempId);
+                newRealItems.push(res.product);
+              } else {
+                results.updated++;
+                activeUpdates.push(res.product);
+              }
+            } else {
+              results.failed++;
+              console.error(`Failed to save item ${item.name}:`, res.error);
+            }
+          } else {
+            results.failed++;
+            console.error('Error saving item:', result.reason);
+          }
+        }
+
+        setProducts((prev) => {
+          let next = prev.filter((p) => !p._tempId || !successfulTempIds.has(p._tempId));
+          if (activeUpdates.length > 0) {
+            const updateMap = new Map(activeUpdates.map((u) => [u.id, u]));
+            next = next.map((p) => updateMap.get(p.id) || p);
+          }
+          if (newRealItems.length > 0) {
+            next = [...next, ...newRealItems];
+          }
+          const seen = new Set();
+          return next.filter((p) => {
+            const key = p.id || p._tempId;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        });
+      }
+
+      if (useCompositeSave && results.created + results.updated > 0) {
+        const savedProducts = compositeProducts;
+        if (savedProducts.length > 0) {
+          const byId = new Map(savedProducts.map((p) => [p.id, p]));
+          setProducts((prev) => {
+            let next = prev.filter((p) => !p._tempId || !successfulTempIds.has(p._tempId));
+            next = next.map((p) => (p.id && byId.has(p.id) ? mergeInventoryServerRow(p, byId.get(p.id)) : p));
+            for (const p of savedProducts) {
+              if (p?.id && !next.some((row) => row.id === p.id)) {
+                next = [p, ...next];
+              }
+            }
+            return deduplicateProducts(next);
+          });
+          if (typeof upsertProductInState === 'function') {
+            savedProducts.forEach((p) => upsertProductInState(p));
+          }
+          scheduleAnalyticsRefresh?.();
+        } else {
+          try {
+            await reloadProductsSilent();
+          } catch (e) {
+            console.warn('[handleExcelSave] reload after composite save:', e);
+            setProducts((prev) => {
+              let next = prev.filter((p) => !p._tempId || !successfulTempIds.has(p._tempId));
+              for (const item of changedItems) {
+                const mapped = mapExcelRowForSave(item, category);
+                if (mapped.id) {
+                  next = next.map((p) =>
+                    p.id === mapped.id ? preserveRelationalData({ ...p, ...mapped }, p) : p
+                  );
+                }
+              }
+              return next;
+            });
+          }
+        }
+      }
+
+      toast.dismiss('excel-save');
+
+      if (results.failed === 0) {
+        const parts = [];
+        if (results.updated) parts.push(`${results.updated} updated`);
+        if (results.created) parts.push(`${results.created} created`);
+        notify.compactSave(parts.length ? parts.join(', ') : 'Saved', {
+          id: TOAST_IDS.INVENTORY_EXCEL,
+          duration: 1800,
+        });
+        setShowExcelMode(false);
+      } else {
+        toast.error(
+          `Excel Save partially failed: ${results.failed} errors. ${results.updated + results.created} saved.`,
+          { id: 'excel-save-result', duration: 6000 }
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      toast.dismiss('excel-save');
+      toast.error(formatInventoryActionError(err), { id: 'excel-save-result', duration: 5000 });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Products are filtered by the parent (DashboardTabs) based on global search
+  // Here we apply additional domain-specific filters (Stock Level, Category, Brand, Price)
+  const productsToDisplay = useMemo(() => {
+    const num = (v, fallback = 0) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    return products.filter(p => {
+      // 0. Search Term Filter (Name, SKU, Barcode, Brand, Category)
+      const normalizedTerm = String(searchTerm || '').trim().toLowerCase();
+      if (normalizedTerm) {
+        const searchable = [
+          p.name,
+          p.sku,
+          p.barcode,
+          p.brand,
+          p.category
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        if (!searchable.includes(normalizedTerm)) return false;
+      }
+
+      const stockVal = num(p.stock, 0);
+      const priceVal = num(p.price, 0);
+
+      // 1. Stock Category Filter
+      if (activeDomainFilters.stock === 'low') {
+        const minStock = num(p.min_stock ?? p.minStock, 10);
+        const isLow = stockVal <= minStock;
+        if (!isLow) return false;
+      } else if (activeDomainFilters.stock === 'out') {
+        if (stockVal > 0) return false;
+      } else if (activeDomainFilters.stock === 'expiring') {
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        const hasExpiry =
+          (p.expiry_date && new Date(p.expiry_date) <= thirtyDaysFromNow) ||
+          p.batches?.some((b) => b.expiry_date && new Date(b.expiry_date) <= thirtyDaysFromNow);
+        if (!hasExpiry) return false;
+      } else if (activeDomainFilters.stock === 'normal') {
+        const minStock = num(p.min_stock ?? p.minStock, 10);
+        const isNormal = stockVal > minStock;
+        if (!isNormal) return false;
+      } else if (activeDomainFilters.stock === 'high') {
+        const minStock = num(p.min_stock ?? p.minStock, 10);
+        const isHigh = stockVal > minStock * 3; // Example heuristic
+        if (!isHigh) return false;
+      }
+
+      // 2. Active / Inactive status filter
+      if (activeDomainFilters.status === 'active' && p.is_active === false) return false;
+      if (activeDomainFilters.status === 'inactive' && p.is_active !== false) return false;
+
+      // 3. Local Category Filter
+      if (activeDomainFilters.category && p.category !== activeDomainFilters.category) {
+        return false;
+      }
+
+      // 3. Brand Filter
+      if (activeDomainFilters.brand && p.brand !== activeDomainFilters.brand) {
+        return false;
+      }
+
+      // 4. Price Range Filter
+      if (activeDomainFilters.minPrice) {
+        if (priceVal < Number(activeDomainFilters.minPrice)) return false;
+      }
+      if (activeDomainFilters.maxPrice) {
+        if (priceVal > Number(activeDomainFilters.maxPrice)) return false;
+      }
+
+      return true;
+    });
+  }, [products, activeDomainFilters, searchTerm]);
+
+  // Derive unique options for filters
+  const categoryOptions = useMemo(() => {
+    const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+    return categories.map(c => ({ value: c, label: c }));
+  }, [products]);
+
+  const brandOptions = useMemo(() => {
+    const brands = [...new Set(products.map(p => p.brand).filter(Boolean))];
+    return brands.map(b => ({ value: b, label: b }));
+  }, [products]);
+
+  const handleBulkDelete = (items) => {
+    setProductsToBulkDelete(items);
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    const toDelete = [...productsToBulkDelete];
+    setShowBulkDeleteConfirm(false);
+    setProductsToBulkDelete([]);
+    setLoading(true);
+    
+    const toastId = toast.loading(`Archiving ${toDelete.length} products...`);
+    try {
+      const results = await runWithConcurrency(toDelete, 5, (p) =>
+        deleteProductAction(p.id, businessId)
+      );
+
+      let successCount = 0;
+      let failed = 0;
+      const idsToKeep = [];
+
+      results.forEach((result, index) => {
+        const product = toDelete[index];
+        if (result.status === 'fulfilled' && result.value.success) {
+          successCount++;
+          onDelete?.(product.id, { alreadyDeleted: true });
+        } else {
+          failed++;
+          idsToKeep.push(product.id);
+          const errorMsg = result.status === 'rejected' ? result.reason.message : result.value.error;
+          console.error(`Bulk delete failed for ${product.id}:`, errorMsg);
+        }
+      });
+
+      // Update products state in one batch to trigger only one render pass
+      setProducts(prev => prev.filter(p => !toDelete.some(x => x.id === p.id) || idsToKeep.includes(p.id)));
+
+      if (failed === 0) {
+        toast.success(`Archived ${successCount} product${successCount !== 1 ? 's' : ''}`, { id: toastId });
+      } else {
+        toast.error(`Archived ${successCount}; ${failed} failed`, { id: toastId });
+      }
+    } catch (err) {
+      console.error('Parallel bulk archive failed:', err);
+      toast.error('Failed to complete bulk archive', { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // Domain Feature Flags
+  const inventoryFeatures = useMemo(
+    () =>
+      resolveInventoryDomainFeatures(category, {
+        domainKnowledge,
+        business,
+        countryIso: regionalPack?.countryIso || standards.countryCode,
+      }),
+    [category, domainKnowledge, business, regionalPack?.countryIso, standards.countryCode]
+  );
+
+  const isBatchEnabled = inventoryFeatures.batchTrackingEnabled;
+  const isSerialEnabled = inventoryFeatures.serialTrackingEnabled;
+  const isExpiryEnabled = inventoryFeatures.expiryTrackingEnabled;
+  const isMultiLocationEnabled = inventoryFeatures.multiLocationEnabled;
+  const isManufacturingEnabled = inventoryFeatures.manufacturingEnabled;
+  const isVariantEnabled =
+    inventoryFeatures.sizeColorMatrixEnabled || isSizeColorMatrixEnabled(category);
+
+  const { can, planCan } = usePermissions();
+  const canCreateInventory = can('inventory.create');
+  const canEditInventory = can('inventory.edit');
+  const canDeleteInventory = can('inventory.delete');
+  const canAdjustInventory = can('inventory.adjust_stock');
+  const canTransferInventory = can('inventory.transfer') && planCan('multi_warehouse');
+  const showMultiWarehouseUi = isMultiLocationEnabled && planCan('multi_warehouse');
+  const showAiRestock = planCan('ai_restock');
+
+  const gridColumnOptions = useMemo(
+    () => ({
+      currencySymbol: standards.currencySymbol,
+      business,
+      domainKnowledge: inventoryFeatures.knowledge,
+      countryIso: regionalPack?.countryIso || standards.countryCode,
+    }),
+    [
+      standards.currencySymbol,
+      business,
+      inventoryFeatures.knowledge,
+      regionalPack?.countryIso,
+      standards.countryCode,
+    ]
+  );
+
+  const handleScannedProductDiscovered = useCallback((product) => {
+    if (!product?.id) return;
+    setProducts((prev) => mergeScannedProductIntoList(prev, product));
+  }, []);
+
+  const { applyScanToInventory } = useInventoryScan({
+    products,
+    businessId,
+    isSerialEnabled,
+    onProductDiscovered: handleScannedProductDiscovered,
+  });
+
+  const barcodeScanAllowed = canUseBarcodeScan(business);
+
+  const inventoryWriteCapabilities = useMemo(
+    () => ({
+      canCreate: canCreateInventory,
+      canEdit: canEditInventory,
+      canDelete: canDeleteInventory,
+      canAdjustStock: canAdjustInventory,
+      canTransferStock: canTransferInventory,
+      canScanBarcode: barcodeScanAllowed,
+      canExport: can('inventory.view'),
+    }),
+    [
+      canCreateInventory,
+      canEditInventory,
+      canDeleteInventory,
+      canAdjustInventory,
+      canTransferInventory,
+      barcodeScanAllowed,
+      can,
+    ]
+  );
+
+  const openProductAdd = useCallback(() => {
+    if (!canCreateInventory) {
+      toast.error('You do not have permission to add products');
+      return;
+    }
+    if (onAdd) {
+      onAdd();
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('open-modal', { detail: { modalId: 'product' } }));
+    }
+  }, [onAdd, canCreateInventory]);
+
+  const loadFullProductIfDeferred = useCallback(async (product) => {
+    if (!product?.id || !businessId) return product;
+    const needsHydrate =
+      product._serialsDeferred ||
+      product._batchesDeferred ||
+      product._variantsDeferred ||
+      product._detailLevel === 'list';
+    if (!needsHydrate) return product;
+    try {
+      const res = await getProductAction(businessId, product.id);
+      if (res.success && res.product) {
+        return mergeInventoryServerRow(product, res.product);
+      }
+    } catch (error) {
+      console.warn('Deferred product hydrate skipped:', error?.message || error);
+    }
+    return product;
+  }, [businessId]);
+
+  const openProductView = useCallback(async (product) => {
+    const hydrated = await loadFullProductIfDeferred(product);
+    setProductToView(hydrated);
+  }, [loadFullProductIfDeferred, setProductToView]);
+
+  const openProductEdit = useCallback(async (product) => {
+    if (!canEditInventory) {
+      await openProductView(product);
+      return;
+    }
+    if (onEdit) {
+      onEdit(product);
+      return;
+    }
+    const hydrated = await loadFullProductIfDeferred(product);
+    setEditingProduct(hydrated);
+    setShowProductFormInternal(true);
+  }, [onEdit, canEditInventory, loadFullProductIfDeferred, openProductView, setEditingProduct, setShowProductFormInternal]);
+
+  const openBarcodeScanner = useCallback(() => {
+    if (!barcodeScanAllowed) {
+      toast.error('Barcode scanning requires Starter plan or higher');
+      return;
+    }
+    setShowBarcodeScanner(true);
+  }, [barcodeScanAllowed, setShowBarcodeScanner]);
+
+  const handleInventoryBarcodeScan = useCallback(async (code) => {
+    await applyScanToInventory(code, {
+      setActiveTab,
+      setSearchTerm,
+      setProductToView,
+      setSelectedProduct,
+      setShowSerialScanner,
+    });
+  }, [
+    applyScanToInventory,
+    setActiveTab,
+    setSearchTerm,
+    setProductToView,
+    setSelectedProduct,
+    setShowSerialScanner,
+  ]);
+
+  const countryIso = regionalPack?.countryIso || standards.countryCode || 'PK';
+
+  const getFieldSuggestions = useCallback(
+    (accessorKey, row) =>
+      getInventoryFieldSuggestions(accessorKey, {
+        category,
+        countryIso,
+        products,
+        row,
+      }),
+    [category, countryIso, products]
+  );
+
+  const handleUpdateProduct = async (productData, opts = {}) => {
+    const { closeForm = true } = opts;
+    const old = [...products];
+    try {
+      if (onUpdate) {
+        await onUpdate(buildFlatOnUpdatePayload(productData, { productId: productData.id }));
+        notify.compactSave('Updated');
+
+        if (closeForm) {
+          setShowProductFormInternal(false);
+          setEditingProduct(null);
+        }
+        return;
+      }
+      
+      // Fallback for controlled components without onUpdate
+      const res = await updateProductAction(productData.id, businessId, productData);
+      if (res.success) {
+        setProducts(prev => prev.map(p => p.id === productData.id ? res.product : p));
+        notify.compactSave('Updated');
+        setShowProductFormInternal(false);
+        setEditingProduct(null);
+        return res.product;
+      } else {
+        toast.error(res.error || 'Failed to update product');
+        throw new Error(res.error || 'Failed to update product');
+      }
+    } catch (err) {
+      setProducts(old);
+      console.error('Update error:', err);
+      toast.error(formatInventoryActionError(err), { id: 'inventory-product-update' });
+      throw err;
+    }
+  };
+
+  const executeExcelExport = useCallback(async () => {
+    toast.loading("Preparing export...", { id: 'inventory-export' });
+    try {
+      const result = await productAPI.bulkExport(businessId, {
+        includeBatches: true,
+        includeSerials: true,
+      });
+
+      const bytes = new Uint8Array(result.buffer || []);
+      const blob = new Blob([bytes], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.fileName || `inventory-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      if (result.roundTripValid === false) {
+        toast.success(`Exported ${result.recordCount || productsToDisplay.length} items (with warnings)`, { id: 'inventory-export' });
+      } else {
+        toast.success(`Exported ${result.recordCount || productsToDisplay.length} items successfully`, { id: 'inventory-export' });
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      // Fallback keeps export available if server-side export fails.
+      try {
+        await exportProducts(productsToDisplay, 'excel');
+        toast.success(`Exported ${productsToDisplay.length} items (fallback mode)`, { id: 'inventory-export' });
+      } catch {
+        toast.error('Failed to export inventory', { id: 'inventory-export' });
+      }
+    }
+  }, [businessId, productsToDisplay]);
+
+  // Keyboard Shortcuts for Tab Switching
+  useEffect(() => {
+    const tabSequence = [
+      'products',
+      showMultiWarehouseUi ? 'locations' : null,
+      isManufacturingEnabled ? 'manufacturing' : null,
+      'orders',
+      'reports',
+      isVariantEnabled ? 'variants' : null,
+      'pricing',
+    ].filter(Boolean);
+
+    const handleGlobalShortcuts = (e) => {
+      // ALT + 1..7 maps to visible tabs in current business domain
+      if (e.altKey && e.key >= '1' && e.key <= '7') {
+        const index = Number(e.key) - 1;
+        const target = tabSequence[index];
+        if (target) {
+          e.preventDefault();
+          setActiveTab(target);
+          toast.success(`Tab: ${target.toUpperCase()}`, { duration: 1000, position: 'bottom-center' });
+        }
+      }
+      // ALT + V (Visual), ALT + B (Busy), ALT + C (Cards)
+      if (e.altKey && ['v', 'b', 'c'].includes(e.key.toLowerCase())) {
+        const key = e.key.toLowerCase();
+        const mode = key === 'v' ? 'visual' : key === 'b' ? 'busy' : 'cards';
+        e.preventDefault();
+        setViewMode(mode);
+        toast.success(`Mode: ${mode.toUpperCase()}`, { duration: 1000, position: 'bottom-center' });
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [showMultiWarehouseUi, isManufacturingEnabled, isVariantEnabled]);
+
+  // Handle global events from Header Page Controls
+  const applyInventoryStockFocus = useCallback((mode) => {
+    const stockFilter = inventoryFocusModeToStockFilter(mode || 'low-stock');
+    setActiveTab('products');
+    setActiveDomainFilters((prev) => ({ ...prev, stock: stockFilter }));
+    setSearchTerm('');
+    const label =
+      stockFilter === 'out'
+        ? 'out of stock items'
+        : stockFilter === 'expiring'
+          ? 'expiring items'
+          : 'low stock items';
+    toast.success(`Showing ${label}`, { duration: 1400 });
+  }, [setActiveTab, setActiveDomainFilters, setSearchTerm]);
+
+  useEffect(() => {
+    const pending = consumePendingInventoryFocus();
+    if (pending) queueMicrotask(() => applyInventoryStockFocus(pending));
+  }, [applyInventoryStockFocus]);
+
+  useEffect(() => {
+    if (!consumePendingExcelMode()) return;
+    if (!canCreateInventory && !canEditInventory) return;
+    queueMicrotask(() => {
+      setActiveTab('products');
+      setShowExcelMode(true);
+    });
+  }, [canCreateInventory, canEditInventory]);
+
+  useEffect(() => {
+    const handleToggleFilters = () => {
+      // Focus the advanced search or toggle its visibility if we add a toggle state later
+      toast.success("Filters focused", { icon: '[SEARCH]' });
+      // Heuristic: Scroll to search or just show toast for now
+    };
+
+    const handleExportGlobal = () => {
+      executeExcelExport();
+    };
+
+    window.addEventListener('toggle-filters', handleToggleFilters);
+    window.addEventListener('export-data', handleExportGlobal);
+
+    const handleInventoryFocusLowStock = (e) => {
+      applyInventoryStockFocus(e.detail?.mode || 'low-stock');
+    };
+
+    const handleOpenExcelMode = () => {
+      consumePendingExcelMode();
+      if (!canCreateInventory && !canEditInventory) return;
+      setActiveTab('products');
+      setShowExcelMode(true);
+    };
+
+    window.addEventListener('inventory-focus-low-stock', handleInventoryFocusLowStock);
+    window.addEventListener('inventory-open-excel-mode', handleOpenExcelMode);
+
+    return () => {
+      window.removeEventListener('toggle-filters', handleToggleFilters);
+      window.removeEventListener('export-data', handleExportGlobal);
+      window.removeEventListener('inventory-focus-low-stock', handleInventoryFocusLowStock);
+      window.removeEventListener('inventory-open-excel-mode', handleOpenExcelMode);
+    };
+  }, [applyInventoryStockFocus, executeExcelExport, productsToDisplay, canCreateInventory, canEditInventory]);
+
+  // Demand forecasting (simple moving average)
+  const lowStockItems = useMemo(() => {
+    return products.filter((p) => {
+      const stock = Number(p.stock || 0);
+      const minStock = Number(p.min_stock ?? p.minStock ?? 0);
+      return stock <= minStock;
+    });
+  }, [products]);
+
+  const abcAnalysis = useMemo(() => {
+    const stockCost = (p) => Number(p.stock || 0) * Number(p.cost_price ?? p.costPrice ?? 0);
+    const sorted = [...products].sort((a, b) => stockCost(b) - stockCost(a));
+    const totalValue = sorted.reduce((sum, p) => sum + stockCost(p), 0);
+
+    return sorted.reduce(
+      (acc, p) => {
+        const value = stockCost(p);
+        const running = acc.running + value;
+        const percentage = totalValue > 0 ? (running / totalValue) * 100 : 0;
+        let category = 'C';
+        if (percentage <= 80) category = 'A';
+        else if (percentage <= 95) category = 'B';
+        return {
+          running,
+          rows: [...acc.rows, { ...p, category, value, percentage }],
+        };
+      },
+      { running: 0, rows: [] }
+    ).rows;
+  }, [products]);
+
+  const abcStats = useMemo(() => {
+    const totalCount = products.length || 1;
+    const aItems = abcAnalysis.filter(p => p.category === 'A');
+    const bItems = abcAnalysis.filter(p => p.category === 'B');
+    const cItems = abcAnalysis.filter(p => p.category === 'C');
+
+    const aValue = aItems.reduce((sum, p) => sum + (p.value || 0), 0);
+    const bValue = bItems.reduce((sum, p) => sum + (p.value || 0), 0);
+    const cValue = cItems.reduce((sum, p) => sum + (p.value || 0), 0);
+    const totalValue = aValue + bValue + cValue || 1;
+
+    return {
+      A: {
+        count: aItems.length,
+        pct: Math.round((aItems.length / totalCount) * 100),
+        valPct: Math.round((aValue / totalValue) * 100)
+      },
+      B: {
+        count: bItems.length,
+        pct: Math.round((bItems.length / totalCount) * 100),
+        valPct: Math.round((bValue / totalValue) * 100)
+      },
+      C: {
+        count: cItems.length,
+        pct: Math.round((cItems.length / totalCount) * 100),
+        valPct: Math.round((cValue / totalValue) * 100)
+      }
+    };
+  }, [abcAnalysis, products]);
+
+  const turnoverRate = useMemo(() => {
+    if (!products.length || !invoices.length) return '0.0';
+
+    const totalStock = products.reduce((sum, p) => sum + Number(p.stock || 0), 0);
+    if (totalStock === 0) return '0.0';
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentQtySold = invoices
+      .filter((inv) => new Date(inv.date) >= thirtyDaysAgo)
+      .reduce((sum, inv) => {
+        return sum + (inv.items?.reduce((isum, item) => isum + (Number(item.quantity) || 0), 0) || 0);
+      }, 0);
+
+    return (recentQtySold / totalStock).toFixed(1);
+  }, [products, invoices]);
+
+  const expiringCount = useMemo(() => {
+    if (!isExpiryEnabled) return 0;
+
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    return products.filter((p) => {
+      if (p.expiry_date && new Date(p.expiry_date) <= thirtyDaysFromNow) return true;
+      if (p.batches?.some((b) => new Date(b.expiry_date) <= thirtyDaysFromNow)) return true;
+      return false;
+    }).length;
+  }, [products, isExpiryEnabled]);
+
+  const getDomainBatchLabel = (cat) => {
+    switch (cat) {
+      case 'textile-wholesale': return 'ROLL / BALE';
+      case 'garments': return 'LOT INFO';
+      case 'electronics': return 'BATCH ID';
+      case 'food-beverages': return 'BATCH CODE';
+      default: return 'BATCH INFO';
+    }
+  };
+
+  const getDomainSerialLabel = (cat) => {
+    switch (cat) {
+      case 'mobile-phones':
+      case 'telecom': return 'IMEI LIST';
+      case 'auto-parts': return 'CHASSIS NO';
+      case 'electronics': return 'SERIALS';
+      default: return 'SERIALS';
+    }
+  };
+
+  const handleInventoryCellEdit = useCallback(async (product, field, value) => {
+    if (!canEditInventory) {
+      toast.error('You do not have permission to edit products');
+      return;
+    }
+    const scalarKey = field.includes('.') ? field.split('.').pop() : field;
+    const processedValue = processFieldValue(scalarKey, value);
+
+    const prevFieldVal = readInventoryFieldValue(product, field, domainKnowledge, category);
+    if (busyFieldValueUnchanged(prevFieldVal, processedValue)) {
+      return;
+    }
+
+    let     updatedProduct = mapProductField(
+      { ...product, domain_data: parseProductDomainData(product.domain_data) },
+      field,
+      value,
+      domainKnowledge,
+      category
+    );
+
+    if (field === 'unitcost' || field === 'domain_data.unitcost') {
+      const n = Number(processedValue);
+      if (Number.isFinite(n) && n >= 0) updatedProduct.cost_price = n;
+    }
+    if (field === 'domain_data.vehiclemake') {
+      updatedProduct.brand = processedValue;
+    }
+
+    const originalProduct = products.find((p) => rowsMatchInventoryRow(p, product));
+    updatedProduct = preserveRelationalData(updatedProduct, originalProduct);
+
+    const meaningfulBatches = isBatchEnabled
+      ? filterMeaningfulBatches(originalProduct?.batches || updatedProduct.batches || [])
+      : [];
+    const meaningfulSerials = isSerialEnabled
+      ? filterMeaningfulSerials(
+          originalProduct?.serial_numbers ||
+            originalProduct?.serialNumbers ||
+            updatedProduct.serial_numbers ||
+            updatedProduct.serialNumbers ||
+            []
+        )
+      : [];
+    updatedProduct.batches = meaningfulBatches;
+    updatedProduct.serial_numbers = meaningfulSerials;
+
+    if (!updatedProduct?.id) {
+      setProducts((prev) =>
+        prev.map((p) => (rowsMatchInventoryRow(p, product) ? updatedProduct : p))
+      );
+      const tempKey = updatedProduct._tempId != null ? String(updatedProduct._tempId) : '';
+      const trimmedName = String(updatedProduct.name || '').trim();
+      if (
+        tempKey &&
+        trimmedName &&
+        typeof onUpdate === 'function' &&
+        !busyDraftCreateRef.current.has(tempKey)
+      ) {
+        busyDraftCreateRef.current.add(tempKey);
+        try {
+          await handleCreateProduct(
+            { ...updatedProduct, business_id: businessId },
+            { closeForm: false, silentToast: true }
+          );
+          notify.compactSave('Created');
+          setProducts((prev) => prev.filter((p) => p._tempId !== updatedProduct._tempId));
+        } catch (createErr) {
+          busyDraftCreateRef.current.delete(tempKey);
+          console.error('Inventory draft create failed:', createErr);
+          throw createErr;
+        }
+      }
+      return;
+    }
+
+    const saveKey = String(updatedProduct.id);
+    const gen = (busyCellSaveGenRef.current.get(saveKey) || 0) + 1;
+    busyCellSaveGenRef.current.set(saveKey, gen);
+
+    const oldProducts = [...products];
+    setProducts((prev) =>
+      prev.map((p) => (rowsMatchInventoryRow(p, product) ? updatedProduct : p))
+    );
+
+    try {
+      if (onUpdate) {
+        const mappedForSave = mapExcelRowForSave(updatedProduct, category);
+        const saved = await onUpdate({
+          ...leanProductPayloadForUpdate(mappedForSave),
+          id: updatedProduct.id,
+          business_id: businessId,
+          batches:
+            meaningfulBatches.length > 0
+              ? meaningfulBatches
+              : filterMeaningfulBatches(mappedForSave.batches ?? originalProduct?.batches ?? []),
+          serial_numbers:
+            meaningfulSerials.length > 0
+              ? meaningfulSerials
+              : filterMeaningfulSerials(
+                  mappedForSave.serial_numbers ??
+                    mappedForSave.serialNumbers ??
+                    originalProduct?.serial_numbers ??
+                    originalProduct?.serialNumbers ??
+                    []
+                ),
+        });
+        if (busyCellSaveGenRef.current.get(saveKey) !== gen) return;
+        // Prefer patch from composite return — avoid a second full catalog fetch.
+        if (saved?.id) {
+          setProducts((prev) =>
+            prev.map((p) =>
+              rowsMatchInventoryRow(p, product) ? mergeInventoryServerRow(p, saved) : p
+            )
+          );
+          notify.compactSave('Saved');
+        } else {
+          await reloadProductsSilent();
+          notify.compactSave('Saved');
+        }
+      } else {
+        const saveRes = await updateProductAction(updatedProduct.id, businessId, updatedProduct);
+        if (busyCellSaveGenRef.current.get(saveKey) !== gen) return;
+        if (!saveRes?.success) {
+          throw new Error(saveRes?.error || 'Failed to persist update');
+        }
+        if (saveRes.product) {
+          setProducts((prev) =>
+            prev.map((p) => {
+              if (!rowsMatchInventoryRow(p, product)) return p;
+              const srv = saveRes.product;
+              const merged = mergeInventoryServerRow(p, srv);
+              const next = {
+                ...merged,
+                batches:
+                  meaningfulBatches.length > 0
+                    ? meaningfulBatches
+                    : Array.isArray(srv.batches) && srv.batches.length > 0
+                      ? srv.batches
+                      : p.batches || [],
+                serial_numbers:
+                  meaningfulSerials.length > 0
+                    ? meaningfulSerials
+                    : Array.isArray(srv.serial_numbers) && srv.serial_numbers.length > 0
+                      ? srv.serial_numbers
+                      : p.serial_numbers || p.serialNumbers || [],
+                variants:
+                  Array.isArray(srv.variants) && srv.variants.length > 0
+                    ? srv.variants
+                    : p.variants || [],
+              };
+              if (field === 'stock') {
+                next.stock = processedValue;
+              }
+              return next;
+            })
+          );
+          notify.compactSave('Saved');
+        }
+      }
+    } catch (error) {
+      if (busyCellSaveGenRef.current.get(saveKey) === gen) {
+        setProducts(oldProducts);
+      }
+      toast.error(`Failed to update ${field}: ${formatInventoryActionError(error)}`, {
+        id: 'inventory-cell-error',
+        duration: 5000,
+      });
+      console.error('Inventory cell update error:', error);
+      throw error;
+    }
+  }, [products, category, domainKnowledge, businessId, onUpdate, handleCreateProduct, reloadProductsSilent, isBatchEnabled, isSerialEnabled, canEditInventory]);
+
+  // Column Definitions with Optimized Widths & Alignment
+  const columns = useMemo(() => {
+    const actionsCol = {
+        id: 'actions',
+        header: '',
+        size: 40,
+        minSize: 40,
+        maxSize: 40,
+        enableResizing: false,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-6 w-6 p-0 hover:bg-gray-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-3.5 w-3.5 text-gray-500" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" sideOffset={6} className="z-[200] w-[200px]">
+              <DropdownMenuLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => openProductView(row.original)} className="text-sm">
+                <Eye className="mr-2 h-3.5 w-3.5" /> View Details
+              </DropdownMenuItem>
+              {canEditInventory && (
+                <DropdownMenuItem onClick={() => openProductEdit(row.original)} className="text-sm">
+                  <Edit className="mr-2 h-3.5 w-3.5" /> Edit Product
+                </DropdownMenuItem>
+              )}
+              {canEditInventory && (
+                <DropdownMenuItem onClick={() => { setSelectedProduct(row.original); setShowAdvancedFeatures(true); }} className="text-sm">
+                  <Settings className="mr-2 h-3.5 w-3.5" /> Advanced Settings
+                </DropdownMenuItem>
+              )}
+              {canEditInventory && (isBatchEnabled || isSerialEnabled || isVariantEnabled) && (
+                <DropdownMenuSeparator />
+              )}
+              {canEditInventory && isBatchEnabled && (
+                <DropdownMenuItem onClick={() => { setSelectedProduct(row.original); setShowBatchManager(true); }} className="text-sm">
+                  <Package className="mr-2 h-3.5 w-3.5" /> Manage Batches
+                </DropdownMenuItem>
+              )}
+              {canEditInventory && isSerialEnabled && (
+                <DropdownMenuItem onClick={() => { setSelectedProduct(row.original); setShowSerialScanner(true); }} className="text-sm">
+                  <Hash className="mr-2 h-3.5 w-3.5" /> Serial Numbers
+                </DropdownMenuItem>
+              )}
+              {canEditInventory && isVariantEnabled && (
+                <DropdownMenuItem onClick={() => { setSelectedProduct(row.original); setShowVariantEditor(true); }} className="text-sm">
+                  <Layers className="mr-2 h-3.5 w-3.5" /> Manage Variants
+                </DropdownMenuItem>
+              )}
+              {canEditInventory && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleToggleActive(row.original)}
+                    className="text-sm"
+                  >
+                    {row.original.is_active === false ? (
+                      <><CheckCircle2 className="mr-2 h-3.5 w-3.5 text-green-600" /> Activate</>
+                    ) : (
+                      <><XCircle className="mr-2 h-3.5 w-3.5 text-amber-600" /> Deactivate</>
+                    )}
+                  </DropdownMenuItem>
+                </>
+              )}
+              {canDeleteInventory && (
+                <DropdownMenuItem onClick={() => setProductToDelete(row.original)} className="text-red-600 focus:text-red-600 focus:bg-red-50 text-sm">
+                  <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+    };
+
+    const visualCellById = {
+      name: ({ row }) => {
+        const p = row.original;
+        return (
+          <div className="flex min-w-0 items-center gap-1.5 leading-tight">
+            <ProductThumbnail
+              product={p}
+              businessCategory={business?.category}
+              size="xs"
+              className="shrink-0 border border-gray-100"
+            />
+            <div className="min-w-0 flex-1">
+              <VisualInventoryQuickEdit
+                disabled={!canEditInventory}
+                value={p.name || ''}
+                displayValue={
+                  <span className="line-clamp-1 text-[11px] font-semibold text-gray-900">{p.name || '-'}</span>
+                }
+                // eslint-disable-next-line react-hooks/refs -- onCommit is an event handler, not called during render
+                onCommit={(value) => handleInventoryCellEdit(p, 'name', value)}
+              />
+              <div className="mt-0.5 flex min-w-0 items-center gap-1">
+                {p.brand && (
+                  <span className="line-clamp-1 text-[10px] text-gray-500">{p.brand}</span>
+                )}
+                {p.is_active === false && (
+                  <span className="inline-flex shrink-0 items-center rounded bg-amber-50 px-1 py-px text-[9px] font-semibold uppercase text-amber-700 ring-1 ring-inset ring-amber-200">
+                    Off
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      },
+      sku: ({ row }) => {
+        const p = row.original;
+        return (
+          <VisualInventoryQuickEdit
+            disabled={!canEditInventory}
+            value={p.sku || ''}
+            displayValue={
+              <span className="truncate font-mono text-[10px] text-gray-600">{p.sku || '-'}</span>
+            }
+            onCommit={(value) => handleInventoryCellEdit(p, 'sku', value)}
+            className="font-mono"
+          />
+        );
+      },
+      category: ({ row }) => {
+        const p = row.original;
+        return (
+          <VisualInventoryQuickEdit
+            disabled={!canEditInventory}
+            value={p.category || ''}
+            displayValue={
+              <span className="block max-w-full truncate rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-600">
+                {p.category || '-'}
+              </span>
+            }
+            onCommit={(value) => handleInventoryCellEdit(p, 'category', value)}
+          />
+        );
+      },
+      stock: ({ row }) => {
+        const p = row.original;
+        const stock = Number(p.stock ?? 0);
+        const minStock = Number(p.min_stock ?? p.minStock ?? 10);
+        const safeStock = Number.isFinite(stock) ? stock : 0;
+        const safeMin = Number.isFinite(minStock) ? minStock : 10;
+        const isOut = safeStock <= 0;
+        const isLow = !isOut && safeStock <= safeMin;
+        const tone = isOut ? 'text-red-600' : isLow ? 'text-amber-700' : 'text-emerald-800';
+        const dotTone = isOut ? 'bg-red-500' : isLow ? 'bg-amber-500' : 'bg-emerald-500';
+
+        return (
+          <VisualInventoryQuickEdit
+            disabled={!canEditInventory}
+            type="number"
+            align="right"
+            value={safeStock}
+            displayValue={
+              <span className={cn('inline-flex items-center justify-end gap-1 tabular-nums', tone)}>
+                <span className={cn('inline-block h-1.5 w-1.5 shrink-0 rounded-full', dotTone)} aria-hidden />
+                <span className="text-[11px] font-semibold">{safeStock}</span>
+                {isOut && (
+                  <span className="rounded bg-red-50 px-1 py-px text-[9px] font-bold uppercase text-red-600">Out</span>
+                )}
+                {isLow && (
+                  <span className="rounded bg-amber-50 px-1 py-px text-[9px] font-bold uppercase text-amber-700">Low</span>
+                )}
+              </span>
+            }
+            onCommit={(value) => handleInventoryCellEdit(p, 'stock', value)}
+            className="justify-end"
+            inputClassName="text-right"
+          />
+        );
+      },
+      price: ({ row }) => {
+        const p = row.original;
+        const price = Number(p.price || 0);
+        return (
+          <VisualInventoryQuickEdit
+            disabled={!canEditInventory}
+            type="number"
+            align="right"
+            value={price}
+            displayValue={
+              <span className="text-[11px] font-semibold tabular-nums text-gray-900">
+                {formatCurrency(price, standards.currency)}
+              </span>
+            }
+            onCommit={(value) => handleInventoryCellEdit(p, 'price', value)}
+            className="justify-end font-semibold"
+            inputClassName="text-right"
+          />
+        );
+      },
+      tax_percent: ({ row }) => {
+        const p = row.original;
+        const tax = p.tax_percent ?? p.taxPercent ?? 17;
+        return (
+          <VisualInventoryQuickEdit
+            disabled={!canEditInventory}
+            type="number"
+            align="right"
+            value={tax}
+            displayValue={<span className="text-[11px] tabular-nums text-gray-600">{tax}%</span>}
+            onCommit={(value) => handleInventoryCellEdit(p, 'tax_percent', value)}
+            className="justify-end"
+            inputClassName="text-right"
+          />
+        );
+      },
+      value: ({ row }) => (
+        <div className="text-right text-[11px] font-medium tabular-nums text-gray-500">
+          {formatCurrency((row.original.price || 0) * (row.original.stock || 0), standards.currency)}
+        </div>
+      ),
+      batch_number: ({ row }) => {
+        const batches = row.original.batches || [];
+        const singleBatch = row.original.batch_number;
+        const isTextile = category === 'textile-wholesale' || category === 'textile';
+        const singular = isTextile ? 'Roll' : 'Batch';
+        const plural = isTextile ? 'Rolls' : 'Batches';
+        if (batches.length > 0) {
+          return (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-mono text-[10px]">
+              {batches.length} {batches.length === 1 ? singular : plural}
+            </Badge>
+          );
+        }
+        return singleBatch ? (
+          <span className="font-mono text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+            {singleBatch}
+          </span>
+        ) : <span className="text-gray-300">-</span>;
+      },
+      serials: ({ row }) => {
+        const serials = row.original.serial_numbers || [];
+        if (serials.length > 0) {
+          return (
+            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 font-mono text-[10px]">
+              {serials.length} Items
+            </Badge>
+          );
+        }
+        return <span className="text-gray-300">-</span>;
+      },
+      mfg_date: ({ row }) => (
+        <span className="text-xs text-gray-500">
+          {row.original.manufacturing_date ? new Date(row.original.manufacturing_date).toLocaleDateString('en-GB') : '-'}
+        </span>
+      ),
+      expiry_date: ({ row }) => {
+        const expiry = row.original.expiry_date;
+        if (!expiry) return <span className="text-gray-300">-</span>;
+        const now = new Date();
+        const horizonMs = now.getTime() + 30 * 24 * 60 * 60 * 1000;
+        const isExpired = new Date(expiry) < now;
+        const isExpiringSoon = new Date(expiry).getTime() < horizonMs;
+        return (
+          <span className={cn(
+            'text-xs font-medium px-2 py-0.5 rounded',
+            isExpired ? 'bg-red-50 text-red-600 border border-red-100' :
+              isExpiringSoon ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                'text-gray-600'
+          )}>
+            {new Date(expiry).toLocaleDateString('en-GB')}
+          </span>
+        );
+      },
+    };
+
+    const headerOverrides = {
+      batch_number: getDomainBatchLabel(category),
+      serials: getDomainSerialLabel(category),
+      stock: () => <div className="text-right font-semibold">STOCK</div>,
+      price: () => <div className="text-right font-semibold">PRICE</div>,
+      tax_percent: () => <div className="text-right font-semibold">TAX %</div>,
+      value: () => <div className="text-right font-semibold">VALUE</div>,
+    };
+
+    const sharedCols = buildInventoryGridColumns(category, {
+      mode: 'visual',
+      ...gridColumnOptions,
+    });
+
+    const dataCols = sharedCols.map((col) => {
+      const out = { ...col, readOnly: col.readOnly ?? (col.id === 'value' || col.id === 'serials') };
+      if (headerOverrides[col.id]) out.header = headerOverrides[col.id];
+      if (visualCellById[col.id]) out.cell = visualCellById[col.id];
+      if (col.id?.startsWith('domain_')) {
+        const attrKey = col.accessorKey?.replace('domain_data.', '') || col.id.replace('domain_', '');
+        const fieldKey = col.accessorKey || `domain_data.${attrKey}`;
+        out.cell = ({ row }) => {
+          const p = row.original;
+          const val = readDomainFieldValue(p.domain_data, attrKey, category);
+          const display = val == null || val === '' ? '-' : String(val);
+          if (col.readOnly) {
+            return (
+              <span className="line-clamp-1 text-[10px] text-gray-600" title={display}>
+                {display}
+              </span>
+            );
+          }
+          return (
+            <VisualInventoryQuickEdit
+              disabled={!canEditInventory}
+              value={val ?? ''}
+              displayValue={
+                display === '-' ? (
+                  <span className="text-[10px] text-gray-300">-</span>
+                ) : (
+                  <span className="line-clamp-1 text-[10px] text-gray-600" title={display}>
+                    {display}
+                  </span>
+                )
+              }
+              onCommit={(value) => handleInventoryCellEdit(p, fieldKey, value)}
+            />
+          );
+        };
+      }
+      return out;
+    });
+
+    return [actionsCol, ...dataCols];
+  }, [isBatchEnabled, isSerialEnabled, isVariantEnabled, category, standards.currency, business?.category, handleInventoryCellEdit, gridColumnOptions, canEditInventory, canDeleteInventory, openProductEdit, openProductView, handleToggleActive]);
+
+  const visualDefaultColumnVisibility = useMemo(() => {
+    const sharedCols = buildInventoryGridColumns(category, {
+      mode: 'visual',
+      ...gridColumnOptions,
+    });
+    return buildSparseDomainColumnVisibility(sharedCols, productsToDisplay, category);
+  }, [category, gridColumnOptions, productsToDisplay]);
+
+  // Removed standard columns.push since it's now in useMemo initialization
+
+
+
+  const topCategoryPerformance = useMemo(() => {
+    const byCategory = products.reduce((acc, product) => {
+      const categoryName = product.category || 'Uncategorized';
+      const stock = Number(product.stock || 0);
+      const unitCost = Number(product.cost_price ?? product.costPrice ?? 0);
+      const value = stock * unitCost;
+
+      if (!acc[categoryName]) {
+        acc[categoryName] = { category: categoryName, value: 0, units: 0 };
+      }
+
+      acc[categoryName].value += value;
+      acc[categoryName].units += stock;
+      return acc;
+    }, {});
+
+    const rows = Object.values(byCategory);
+    const totalValue = rows.reduce((sum, row) => sum + row.value, 0) || 1;
+
+    return rows
+      .map((row) => ({
+        ...row,
+        share: Math.round((row.value / totalValue) * 100)
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 4);
+  }, [products]);
+
+
+
+  // Shared Actions column for both views
+  const gridColumns = useMemo(() => {
+    const actionsCol = columns.find(c => c.id === 'actions');
+    const pinnedActions = actionsCol
+      ? { ...actionsCol, accessorKey: '__actions', readOnly: true }
+      : null;
+    const statusCol = {
+      id: 'status_dot',
+      header: '',
+      accessorKey: 'is_active',
+      size: 28,
+      minSize: 28,
+      readOnly: true,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center h-full">
+          <span
+            className={cn('w-2 h-2 rounded-full', row.original.is_active === false ? 'bg-amber-400' : 'bg-green-500')}
+            title={row.original.is_active === false ? 'Inactive' : 'Active'}
+          />
+        </div>
+      ),
+    };
+    const dataCols = buildInventoryGridColumns(category, {
+      mode: 'busy',
+      ...gridColumnOptions,
+    });
+    return [
+      statusCol,
+      pinnedActions,
+      ...dataCols,
+    ].filter(Boolean);
+  }, [category, columns, gridColumnOptions]);
+
+  const mobileBusyColumns = useMemo(() => {
+    const essential = resolveExcelMobileEssentialKeys(category, gridColumnOptions);
+    return gridColumns.filter((col) => {
+      const key = col.accessorKey || col.id;
+      if (col.id === 'status_dot' || key === '__actions') return true;
+      if (!key) return false;
+      return essential.has(key);
+    });
+  }, [gridColumns, category, gridColumnOptions]);
+
+
+
+  return (
+    <div className="space-y-4 touch-manipulation max-lg:space-y-3">
+      <div className="hidden lg:block">
+        <InventoryCommandBar
+          activeTab={activeTab}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          lastSyncedAt={lastSyncedAt}
+          isRefreshing={loading}
+          onRefresh={refreshInventory}
+          onAiSmartAdd={() => setShowQuickAddModal(true)}
+          onOpenTemplates={() => setShowTemplatesModal(true)}
+          hasQuickAddTemplates={hasQuickAddTemplates}
+          onExcelMode={() => setShowExcelMode(true)}
+          onImport={() => setShowImportModal(true)}
+          onExport={executeExcelExport}
+          onScanBarcode={openBarcodeScanner}
+          onAdjustStock={() => setShowStockAdjustment(true)}
+          onTransferStock={() => setShowStockTransferForm(true)}
+          onShowShortcuts={() => setShowShortcutsHelp(true)}
+          onGoToReports={() => setActiveTab('reports')}
+          capabilities={inventoryWriteCapabilities}
+        />
+      </div>
+
+      <InventoryMobileHub
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onFocusStock={applyInventoryStockFocus}
+        lastSyncedAt={lastSyncedAt}
+        isRefreshing={loading}
+        onRefresh={refreshInventory}
+        onAiSmartAdd={() => setShowQuickAddModal(true)}
+        onOpenTemplates={() => setShowTemplatesModal(true)}
+        hasQuickAddTemplates={hasQuickAddTemplates}
+        onExcelMode={() => setShowExcelMode(true)}
+        onImport={() => setShowImportModal(true)}
+        onExport={executeExcelExport}
+        onScanBarcode={openBarcodeScanner}
+        onAdjustStock={() => setShowStockAdjustment(true)}
+        onTransferStock={() => setShowStockTransferForm(true)}
+        onShowShortcuts={() => setShowShortcutsHelp(true)}
+        onGoToReports={() => setActiveTab('reports')}
+        isMultiLocationEnabled={showMultiWarehouseUi}
+        isManufacturingEnabled={isManufacturingEnabled}
+        isVariantEnabled={isVariantEnabled}
+        capabilities={inventoryWriteCapabilities}
+        stats={{
+          totalProducts: products.length,
+          lowStock: lowStockItems.length,
+          inventoryValue: formatCurrency(
+            products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0),
+            standards.currency
+          ),
+          efficiencyClass:
+            abcAnalysis.length > 0
+              ? `Class ${abcStats.A.count >= abcStats.B.count && abcStats.A.count >= abcStats.C.count ? 'A' : abcStats.B.count >= abcStats.C.count ? 'B' : 'C'}`
+              : 'N/A',
+        }}
+      />
+
+      {/* Feature Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-transparent">
+        <TabsList className="hidden lg:flex h-auto w-full flex-wrap gap-0.5 rounded-lg border border-gray-200 bg-gray-100/60 p-0.5 shadow-inner">
+          <TabsTrigger value="products" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Package className="w-4 h-4 mr-2" />
+            Products
+          </TabsTrigger>
+          {showMultiWarehouseUi && (
+            <TabsTrigger value="locations" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <Warehouse className="w-4 h-4 mr-2" />
+              Locations
+            </TabsTrigger>
+          )}
+          {isManufacturingEnabled && (
+            <TabsTrigger value="manufacturing" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <Factory className="w-4 h-4 mr-2" />
+              Manufacturing
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="orders" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <FileText className="w-4 h-4 mr-2" />
+            Orders
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Reports
+          </TabsTrigger>
+          {isVariantEnabled && (
+            <TabsTrigger value="variants" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <Layers className="w-4 h-4 mr-2" />
+              Variants
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="pricing" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Tag className="w-4 h-4 mr-2" />
+            Pricing
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Products Tab */}
+        <TabsContent value="products" className="min-w-0 space-y-6 overflow-x-hidden max-lg:space-y-3">
+
+          {/* Alerts and Stats - Compact Premium KPI Cards */}
+          {/* KPI cards, desktop only (mobile hub shows mini KPIs) */}
+          <div className="hidden lg:grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Total Products */}
+            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
+              <div className="flex items-center gap-2.5 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-blue-50/70 flex items-center justify-center shrink-0">
+                  <Package className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Products</p>
+                  <p className="text-xl font-bold text-gray-900 mt-0.5 leading-none">{products.length}</p>
+                </div>
+              </div>
+              <div className="relative z-10 shrink-0 text-right">
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">Units</span>
+              </div>
+            </div>
+
+            {/* Stock Alerts */}
+            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
+              <div className="flex items-center gap-2.5 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-red-50/70 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Stock Alerts</p>
+                  <p className="text-xl font-bold text-red-600 mt-0.5 leading-none">{lowStockItems.length}</p>
+                </div>
+              </div>
+              <div className="relative z-10 shrink-0 text-right">
+                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">Replenish</span>
+              </div>
+            </div>
+
+            {/* Inventory Value */}
+            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
+              <div className="flex items-center gap-2.5 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-green-50/70 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Inventory Value</p>
+                  <p className="text-base font-bold text-gray-900 mt-0.5 leading-none">
+                    {formatCurrency(products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0), standards.currency)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Efficiency Class */}
+            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
+              <div className="flex items-center gap-2.5 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50/70 flex items-center justify-center shrink-0">
+                  <BarChart3 className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Efficiency Class</p>
+                  <p className="text-lg font-bold text-gray-900 mt-0.5 leading-none uppercase">
+                    {abcAnalysis.length > 0
+                      ? `Class ${abcStats.A.count >= abcStats.B.count && abcStats.A.count >= abcStats.C.count ? 'A' : abcStats.B.count >= abcStats.C.count ? 'B' : 'C'}`
+                      : 'Class, '}
+                  </p>
+                </div>
+              </div>
+              <div className="relative z-10 shrink-0 text-right">
+                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">Optimized</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Search and Filters */}
+          <AdvancedSearch
+            searchValue={searchTerm}
+            onScanClick={openBarcodeScanner}
+            onSearch={(term, domainFilters) => {
+              setSearchTerm(term || '');
+              setActiveDomainFilters(domainFilters);
+            }}
+            placeholder="Search by name, SKU, or barcode..."
+            category={category}
+            hideSearch={false}
+            filters={[
+              { key: 'category', label: 'Category', type: 'select', options: categoryOptions },
+              { key: 'brand', label: 'Brand', type: 'select', options: brandOptions },
+              {
+                key: 'stock', label: 'Stock Status', type: 'select', options: [
+                  { value: 'low', label: 'Low Stock' },
+                  { value: 'normal', label: 'Normal' },
+                  { value: 'high', label: 'High Stock' },
+                ]
+              },
+              {
+                key: 'status', label: 'Status', type: 'select', options: [
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]
+              },
+              { key: 'minPrice', label: 'Min Price', type: 'number', placeholder: 'Min' },
+              { key: 'maxPrice', label: 'Max Price', type: 'number', placeholder: 'Max' },
+            ]}
+          />
+
+          {/* Data Table or Busy Grid - Premium Container */}
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm lg:rounded-[32px] max-lg:rounded-xl max-lg:border-gray-100 max-lg:shadow-none">
+            {/* Mobile: list (default) or card browse */}
+            <div className="space-y-3 p-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:hidden">
+              <InventoryMobileViewToggle
+                value={mobileViewMode}
+                onChange={handleMobileViewModeChange}
+              />
+              {mobileViewMode === 'visual' ? (
+                <InventoryMobileProductList
+                  key={`${searchTerm}-${productsToDisplay.length}`}
+                  products={productsToDisplay}
+                  currencySymbol={standards.currencySymbol}
+                  businessCategory={business?.category}
+                  category={category}
+                  business={business}
+                  domainKnowledge={inventoryFeatures.knowledge}
+                  countryIso={countryIso}
+                  resultCount={productsToDisplay.length}
+                  onEdit={canEditInventory ? openProductEdit : undefined}
+                  onQuickSave={canEditInventory ? handleInventoryCellEdit : undefined}
+                  onAdd={canCreateInventory ? openProductAdd : undefined}
+                />
+              ) : mobileViewMode === 'busy' ? (
+                <div
+                  style={{ height: 'min(70vh, calc(100dvh - 14rem))' }}
+                  className="flex min-h-[280px] flex-col overflow-hidden rounded-xl border border-gray-100"
+                >
+                  <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-gray-50/90 px-3 py-2">
+                    <p className="text-[10px] font-medium text-gray-500">
+                      Tap cell to edit · domain columns included
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 rounded-lg border-gray-200 px-2 text-[10px] font-semibold uppercase"
+                      disabled={!canCreateInventory}
+                      onClick={() => {
+                        if (!canCreateInventory) return;
+                        const previousRow = getLastRowForDefaults(productsToDisplay);
+                        const newRow = buildNewInventoryRow(category, businessId, previousRow, { countryIso });
+                        setProducts((prev) => [...prev, newRow]);
+                      }}
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Row
+                    </Button>
+                  </div>
+                  <BusyGrid
+                    variant="busy"
+                    touchOptimized
+                    data={productsToDisplay}
+                    columns={mobileBusyColumns}
+                    category={category}
+                    getFieldSuggestions={getFieldSuggestions}
+                    onRowClick={openProductEdit}
+                    onAddRow={
+                      canCreateInventory
+                        ? () => {
+                            const previousRow = getLastRowForDefaults(productsToDisplay);
+                            const newRow = buildNewInventoryRow(category, businessId, previousRow, { countryIso });
+                            setProducts((prev) => [...prev, newRow]);
+                          }
+                        : undefined
+                    }
+                    className="min-h-0 flex-1"
+                    onDeleteRow={canDeleteInventory ? (product) => setProductToDelete(product) : undefined}
+                    onAdvancedSettings={
+                      canEditInventory
+                        ? (product) => {
+                            setSelectedProduct(product);
+                            setShowAdvancedFeatures(true);
+                          }
+                        : undefined
+                    }
+                    onCellEdit={
+                      canEditInventory
+                        ? async (product, field, value) => {
+                            try {
+                              await handleInventoryCellEdit(product, field, value);
+                              const rowKey =
+                                product?.id != null && product.id !== ''
+                                  ? String(product.id)
+                                  : product?._tempId != null
+                                    ? String(product._tempId)
+                                    : '';
+                              if (typeof window !== 'undefined' && rowKey) {
+                                window.dispatchEvent(
+                                  new CustomEvent('tenvo:inventory-busy-cell-saved', {
+                                    detail: { rowKey, field },
+                                  })
+                                );
+                              }
+                            } catch {
+                              // handleInventoryCellEdit toasts and rolls back
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
+              ) : (
+                <ProductCardGrid
+                  products={productsToDisplay}
+                  currencySymbol={standards.currencySymbol}
+                  businessCategory={business?.category}
+                  onView={openProductView}
+                  onEdit={canEditInventory ? openProductEdit : undefined}
+                  onDelete={canDeleteInventory ? (p) => setProductToDelete(p) : undefined}
+                  onToggleActive={canEditInventory ? handleToggleActive : undefined}
+                  onAdd={canCreateInventory ? openProductAdd : undefined}
+                />
+              )}
+            </div>
+
+            {/* Desktop: view mode switcher */}
+            <div className="hidden lg:block">
+            {viewMode === 'busy' ? (
+              <div style={{ height: 'calc(100vh - 22rem)' }} className="flex min-h-[400px] flex-col">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/80 px-3 py-2">
+                  <p className="text-[11px] font-medium text-gray-500">
+                    Click cell to edit · Tab/Enter saves · Alt+N new row · Alt+Enter full form · Row # dbl-click form
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 shrink-0 rounded-lg border-gray-200 px-2.5 text-[10px] font-semibold uppercase tracking-wide"
+                    onClick={() => {
+                      if (!canCreateInventory) return;
+                      const previousRow = getLastRowForDefaults(productsToDisplay);
+                      const newRow = buildNewInventoryRow(category, businessId, previousRow, { countryIso });
+                      setProducts((prev) => [...prev, newRow]);
+                    }}
+                    disabled={!canCreateInventory}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Add row
+                  </Button>
+                </div>
+                <BusyGrid
+                  variant="busy"
+                  touchOptimized={isCompactViewport}
+                  data={productsToDisplay}
+                  columns={gridColumns}
+                  category={category}
+                  getFieldSuggestions={getFieldSuggestions}
+                  onRowClick={openProductEdit}
+                  onAddRow={
+                    canCreateInventory
+                      ? () => {
+                          const previousRow = getLastRowForDefaults(productsToDisplay);
+                          const newRow = buildNewInventoryRow(category, businessId, previousRow, { countryIso });
+                          setProducts((prev) => [...prev, newRow]);
+                        }
+                      : undefined
+                  }
+                  className="min-h-0 flex-1"
+                  onDeleteRow={canDeleteInventory ? (product) => setProductToDelete(product) : undefined}
+                  onAdvancedSettings={
+                    canEditInventory
+                      ? (product) => {
+                          setSelectedProduct(product);
+                          setShowAdvancedFeatures(true);
+                        }
+                      : undefined
+                  }
+                  onCellEdit={
+                    canEditInventory
+                      ? async (product, field, value) => {
+                          try {
+                            await handleInventoryCellEdit(product, field, value);
+                            const rowKey =
+                              product?.id != null && product.id !== ''
+                                ? String(product.id)
+                                : product?._tempId != null
+                                  ? String(product._tempId)
+                                  : '';
+                            if (typeof window !== 'undefined' && rowKey) {
+                              window.dispatchEvent(
+                                new CustomEvent('tenvo:inventory-busy-cell-saved', {
+                                  detail: { rowKey, field },
+                                })
+                              );
+                            }
+                          } catch {
+                            // handleInventoryCellEdit toasts and rolls back
+                          }
+                        }
+                      : undefined
+                  }
+                />
+              </div>
+            ) : viewMode === 'cards' ? (
+              <div className="p-4">
+                <ProductCardGrid
+                  products={productsToDisplay}
+                  currencySymbol={standards.currencySymbol}
+                  businessCategory={business?.category}
+                  onView={openProductView}
+                  onEdit={canEditInventory ? openProductEdit : undefined}
+                  onDelete={canDeleteInventory ? (p) => setProductToDelete(p) : undefined}
+                  onToggleActive={canEditInventory ? handleToggleActive : undefined}
+                  onAdd={canCreateInventory ? openProductAdd : undefined}
+                />
+              </div>
+            ) : (
+              <div className="p-3 pt-2">
+                <DataTable
+                  variant="inventory"
+                  category={category}
+                  data={productsToDisplay}
+                  columns={columns}
+                  searchable={false}
+                  exportable={false}
+                  initialPageSize={25}
+                  initialColumnVisibility={visualDefaultColumnVisibility}
+                  onRowClick={canEditInventory ? openProductEdit : openProductView}
+                  onBulkDelete={canDeleteInventory ? handleBulkDelete : undefined}
+                  onExport={async (items) => {
+                    const dataToExport = items || productsToDisplay;
+                    try {
+                      const result = await productAPI.bulkExport(businessId, {
+                        includeBatches: true,
+                        includeSerials: true,
+                      });
+
+                      const bytes = new Uint8Array(result.buffer || []);
+                      const blob = new Blob([bytes], {
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = result.fileName || `inventory-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+
+                      if (result.roundTripValid === false) {
+                        toast.success(`Exported ${result.recordCount || dataToExport.length} items (with warnings)`);
+                      } else {
+                        toast.success(`Exported ${result.recordCount || dataToExport.length} items successfully`);
+                      }
+                    } catch {
+                      // Fallback keeps export available if server-side export fails.
+                      try {
+                        await exportProducts(dataToExport, 'excel');
+                        toast.success(`Exported ${dataToExport.length} items (fallback mode)`);
+                      } catch {
+                        toast.error('Failed to export inventory');
+                      }
+                    }
+                  }}
+                />
+              </div>
+            )}
+            </div>
+          </div>
+
+          {/* Mobile FAB — add product (products tab only) */}
+          {activeTab === 'products' && canCreateInventory && (
+            <button
+              type="button"
+              onClick={openProductAdd}
+              className={cn(
+                'fixed flex h-14 w-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-lg shadow-brand-primary/30 transition active:scale-95 lg:hidden',
+                MOBILE_MODULE_FAB_RIGHT,
+                MOBILE_BOTTOM_NAV_CLASS,
+                MOBILE_FLOATING_Z
+              )}
+              aria-label="Add product"
+            >
+              <Plus className="h-6 w-6" />
+            </button>
+          )}
+
+          {/* ABC Analysis Section - desktop only */}
+          <div className="relative hidden overflow-hidden rounded-2xl border border-gray-150 bg-white p-4 shadow-sm lg:block sm:p-5">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 rounded-full -translate-y-24 translate-x-24" />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2 relative z-10">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 tracking-tight">ABC Inventory Matrix</h3>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">Strategic Stock Optimization Engine</p>
+              </div>
+              <div className="self-start sm:self-center flex items-center gap-2 px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                <BarChart3 className="w-3 h-3 text-blue-400" />
+                Live Distribution
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+              {/* Category A Card */}
+              <div className="group bg-gradient-to-br from-red-50/10 via-white to-white p-4 rounded-xl border border-red-100/40 hover:shadow-md hover:border-red-200/50 transition-all duration-300 flex flex-col justify-between min-h-[170px]">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-red-100/70 flex items-center justify-center font-bold text-lg text-red-600 shadow-sm group-hover:scale-105 transition-transform">A</div>
+                    <Badge className="bg-red-500 hover:bg-red-600 text-white border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 h-5">Critical Hub</Badge>
+                  </div>
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider leading-snug">High Value Assets</h4>
+                  <p className="text-[10px] text-gray-400 font-medium">Top 80% Cumulative Value</p>
+                </div>
+                
+                <div className="my-3">
+                  <div className="flex justify-between text-[10px] font-bold text-red-600/90 mb-1">
+                    <span>Value Share</span>
+                    <span>{abcStats.A.valPct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-red-100/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-red-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(239,68,68,0.2)]" style={{ width: `${Math.max(3, abcStats.A.valPct)}%` }} />
+                  </div>
+                </div>
+
+                <div className="flex items-end justify-between pt-2 border-t border-gray-100/40">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-gray-900 leading-none">{abcStats.A.count}</span>
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">SKUs</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{abcStats.A.pct}% of catalog</span>
+                </div>
+              </div>
+
+              {/* Category B Card */}
+              <div className="group bg-gradient-to-br from-orange-50/10 via-white to-white p-4 rounded-xl border border-orange-100/40 hover:shadow-md hover:border-orange-200/50 transition-all duration-300 flex flex-col justify-between min-h-[170px]">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-orange-100/70 flex items-center justify-center font-bold text-lg text-orange-600 shadow-sm group-hover:scale-105 transition-transform">B</div>
+                    <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 h-5">Normal Flow</Badge>
+                  </div>
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider leading-snug">Medium Value Assets</h4>
+                  <p className="text-[10px] text-gray-400 font-medium">Next 15% Cumulative Value</p>
+                </div>
+                
+                <div className="my-3">
+                  <div className="flex justify-between text-[10px] font-bold text-orange-600/90 mb-1">
+                    <span>Value Share</span>
+                    <span>{abcStats.B.valPct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-orange-100/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(249,115,22,0.2)]" style={{ width: `${Math.max(3, abcStats.B.valPct)}%` }} />
+                  </div>
+                </div>
+
+                <div className="flex items-end justify-between pt-2 border-t border-gray-100/40">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-gray-900 leading-none">{abcStats.B.count}</span>
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">SKUs</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{abcStats.B.pct}% of catalog</span>
+                </div>
+              </div>
+
+              {/* Category C Card */}
+              <div className="group bg-gradient-to-br from-green-50/10 via-white to-white p-4 rounded-xl border border-green-100/40 hover:shadow-md hover:border-green-200/50 transition-all duration-300 flex flex-col justify-between min-h-[170px]">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-green-100/70 flex items-center justify-center font-bold text-lg text-green-600 shadow-sm group-hover:scale-105 transition-transform">C</div>
+                    <Badge className="bg-green-500 hover:bg-green-600 text-white border-none font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 h-5">Bulk Layer</Badge>
+                  </div>
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider leading-snug">Low Value Assets</h4>
+                  <p className="text-[10px] text-gray-400 font-medium">Bottom 5% Cumulative Value</p>
+                </div>
+                
+                <div className="my-3">
+                  <div className="flex justify-between text-[10px] font-bold text-green-600/90 mb-1">
+                    <span>Value Share</span>
+                    <span>{abcStats.C.valPct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-green-100/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(34,197,94,0.2)]" style={{ width: `${Math.max(3, abcStats.C.valPct)}%` }} />
+                  </div>
+                </div>
+
+                <div className="flex items-end justify-between pt-2 border-t border-gray-100/40">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-gray-900 leading-none">{abcStats.C.count}</span>
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">SKUs</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{abcStats.C.pct}% of catalog</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </TabsContent>
+
+
+
+        {/* Variants Tab */}
+        {isVariantEnabled && (
+          <TabsContent value="variants" className="min-w-0 space-y-6 overflow-x-hidden">
+            {selectedProduct ? (
+              <div className="space-y-4">
+                {/* Active product breadcrumb + switcher */}
+                <div className="flex items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Package className="w-4 h-4 text-blue-500 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-widest">Managing Variants For</p>
+                      <p className="text-sm font-bold text-blue-900">{selectedProduct.name}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedProduct(null)}
+                    className="text-xs border-blue-200 text-blue-700 hover:bg-blue-100"
+                  >
+                    Switch Product
+                  </Button>
+                </div>
+                <VariantMatrixEditor
+                  product={selectedProduct}
+                  businessId={selectedProduct.business_id || business?.id}
+                  onVariantsUpdated={async () => {
+                    await runSoftRefresh();
+                    scheduleAnalyticsRefresh?.();
+                  }}
+                  onClose={() => setSelectedProduct(null)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Select a Product</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Choose a product below to manage its size/color variants</p>
+                  </div>
+                  <Badge variant="outline" className="bg-gray-50 text-gray-500 font-mono text-xs">
+                    {products.length} products
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {products.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedProduct(p)}
+                      className="text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-gray-900 truncate group-hover:text-blue-700">{p.name}</p>
+                          <p className="text-[11px] text-gray-400 font-mono mt-0.5">{p.sku || '--'}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] shrink-0 bg-white">
+                          {(p.variants || []).length} vars
+                        </Badge>
+                      </div>
+                      {p.category && (
+                        <span className="mt-2 inline-block text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                          {p.category}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {products.length === 0 && (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <Layers className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                      <p className="text-gray-400 text-sm">No products found. Add products first.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        )}
+
+        {/* Pricing Tab */}
+        <TabsContent value="pricing" className="mt-4 min-w-0 space-y-5 overflow-x-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm transition-all duration-300 hover:shadow-md">
+              <CardHeader className="border-b border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-5">
+                <CardTitle className="text-base font-semibold tracking-tight text-slate-900 sm:text-lg">Global Price Lists</CardTitle>
+                <CardDescription className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[11px] sm:tracking-[0.16em]">Multi-tier pricing architecture</CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-4 sm:pt-3">
+                <PriceListManager
+                  embedInCard
+                  priceLists={[]}
+                  products={products}
+                  customers={customers}
+                  onSave={() => {
+                    toast.success('Price lists updated');
+                  }}
+                  category={category}
+                  currency={standards.currency}
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm transition-all duration-300 hover:shadow-md">
+              <CardHeader className="border-b border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-5">
+                <CardTitle className="text-base font-semibold tracking-tight text-slate-900 sm:text-lg">Discount Schemes</CardTitle>
+                <CardDescription className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[11px] sm:tracking-[0.16em]">Promotional logic and campaigns</CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-4 sm:pt-3">
+                <DiscountSchemeManager
+                  embedInCard
+                  schemes={[]}
+                  products={products}
+                  customers={customers}
+                  onSave={() => {
+                    toast.success('Discount schemes updated');
+                  }}
+                  category={category}
+                  currency={standards.currency}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Locations Tab */}
+        {showMultiWarehouseUi && (
+          <TabsContent value="locations" className="min-w-0 space-y-6 overflow-x-hidden">
+            <MultiLocationInventory
+              locations={locations}
+              products={products}
+              domainKnowledge={domainKnowledge}
+              businessId={businessId}
+              category={category}
+              onLocationAdd={onLocationAdd}
+              onLocationUpdate={onLocationUpdate}
+              onLocationDelete={onLocationDelete}
+              onStockTransfer={onStockTransfer}
+              refreshData={refreshData}
+            />
+          </TabsContent>
+        )}
+
+        {/* Manufacturing Tab */}
+        {isManufacturingEnabled && (
+          <TabsContent value="manufacturing" className="min-w-0 space-y-6 overflow-x-hidden">
+            <ManufacturingModule
+              products={products}
+              bomList={bomList}
+              productionOrders={productionOrders}
+              businessId={businessId}
+              warehouses={locations}
+              onSave={() => {
+                toast.success('Production updated');
+                void runCatalogResync();
+                scheduleAnalyticsRefresh?.();
+              }}
+              onBOMAdd={() => { }}
+              onProductionOrderCreate={() => { }}
+            />
+          </TabsContent>
+        )}
+
+        {/* Orders Tab -- Quotations / Sales Orders / Challans + Stock Reservations */}
+        <TabsContent value="orders" className="min-w-0 space-y-6 overflow-x-hidden">
+          <QuotationOrderChallanManager
+            quotations={quotations}
+            salesOrders={salesOrders}
+            challans={challans}
+            customers={customers}
+            products={products}
+            warehouses={locations}
+            refreshData={refreshData}
+            category={category}
+            onIssueInvoice={onIssueInvoice}
+          />
+
+          {/* Stock Reservations */}
+          <StockReservation
+            reservations={[]}
+            products={products}
+            customers={customers}
+            businessId={businessId}
+            currency={standards.currency}
+          />
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="min-w-0 space-y-6 overflow-x-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="group bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform duration-500">
+                <Package className="w-24 h-24" />
+              </div>
+              <div className="flex flex-col relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm shadow-blue-100">
+                  <Package className="w-6 h-6 text-blue-600" />
+                </div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.2em]">Total SKU Profile</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-4xl font-semibold text-gray-900 tracking-tighter">{products.length}</p>
+                  <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full italic">Catalog Scope</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="group bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform duration-500">
+                <TrendingUp className="w-24 h-24" />
+              </div>
+              <div className="flex flex-col relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm shadow-emerald-100">
+                  <TrendingUp className="w-6 h-6 text-emerald-600" />
+                </div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.2em]">Asset Valuation (at cost)</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-3xl font-semibold text-gray-900 tracking-tighter">
+                    {formatCurrency(
+                      products.reduce(
+                        (sum, p) => sum + (Number(p.stock || 0) * Number(p.cost_price ?? p.costPrice ?? 0)),
+                        0
+                      ),
+                      standards.currency
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="group bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform duration-500">
+                <AlertCircle className="w-24 h-24" />
+              </div>
+              <div className="flex flex-col relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm shadow-amber-100">
+                  <AlertCircle className="w-6 h-6 text-amber-600" />
+                </div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.2em]">Safety & Risk</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-4xl font-semibold text-amber-600 tracking-tighter">
+                    {isExpiryEnabled ? expiringCount : lowStockItems.length}
+                  </p>
+                  <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-2.5 py-1 rounded-full italic">
+                    {isExpiryEnabled ? 'Expiring' : 'Low Stock'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="group bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform duration-500">
+                <Repeat className="w-24 h-24" />
+              </div>
+              <div className="flex flex-col relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-wine-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm shadow-wine-100">
+                  <Repeat className="w-6 h-6 text-wine-600" />
+                </div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.2em]">Efficiency Velocity</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-4xl font-semibold text-gray-900 tracking-tighter italic">{turnoverRate}x</p>
+                  <span className="text-[10px] font-bold text-wine-500 bg-wine-50 px-2.5 py-1 rounded-full italic">MoM Yield</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-gray-100 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold">Stock Aging Analysis</CardTitle>
+                <CardDescription>By product create date (not last movement)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {(() => {
+                    const now = new Date();
+                    const total = products.length || 1;
+                    const buckets = [
+                      { label: '0-30 Days', max: 30, color: 'bg-green-500', count: 0 },
+                      { label: '31-60 Days', max: 60, color: 'bg-blue-500', count: 0 },
+                      { label: '61-90 Days', max: 90, color: 'bg-amber-500', count: 0 },
+                      { label: '90+ Days', max: Infinity, color: 'bg-red-500', count: 0 },
+                    ];
+                    products.forEach(p => {
+                      const created = p.created_at || p.createdAt;
+                      const days = created ? Math.floor((now - new Date(created)) / (1000 * 60 * 60 * 24)) : 999;
+                      const bucket = buckets.find(b => days <= b.max) || buckets[buckets.length - 1];
+                      bucket.count++;
+                    });
+                    return buckets.map(b => {
+                      const pct = Math.round((b.count / total) * 100);
+                      return (
+                        <div key={b.label} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold">
+                            <span className="text-gray-500">{b.label}</span>
+                            <span>{pct}% ({b.count})</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full ${b.color}`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-100 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold">Top Categories by Stock Value</CardTitle>
+                <CardDescription>Share of inventory value at cost</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {topCategoryPerformance.map((entry, i) => (
+                    <div key={entry.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center font-bold text-xs">
+                          {i + 1}
+                        </div>
+                        <span className="font-bold text-sm text-gray-700">{entry.category}</span>
+                      </div>
+                      <Badge variant="outline" className="bg-white border-gray-200">
+                        {entry.share}% share
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <LowStockAlerts
+              businessId={businessId}
+              currency={standards.currency}
+              maxAlerts={8}
+              onReorderClick={(alert) => {
+                setActiveTab('reports');
+                toast.success(`Review reorder for ${alert?.product_name || 'selected product'}`);
+              }}
+            />
+
+            <CycleCountManager
+              businessId={businessId}
+              products={products}
+              warehouses={locations}
+              currency={standards.currency}
+              onCountComplete={() => {
+                void runCatalogResync();
+                scheduleAnalyticsRefresh?.();
+                toast.success('Cycle count completed and inventory refreshed');
+              }}
+            />
+          </div>
+
+          {/* AI Demand Forecasting */}
+          <div className="mt-8">
+            <DemandForecast
+              businessId={businessId}
+              products={products}
+              invoices={invoices}
+              category={category}
+              domainKnowledge={domainKnowledge}
+            />
+          </div>
+
+          {/* Domain-specific report labels (honest: no fake generate toasts) */}
+          {domainKnowledge?.reports && domainKnowledge.reports.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Domain report checklist</CardTitle>
+                <CardDescription>
+                  Suggested operational reports for your vertical. Open hub Reports or Finance Statements for live data.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {domainKnowledge.reports.map((report, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-3"
+                    >
+                      <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm text-gray-800">{report}</div>
+                        <div className="text-xs text-gray-500">
+                          Use Reports → Analytics or Finance → Statements for exportable figures
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI Demand / Restock Engine -- inside Reports */}
+          <Card className="rounded-[32px] border-gray-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-500">
+            <CardHeader className="bg-slate-50/50 pb-6 border-b border-gray-50">
+              <CardTitle className="text-xl font-semibold text-gray-900 tracking-tight">Auto-Reorder Engine</CardTitle>
+              <CardDescription className="text-xs font-bold uppercase tracking-widest text-gray-500 opacity-70">Algorithmic replenishment manager</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 pt-0">
+              <AutoReorderManager
+                products={products}
+                vendors={vendors}
+                onGeneratePO={
+                  onGeneratePO ||
+                  ((poData) => {
+                    // Standalone fallback (no hub parent handler): acknowledge only.
+                    const product = products.find(p => p.id === poData.productId);
+                    toast.success(`Purchase order generated for ${product?.name || 'product'}`);
+                  })
+                }
+                currency={standards.currency}
+              />
+            </CardContent>
+          </Card>
+
+          {showAiRestock && (
+            <SmartRestockEngine
+              products={products}
+              invoices={invoices}
+              vendors={vendors}
+              locations={locations}
+              category={category}
+              domainKnowledge={domainKnowledge}
+              businessId={businessId}
+              refreshData={refreshData}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Advanced Features Modal */}
+      {showAdvancedFeatures && selectedProduct && (
+        <AdvancedInventoryFeatures
+          product={selectedProduct}
+          domainKnowledge={domainKnowledge}
+          onSave={async (data) => {
+            const updatedProduct = { ...selectedProduct, ...data };
+            try {
+              await handleUpdateProduct(updatedProduct, { closeForm: false });
+              toast.success('Advanced features updated');
+              setShowAdvancedFeatures(false);
+              setSelectedProduct(null);
+            } catch (err) {
+              toast.error('Failed to update advanced features');
+              console.error('Advanced features update failed:', err);
+            }
+          }}
+          onClose={() => {
+            setShowAdvancedFeatures(false);
+            setSelectedProduct(null);
+          }}
+        />
+      )}
+
+      {barcodeScanAllowed && (
+      <PosCameraScanner
+        open={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleInventoryBarcodeScan}
+        title="Scan inventory item"
+        hint="QR, EAN, UPC, Code 128 · finds product by barcode, SKU, or variant"
+      />
+      )}
+
+      {/* Batch Manager Dialog */}
+      <Dialog open={showBatchManager} onOpenChange={setShowBatchManager}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Batch Management</DialogTitle>
+            <DialogDescription>
+              Manage product batches, tracking numbers, and expiry dates.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProduct && (
+            <BatchManager
+              product={selectedProduct}
+              businessId={selectedProduct.business_id}
+              warehouseId={locations[0]?.id}
+              onBatchCreated={async () => {
+                toast.success('Batch created successfully');
+                await runSoftRefresh();
+                scheduleAnalyticsRefresh?.();
+                setShowBatchManager(false);
+              }}
+              onClose={() => setShowBatchManager(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Serial Scanner Dialog */}
+      <Dialog open={showSerialScanner} onOpenChange={setShowSerialScanner}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Serial Number Management</DialogTitle>
+            <DialogDescription>
+              Track individual items by their unique serial numbers or IMEI.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProduct && (
+            <SerialScanner
+              product={selectedProduct}
+              businessId={selectedProduct.business_id}
+              warehouseId={locations[0]?.id}
+              mode="view"
+              onSerialScanned={(serial) => {
+                toast.success(`Serial scanned: ${serial.serial_number}`);
+              }}
+              onClose={() => setShowSerialScanner(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Variant Matrix Editor Dialog */}
+      <Dialog open={showVariantEditor} onOpenChange={setShowVariantEditor}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Variant Matrix Editor</DialogTitle>
+            <DialogDescription>
+              Manage product variations across different sizes, colors, and parameters.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProduct && (
+            <VariantMatrixEditor
+              product={selectedProduct}
+              businessId={selectedProduct.business_id}
+              onVariantsUpdated={async () => {
+                toast.success('Variants updated successfully');
+                await runSoftRefresh();
+                scheduleAnalyticsRefresh?.();
+                setShowVariantEditor(false);
+              }}
+              onClose={() => setShowVariantEditor(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Form Modal - Add or Edit */}
+      <Dialog open={showProductFormInternal} onOpenChange={(open) => {
+        setShowProductFormInternal(open);
+        if (!open) setEditingProduct(null);
+      }}>
+        <DialogContent
+          className={cn(
+            MOBILE_DIALOG_SHELL_WIDE,
+            'lg:max-w-4xl lg:max-h-[90vh] lg:overflow-y-auto lg:p-6 lg:gap-4 lg:rounded-lg'
+          )}
+        >
+          <DialogHeader className="max-lg:shrink-0 max-lg:border-b max-lg:px-4 max-lg:py-3">
+            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+          </DialogHeader>
+          <div className="max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:px-3 max-lg:py-3">
+          <ProductForm
+            product={editingProduct}
+            onSave={async (data) => {
+              if (editingProduct) {
+                await handleUpdateProduct({ ...editingProduct, ...data }, { closeForm: true });
+              } else {
+                await handleCreateProduct(data, { closeForm: true });
+              }
+            }}
+            onCancel={() => {
+              setShowProductFormInternal(false);
+              setEditingProduct(null);
+            }}
+            category={category}
+          />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Details Viewer */}
+      <ProductDetailsDialog
+        product={productToView}
+        open={!!productToView}
+        onClose={() => setProductToView(null)}
+        onUpdate={(updatedProduct) => {
+          // ProductDetailsDialog already persisted via updateProductAction.
+          // Merge locally only — do not call composite onUpdate (would double-write).
+          const merged = mergeInventoryServerRow(
+            products.find((p) => p.id === updatedProduct.id),
+            updatedProduct
+          );
+          setProducts((prev) =>
+            prev.map((p) =>
+              p.id === updatedProduct.id ? merged : p
+            )
+          );
+          if (typeof upsertProductInState === 'function') {
+            upsertProductInState(merged);
+          }
+          scheduleAnalyticsRefresh?.();
+        }}
+        category={category}
+      />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && !isDeleting && setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Product?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-gray-900">{productToDelete?.name}</span> will be archived and
+              hidden from your inventory. All historical records (sales, purchases, batches) are preserved.
+              You can restore it later from archived products.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
+              disabled={isDeleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                setIsDeleting(true);
+                const id = productToDelete.id;
+                try {
+                  const res = await deleteProductAction(id, businessId);
+                  if (res.success) {
+                    setProducts(prev => prev.filter(p => p.id !== id));
+                    toast.success('Product archived');
+                    onDelete?.(id, { alreadyDeleted: true });
+                    setProductToDelete(null);
+                  } else {
+                    toast.error(res.error || 'Failed to delete product');
+                  }
+                } catch (err) {
+                  console.error('Delete error:', err);
+                  toast.error('Connection error while deleting');
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+            >
+              {isDeleting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Archiving...
+                </>
+              ) : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Feature Dialogs definitions are already handled above with Dialog components */}
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600 font-semibold uppercase tracking-tighter">
+              <Archive className="w-5 h-5" />
+              Confirm bulk archive
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600 font-medium">
+              This will archive <span className="font-bold text-gray-900">{productsToBulkDelete.length} products</span>.
+              They will be hidden from active inventory; sales and purchase history stay intact. You can restore archived items later where your workflow supports it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-2">
+            <AlertDialogCancel className="font-bold uppercase text-xs tracking-widest">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className="bg-red-600 hover:bg-red-700 font-bold uppercase text-xs tracking-widest">
+              Archive all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <ShortcutsHelp
+        isOpen={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+      />
+      <SmartQuickAddModal
+        isOpen={showQuickAddModal}
+        onClose={() => setShowQuickAddModal(false)}
+        onSave={async (data) => {
+          await handleCreateProduct(data, { closeForm: false });
+          setShowQuickAddModal(false);
+        }}
+        category={category}
+        businessId={businessId}
+        currency={currency}
+      />
+
+      <ExcelImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        hideTrigger
+        onImport={handleExcelImport}
+        existingProducts={products}
+        category={category}
+      />
+
+      {hasQuickAddTemplates && (
+        <QuickAddTemplates
+          domain={category}
+          currency={currency}
+          onAddProduct={handleCreateProduct}
+          open={showTemplatesModal}
+          onOpenChange={setShowTemplatesModal}
+          hideTrigger
+        />
+      )}
+
+      <ExcelModeModal
+        isOpen={showExcelMode}
+        onClose={() => setShowExcelMode(false)}
+        data={productsToDisplay}
+        columns={columns.filter(c => c.id !== 'actions')}
+        onSave={handleExcelSave}
+        getFieldSuggestions={getFieldSuggestions}
+        business={business}
+        currencySymbol={standards.currencySymbol}
+        domainKnowledge={inventoryFeatures.knowledge}
+        countryIso={countryIso}
+        onAddRow={
+          canCreateInventory
+            ? (previousRow) =>
+                buildNewInventoryRow(
+                  category,
+                  businessId,
+                  previousRow || getLastRowForDefaults(productsToDisplay),
+                  { countryIso }
+                )
+            : undefined
+        }
+        onDeleteRow={
+          canDeleteInventory
+            ? async (row) => {
+                if (row?.id) {
+                  await handleDeleteProduct(row.id);
+                }
+              }
+            : undefined
+        }
+        category={category}
+        businessId={businessId}
+        title={`${category.replace(/-/g, ' ').toUpperCase()} - BULK ENTRY`}
+      />
+
+      {/* Stock Adjustment Dialog */}
+      <Dialog open={showStockAdjustment} onOpenChange={setShowStockAdjustment}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Stock Adjustment</DialogTitle>
+            <DialogDescription>
+              Adjust stock levels with reason codes and approval workflow.
+            </DialogDescription>
+          </DialogHeader>
+          <StockAdjustmentManager
+            businessId={businessId}
+            products={products}
+            warehouses={locations}
+            onAdjustmentComplete={() => {
+              void runCatalogResync();
+              scheduleAnalyticsRefresh?.();
+              setShowStockAdjustment(false);
+            }}
+            currency={standards.currency}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Stock Transfer Dialog */}
+      <Dialog open={showStockTransferForm} onOpenChange={setShowStockTransferForm}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Stock Transfer</DialogTitle>
+            <DialogDescription>
+              Move stock between warehouses with availability validation and reservation safety.
+            </DialogDescription>
+          </DialogHeader>
+          <StockTransferForm
+            businessId={businessId}
+            onStockTransfer={onStockTransfer}
+            onClose={() => setShowStockTransferForm(false)}
+            onTransferComplete={() => {
+              void runCatalogResync();
+              scheduleAnalyticsRefresh?.();
+              setShowStockTransferForm(false);
+            }}
+            products={products}
+            warehouses={locations}
+          />
+        </DialogContent>
+      </Dialog>
+    </div >
+  );
+}
+
+export default InventoryManager;
+

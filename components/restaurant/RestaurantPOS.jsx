@@ -1,0 +1,1017 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    UtensilsCrossed, Search, Plus, Minus, Trash2, ChevronRight,
+    Clock, Users, Send, Printer, ArrowLeft, Receipt, CreditCard,
+    Banknote, Smartphone, Check, ShoppingBag, Bike, Home, Maximize, Minimize
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useBusiness } from '@/lib/context/BusinessContext';
+import { getTablesAction, createRestaurantOrderAction, updateTableStatusAction, settleRestaurantOrderAction } from '@/lib/actions/standard/restaurant';
+import { usePosSettings } from '@/lib/hooks/usePosSettings';
+import { usePosTaxConfig } from '@/lib/hooks/usePosTaxConfig';
+import { usePosHotkeys, focusPosScanInput } from '@/lib/hooks/usePosHotkeys';
+import { usePosManagerGate } from '@/components/pos/shared/PosManagerPinGate';
+import { PosHotkeyDock } from '@/components/pos/shared/PosHotkeyDock';
+import { PosTaxPanel } from '@/components/pos/shared/PosTaxPanel';
+import { PosMobileCheckoutBar } from '@/components/pos/shared/PosMobileCheckoutBar';
+import { getPosShellHeightClass } from '@/lib/utils/posLayout';
+import { computePosCartTax } from '@/lib/utils/posTaxComponents';
+import { getPosUiConfig } from '@/lib/utils/posHelpers';
+import { nextPosPaymentMethod } from '@/lib/config/posHotkeys';
+import { usePosReceipt } from '@/lib/hooks/usePosReceipt';
+import { Button } from '@/components/ui/button';
+import toast from 'react-hot-toast';
+
+const RESTAURANT_PAYMENT_METHODS = ['cash', 'card', 'digital_wallet', 'staff_account'];
+
+
+const ORDER_TYPES = [
+    { key: 'dine-in', label: 'Dine In', icon: UtensilsCrossed, color: 'bg-indigo-500' },
+    { key: 'takeaway', label: 'Takeaway', icon: ShoppingBag, color: 'bg-amber-500' },
+    { key: 'delivery', label: 'Delivery', icon: Bike, color: 'bg-emerald-500' },
+];
+
+function OrderTypeSelector({ selected, onSelect, compact = false }) {
+    return (
+        <div className={cn('flex gap-1.5 max-lg:gap-1 overflow-x-auto scrollbar-hide', compact && 'max-lg:flex-nowrap')}>
+            {ORDER_TYPES.map(type => {
+                const Icon = type.icon;
+                const isActive = selected === type.key;
+                return (
+                    <button
+                        key={type.key}
+                        type="button"
+                        onClick={() => onSelect(type.key)}
+                        className={cn(
+                            'flex items-center gap-1.5 rounded-xl text-xs font-bold transition-all shrink-0 touch-manipulation',
+                            compact ? 'max-lg:px-2.5 max-lg:py-1.5 lg:px-3 lg:py-2' : 'px-3 py-2',
+                            isActive
+                                ? `${type.color} text-white shadow-lg`
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        )}
+                    >
+                        <Icon className={cn('w-3.5 h-3.5', compact && 'max-lg:w-3 max-lg:h-3')} />
+                        {type.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ===============================================================
+// MENU CATEGORY BAR
+// ===============================================================
+
+function CategoryBar({ categories, active, onSelect }) {
+    return (
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+                onClick={() => onSelect('all')}
+                className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all',
+                    active === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                )}
+            >
+                All
+            </button>
+            {categories.map(cat => (
+                <button
+                    key={cat}
+                    onClick={() => onSelect(cat)}
+                    className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all capitalize',
+                        active === cat ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    )}
+                >
+                    {cat}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+// ===============================================================
+// MENU ITEM CARD
+// ===============================================================
+
+function MenuItemCard({ product, onAdd, currency }) {
+    // Only show LOW badge if stock is explicitly tracked (stock > 0 previously, now <= 5)
+    // Items with stock=0 that have never been stocked are untracked menu items, no badge
+    const stockTracked = product.stock_status === 'low_stock' || (product.stock !== null && product.stock !== undefined && product.stock > 0 && product.stock <= 5);
+    const isLow = stockTracked;
+    return (
+        <motion.button
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onAdd(product)}
+            className="bg-white rounded-xl border border-gray-100 p-3 max-lg:p-2.5 text-left hover:shadow-md hover:border-indigo-200 transition-all group relative touch-manipulation active:scale-[0.98]"
+        >
+            {isLow && (
+                <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 bg-red-500 text-white font-semibold rounded-full">LOW</span>
+            )}
+            <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm max-lg:text-xs font-bold text-gray-900 truncate">{product.name}</p>
+                    <p className="text-[10px] max-lg:text-[9px] text-gray-400 mt-0.5 truncate capitalize">{product.category || 'Uncategorized'}</p>
+                </div>
+                <div className="shrink-0 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Plus className="w-4 h-4 text-indigo-600" />
+                </div>
+            </div>
+            <p className="text-base max-lg:text-sm font-semibold text-indigo-600 mt-2">{currency} {Number(product.price || product.selling_price || 0).toLocaleString()}</p>
+        </motion.button>
+    );
+}
+
+// ===============================================================
+// ORDER ITEM ROW
+// ===============================================================
+
+function OrderItemRow({ item, onQty, onRemove, currency }) {
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center gap-2 py-2 max-lg:py-1.5 border-b border-gray-50 last:border-0"
+        >
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
+                <p className="text-[10px] text-gray-400">@ {currency} {Number(item.price || item.selling_price || 0).toLocaleString()}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => onQty(item.id, -1)} className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                    <Minus className="w-3 h-3 text-gray-500" />
+                </button>
+                <span className="w-7 text-center text-sm font-semibold text-gray-800">{item.quantity}</span>
+                <button onClick={() => onQty(item.id, 1)} className="w-6 h-6 rounded-md bg-indigo-50 flex items-center justify-center hover:bg-indigo-100 transition-colors">
+                    <Plus className="w-3 h-3 text-indigo-600" />
+                </button>
+            </div>
+            <span className="text-sm font-bold text-gray-800 w-20 text-right shrink-0">
+                {currency} {(item.quantity * Number(item.price || item.selling_price || 0)).toLocaleString()}
+            </span>
+            <button onClick={() => onRemove(item.id)} className="w-6 h-6 rounded-md hover:bg-red-50 flex items-center justify-center transition-colors">
+                <Trash2 className="w-3 h-3 text-red-400" />
+            </button>
+        </motion.div>
+    );
+}
+
+// ===============================================================
+// MAIN RESTAURANT POS
+// ===============================================================
+
+export function RestaurantPOS({ businessId, products = [], onCompleteSale, onOrderComplete, onOrderSent, currency = 'Rs.', taxConfig: taxConfigProp, session }) {
+    const { business } = useBusiness();
+    const effectiveBusinessId = businessId || business?.id;
+    const posSettings = usePosSettings();
+    const posUi = useMemo(
+        () => getPosUiConfig('restaurant-cafe', business),
+        [business]
+    );
+    const {
+        taxMode,
+        setTaxMode,
+        components: taxComponents,
+        taxLabel,
+        taxEnabled,
+        taxConfig: loadedTaxConfig,
+    } = usePosTaxConfig('restaurant-cafe');
+    const taxConfig = taxConfigProp || loadedTaxConfig;
+    const { requestApproval, managerPinDialog } = usePosManagerGate({
+        businessId: effectiveBusinessId,
+        posSettings,
+    });
+    const { printBillFromCart } = usePosReceipt({
+        business,
+        documentLabel: posUi.receiptLabel || 'Order',
+        category: 'restaurant-cafe',
+        currencyCode: posUi.currencyCode,
+    });
+    const [mobilePane, setMobilePane] = useState('menu');
+    const [showTaxPanel, setShowTaxPanel] = useState(false);
+
+    // State
+    const [orderType, setOrderType] = useState('dine-in');
+    const [selectedTable, setSelectedTable] = useState(null);
+    const [tables, setTables] = useState([]);
+    const [orderItems, setOrderItems] = useState([]);
+    const [search, setSearch] = useState('');
+    const [activeCategory, setActiveCategory] = useState('all');
+    const [covers, setCovers] = useState(2);
+    const [waiterNote, setWaiterNote] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [showPayment, setShowPayment] = useState(false);
+    const [currentOrderId, setCurrentOrderId] = useState(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const containerRef = React.useRef(null);
+    const searchInputRef = React.useRef(null);
+    const customerNameRef = React.useRef(null);
+    const customerPhoneRef = React.useRef(null);
+    const deliveryAddressRef = React.useRef(null);
+    // Customer info for takeaway/delivery
+    const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
+    const [deliveryFee, setDeliveryFee] = useState(0);
+
+    // --- Fullscreen Logic ----------------------------------------------------
+
+    const toggleFullscreen = useCallback(() => {
+        if (!containerRef.current) return;
+
+        if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }, []);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
+
+    // Load tables
+    useEffect(() => {
+        if (!effectiveBusinessId) return;
+        getTablesAction(effectiveBusinessId).then(res => {
+            if (res.success) setTables(res.tables || []);
+        });
+    }, [effectiveBusinessId]);
+
+    // Categories
+    const categories = useMemo(() => {
+        const cats = [...new Set(products.map(p => p.category).filter(Boolean))];
+        return cats.sort();
+    }, [products]);
+
+    // Filtered products
+    const filteredProducts = useMemo(() => {
+        let filtered = products;
+        if (activeCategory !== 'all') {
+            filtered = filtered.filter(p => p.category === activeCategory);
+        }
+        if (search) {
+            const term = search.toLowerCase();
+            filtered = filtered.filter(p =>
+                p.name?.toLowerCase().includes(term) ||
+                p.sku?.toLowerCase().includes(term)
+            );
+        }
+        return filtered;
+    }, [products, activeCategory, search]);
+
+    // Order calculations (respect taxMode via taxComponents from usePosTaxConfig)
+    const subtotal = useMemo(() =>
+        orderItems.reduce((sum, item) => sum + (item.quantity * Number(item.price || item.selling_price || 0)), 0),
+        [orderItems]);
+    const orderTax = useMemo(() => {
+        const lines = orderItems.map((item) => ({
+            unitPrice: Number(item.price || item.selling_price || 0),
+            quantity: item.quantity,
+        }));
+        return computePosCartTax(lines, taxComponents);
+    }, [orderItems, taxComponents]);
+    const tax = orderTax.taxAmount;
+    const taxBreakdown = orderTax.breakdown;
+    const taxPct = orderTax.taxPercent;
+    const total = subtotal + tax + (orderType === 'delivery' ? deliveryFee : 0);
+    const showTaxBreakdown = taxBreakdown.length > 1;
+    const orderTotals = useMemo(() => ({
+        subtotal,
+        taxAmount: tax,
+        discountAmount: 0,
+        total,
+    }), [subtotal, tax, total]);
+
+    // Handlers
+    const addItem = useCallback((product) => {
+        setOrderItems(prev => {
+            const existing = prev.find(i => i.id === product.id);
+            if (existing) {
+                return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+            }
+            return [...prev, { ...product, quantity: 1 }];
+        });
+    }, []);
+
+    const updateQty = useCallback((id, delta) => {
+        setOrderItems(prev => prev.map(i => {
+            if (i.id !== id) return i;
+            const newQty = i.quantity + delta;
+            return newQty <= 0 ? null : { ...i, quantity: newQty };
+        }).filter(Boolean));
+    }, []);
+
+    const removeItem = useCallback((id) => {
+        setOrderItems(prev => prev.filter(i => i.id !== id));
+    }, []);
+
+    const submitOrder = useCallback(async ({ skipKitchen = false } = {}) => {
+        if (!effectiveBusinessId || orderItems.length === 0) return false;
+        if (orderType === 'delivery' && !customerName.trim()) {
+            toast.error('Customer name is required for delivery orders');
+            return false;
+        }
+        if (orderType === 'delivery' && !customerPhone.trim()) {
+            toast.error('Customer phone is required for delivery orders');
+            return false;
+        }
+        if (orderType === 'delivery' && !deliveryAddress.trim()) {
+            toast.error('Delivery address is required');
+            return false;
+        }
+        if (orderType === 'dine-in' && tables.length > 0 && !selectedTable) {
+            toast.error('Please select a table for dine-in orders');
+            return false;
+        }
+        setIsProcessing(true);
+        try {
+            const dbOrderType = orderType === 'dine-in' ? 'dine_in' : orderType;
+            const result = await createRestaurantOrderAction({
+                businessId: effectiveBusinessId,
+                tableId: selectedTable?.id || null,
+                orderType: dbOrderType,
+                covers: orderType === 'dine-in' ? covers : 1,
+                customerName: customerName.trim() || null,
+                customerPhone: customerPhone.trim() || null,
+                deliveryAddress: deliveryAddress.trim() || null,
+                deliveryFee: deliveryFee || 0,
+                skipKitchen,
+                items: orderItems.map((i) => ({
+                    productId: i.id,
+                    name: i.name,
+                    quantity: i.quantity,
+                    price: Number(i.price || i.selling_price || 0),
+                    notes: '',
+                })),
+                taxPercent: taxPct,
+                notes: waiterNote,
+            });
+
+            if (result.success) {
+                const label = skipKitchen ? 'Order ready for payment' : 'sent to kitchen';
+                toast.success(`Order #${result.order?.order_number || 'NEW'} ${label}`, {
+                    icon: skipKitchen ? '💳' : '🔥',
+                });
+                setCurrentOrderId(result.order?.id || null);
+                onOrderSent?.();
+                setShowPayment(true);
+                if (!paymentMethod) setPaymentMethod('cash');
+                return true;
+            }
+            toast.error(result.error || 'Failed to create order');
+            return false;
+        } catch (err) {
+            toast.error('Failed to send order');
+            console.error('[RestaurantPOS] Order submit failed:', err);
+            return false;
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [
+        effectiveBusinessId,
+        orderItems,
+        orderType,
+        customerName,
+        customerPhone,
+        deliveryAddress,
+        deliveryFee,
+        tables.length,
+        selectedTable,
+        covers,
+        taxPct,
+        waiterNote,
+        onOrderSent,
+        paymentMethod,
+    ]);
+
+    const handleSendToKitchen = useCallback(
+        () => submitOrder({ skipKitchen: false }),
+        [submitOrder]
+    );
+
+    const handleQuickPay = useCallback(
+        () => submitOrder({ skipKitchen: true }),
+        [submitOrder]
+    );
+
+    const handlePayment = useCallback(async () => {
+        if (!paymentMethod) {
+            toast.error('Select payment method');
+            return;
+        }
+        if (!currentOrderId) {
+            toast.error('Send order to kitchen first');
+            return;
+        }
+        setIsProcessing(true);
+        try {
+            const result = await settleRestaurantOrderAction({
+                businessId: effectiveBusinessId,
+                orderId: currentOrderId,
+                paymentMethod,
+                amount: total,
+                sessionId: posSettings.syncRestaurantToPos && session?.id ? session.id : null,
+            });
+
+            if (result.success) {
+                toast.success('Payment processed!', { icon: '✅' });
+                onOrderComplete?.(result);
+                setOrderItems([]);
+                setSelectedTable(null);
+                setPaymentMethod('');
+                setWaiterNote('');
+                setCurrentOrderId(null);
+                setShowPayment(false);
+                setCustomerName('');
+                setCustomerPhone('');
+                setDeliveryAddress('');
+                setDeliveryFee(0);
+                getTablesAction(effectiveBusinessId).then((res) => {
+                    if (res.success) setTables(res.tables || []);
+                });
+            } else {
+                toast.error(result.error || 'Payment failed');
+            }
+        } catch (err) {
+            toast.error(err?.message || 'Payment processing failed');
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [
+        paymentMethod,
+        currentOrderId,
+        effectiveBusinessId,
+        total,
+        posSettings.syncRestaurantToPos,
+        session?.id,
+        onOrderComplete,
+    ]);
+
+    const availableTables = tables.filter(t => t.status === 'available' || t.status === 'reserved');
+    const occupiedTables = tables.filter(t => t.status === 'occupied');
+
+    const clearOrder = useCallback(() => {
+        requestApproval('clear', () => {
+            setOrderItems([]);
+            setCurrentOrderId(null);
+            setShowPayment(false);
+            setPaymentMethod('');
+        });
+    }, [requestApproval]);
+
+    const focusCustomerField = useCallback(() => {
+        if (orderType === 'dine-in') {
+            toast('Switch to Takeaway or Delivery to capture customer details', { id: 'resto-customer' });
+            return;
+        }
+        if (orderType === 'delivery') {
+            if (!customerName.trim()) {
+                customerNameRef.current?.focus();
+                return;
+            }
+            if (!customerPhone.trim()) {
+                customerPhoneRef.current?.focus();
+                return;
+            }
+            deliveryAddressRef.current?.focus();
+            return;
+        }
+        customerNameRef.current?.focus();
+    }, [orderType, customerName, customerPhone]);
+
+    const handlePrintBill = useCallback(() => {
+        if (!orderItems.length) {
+            toast.error('Add items before printing');
+            return;
+        }
+        const cart = orderItems.map((item) => ({
+            name: item.name,
+            sku: item.sku,
+            quantity: item.quantity,
+            unitPrice: Number(item.price || item.selling_price || 0),
+        }));
+        printBillFromCart({
+            cart,
+            customer: customerName.trim()
+                ? { name: customerName.trim(), phone: customerPhone.trim() || undefined }
+                : null,
+            paymentMethod: paymentMethod || 'cash',
+            totalsFromCart: orderTotals,
+            transactionRef: currentOrderId ? `ORDER-${currentOrderId}` : 'DRAFT-ORDER',
+        });
+    }, [orderItems, customerName, customerPhone, paymentMethod, orderTotals, currentOrderId, printBillFromCart]);
+
+    const handleTaxModeChange = useCallback((mode) => {
+        if (mode === 'exempt') {
+            requestApproval('tax_exempt', () => setTaxMode('exempt'));
+            return;
+        }
+        setTaxMode(mode);
+    }, [requestApproval, setTaxMode]);
+
+    const hotkeyHandlers = useMemo(() => ({
+        search: () => {
+            setMobilePane('menu');
+            requestAnimationFrame(() => {
+                if (!focusPosScanInput(containerRef.current)) {
+                    searchInputRef.current?.focus();
+                    searchInputRef.current?.select?.();
+                }
+            });
+        },
+        customer: focusCustomerField,
+        discount: () => toast('Order discounts are managed from the hub', { id: 'resto-discount' }),
+        hold: () => toast('Use Send to Kitchen to park an open order', { id: 'resto-hold' }),
+        pay: () => {
+            if (orderItems.length === 0 || isProcessing) return;
+            if (showPayment) {
+                void handlePayment();
+                return;
+            }
+            void handleSendToKitchen();
+        },
+        payment: () => {
+            if (orderItems.length === 0 || isProcessing) return;
+            if (showPayment || currentOrderId) {
+                setShowPayment(true);
+                setPaymentMethod((prev) => nextPosPaymentMethod(prev || 'cash', RESTAURANT_PAYMENT_METHODS));
+                return;
+            }
+            toast('Send order first (F5), then cycle tender (F6)', { id: 'resto-tender' });
+        },
+        tax: () => { if (taxEnabled) setShowTaxPanel(true); },
+        clear: clearOrder,
+        print: handlePrintBill,
+    }), [
+        focusCustomerField,
+        orderItems.length,
+        isProcessing,
+        showPayment,
+        currentOrderId,
+        handlePayment,
+        handleSendToKitchen,
+        clearOrder,
+        handlePrintBill,
+        taxEnabled,
+    ]);
+
+    usePosHotkeys({
+        enabled: !showTaxPanel,
+        handlers: hotkeyHandlers,
+        onFullscreen: toggleFullscreen,
+    });
+
+    useEffect(() => {
+        const onKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                setMobilePane('menu');
+                requestAnimationFrame(() => {
+                    focusPosScanInput(containerRef.current) || searchInputRef.current?.focus();
+                });
+            }
+            if (e.key === 'Enter' && showPayment && paymentMethod && !isProcessing && orderItems.length > 0) {
+                if (e.target instanceof HTMLInputElement && e.target.type === 'text') return;
+                e.preventDefault();
+                void handlePayment();
+            }
+            if (e.key === 'Escape' && search) {
+                setSearch('');
+                searchInputRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [showPayment, paymentMethod, isProcessing, orderItems.length, handlePayment, search]);
+
+    return (
+        <div
+            ref={containerRef}
+            data-pos-root="restaurant"
+            className={cn(
+                'flex flex-col bg-gray-50 overflow-hidden border border-gray-200 transition-all min-h-0 touch-manipulation',
+                getPosShellHeightClass(isFullscreen, 'terminal'),
+                isFullscreen ? 'fixed inset-0 z-[100] rounded-none border-0' : 'rounded-xl shadow-sm'
+            )}
+        >
+            {/* Menu + cart row — dock stays outside so F1–F9 pin to bottom */}
+            <div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden">
+                {/* Menu / tables — hidden on mobile when viewing cart */}
+                <div className={cn('flex-1 flex flex-col overflow-hidden min-h-0', mobilePane === 'cart' && 'hidden lg:flex')}>
+                {/* Order Type + Table Selection */}
+                <div className="p-4 max-lg:p-3 max-lg:pt-[max(0.75rem,env(safe-area-inset-top))] bg-white border-b border-gray-100 space-y-3 max-lg:space-y-2">
+                    <div className="flex items-center justify-between gap-2 max-lg:flex-wrap">
+                        <OrderTypeSelector selected={orderType} onSelect={(type) => {
+                            setOrderType(type);
+                            // Clear table when leaving dine-in
+                            if (type !== 'dine-in') setSelectedTable(null);
+                            // Clear customer fields when switching
+                            setCustomerName('');
+                            setCustomerPhone('');
+                            setDeliveryAddress('');
+                            setDeliveryFee(0);
+                        }} compact />
+                        {orderType === 'dine-in' && (
+                            <div className="flex items-center gap-2">
+                                <Users className="w-3.5 h-3.5 text-gray-400" />
+                                <input
+                                    type="number" min="1" max="20" value={covers}
+                                    onChange={e => setCovers(parseInt(e.target.value) || 1)}
+                                    className="w-12 text-center text-sm font-bold border border-gray-200 rounded-lg py-1"
+                                />
+                                <span className="text-xs text-gray-400">covers</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Takeaway: optional customer name + phone */}
+                    {orderType === 'takeaway' && (
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                ref={customerNameRef}
+                                placeholder="Customer name (optional)"
+                                value={customerName}
+                                onChange={e => setCustomerName(e.target.value)}
+                                className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-200 outline-none"
+                            />
+                            <input
+                                type="tel"
+                                ref={customerPhoneRef}
+                                placeholder="Phone (optional)"
+                                value={customerPhone}
+                                onChange={e => setCustomerPhone(e.target.value)}
+                                className="w-36 text-xs px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-200 outline-none"
+                            />
+                        </div>
+                    )}
+
+                    {/* Delivery: required name, phone + address */}
+                    {orderType === 'delivery' && (
+                        <div className="space-y-2">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    ref={customerNameRef}
+                                    placeholder="Customer name *"
+                                    value={customerName}
+                                    onChange={e => setCustomerName(e.target.value)}
+                                    className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none"
+                                />
+                                <input
+                                    type="tel"
+                                    ref={customerPhoneRef}
+                                    placeholder="Phone *"
+                                    value={customerPhone}
+                                    onChange={e => setCustomerPhone(e.target.value)}
+                                    className="w-36 text-xs px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    ref={deliveryAddressRef}
+                                    placeholder="Delivery address *"
+                                    value={deliveryAddress}
+                                    onChange={e => setDeliveryAddress(e.target.value)}
+                                    className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none"
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Delivery fee"
+                                    value={deliveryFee || ''}
+                                    onChange={e => setDeliveryFee(Number(e.target.value) || 0)}
+                                    className="w-28 text-xs px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Table Grid (dine-in only) */}
+                    {orderType === 'dine-in' && (
+                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                            {tables.map(table => {
+                                const isSelected = selectedTable?.id === table.id;
+                                const statusColors = {
+                                    available: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                                    occupied: 'bg-red-50 text-red-500 border-red-200',
+                                    reserved: 'bg-amber-50 text-amber-600 border-amber-200',
+                                };
+                                return (
+                                    <button
+                                        key={table.id}
+                                        onClick={() => table.status === 'available' && setSelectedTable(table)}
+                                        disabled={table.status === 'occupied'}
+                                        className={cn(
+                                            'shrink-0 w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center transition-all',
+                                            isSelected ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' :
+                                                statusColors[table.status] || statusColors.available,
+                                            table.status === 'occupied' && 'opacity-50 cursor-not-allowed'
+                                        )}
+                                    >
+                                        <span className="text-xs font-semibold">{table.table_number || table.name}</span>
+                                        <span className="text-[10px] font-bold mt-0.5">{table.capacity || 4} seats</span>
+                                    </button>
+                                );
+                            })}
+                            {tables.length === 0 && (
+                                <p className="text-xs text-gray-400 py-4">No tables configured yet</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Search + Category */}
+                <div className="p-3 max-lg:px-3 max-lg:py-2 bg-white border-b border-gray-50 space-y-2 max-lg:space-y-1.5">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                        <input
+                            ref={searchInputRef}
+                            data-pos-role="scan"
+                            type="text"
+                            placeholder="Search menu items... (F1)"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 max-lg:h-10 max-lg:text-sm text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none touch-manipulation"
+                        />
+                    </div>
+                    <CategoryBar categories={categories} active={activeCategory} onSelect={setActiveCategory} />
+                </div>
+
+                {/* Menu Grid */}
+                <div className="flex-1 overflow-y-auto p-3 max-lg:p-2 overscroll-contain">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-lg:gap-1.5">
+                        {filteredProducts.map(p => (
+                            <MenuItemCard key={p.id} product={p} onAdd={addItem} currency={currency} />
+                        ))}
+                    </div>
+                    {filteredProducts.length === 0 && (
+                        <div className="text-center py-12 text-gray-400">
+                            <UtensilsCrossed className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm font-semibold">No items found</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {mobilePane === 'menu' && (
+                <div className="lg:hidden shrink-0">
+                    <PosMobileCheckoutBar
+                        variant="restaurant"
+                        checkoutLabel="View order & pay"
+                        itemCount={orderItems.reduce((s, i) => s + i.quantity, 0)}
+                        total={total}
+                        currency={currency}
+                        onOpenCheckout={() => setMobilePane('cart')}
+                        emptyHint="Add menu items to start an order"
+                    />
+                </div>
+            )}
+
+            {/* Order cart — desktop sidebar / mobile full pane */}
+            <div className={cn(
+                'bg-white border-l border-gray-200 flex flex-col min-h-0',
+                'lg:w-[360px] lg:flex',
+                mobilePane === 'cart' ? 'flex flex-1' : 'hidden lg:flex'
+            )}>
+                {/* Order Header */}
+                <div className="p-4 max-lg:p-3 border-b border-gray-100 shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <button type="button" className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-gray-100 touch-manipulation" onClick={() => setMobilePane('menu')} aria-label="Back to menu">
+                                <ArrowLeft className="w-4 h-4" />
+                            </button>
+                            <div className="min-w-0">
+                                <h3 className="text-sm font-semibold text-gray-900">Current Order</h3>
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                                {orderType === 'dine-in' && selectedTable ? `Table ${selectedTable.table_number || selectedTable.name} · ${covers} covers` :
+                                    orderType === 'takeaway' ? 'Takeaway Order' : 'Delivery Order'}
+                            </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                            {orderItems.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={clearOrder}
+                                    className="text-[10px] text-red-400 font-bold hover:text-red-600 px-2 py-1 touch-manipulation"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={toggleFullscreen}
+                                className="h-9 w-9 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 touch-manipulation"
+                                aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                            >
+                                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Order Items */}
+                <div className="flex-1 overflow-y-auto px-4 max-lg:px-3 py-2 overscroll-contain min-h-0">
+                    <AnimatePresence>
+                        {orderItems.map(item => (
+                            <OrderItemRow
+                                key={item.id}
+                                item={item}
+                                onQty={updateQty}
+                                onRemove={removeItem}
+                                currency={currency}
+                            />
+                        ))}
+                    </AnimatePresence>
+                    {orderItems.length === 0 && (
+                        <div className="text-center py-12 text-gray-300">
+                            <Receipt className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-xs font-semibold">Add items from the menu</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Waiter Note */}
+                {orderItems.length > 0 && (
+                    <div className="px-4 py-2 border-t border-gray-50">
+                        <input
+                            type="text"
+                            placeholder="Kitchen note (e.g. no onions)..."
+                            value={waiterNote}
+                            onChange={e => setWaiterNote(e.target.value)}
+                            className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-200 outline-none"
+                        />
+                    </div>
+                )}
+
+                {/* Totals */}
+                <div className="p-4 max-lg:p-3 border-t border-gray-100 space-y-1.5 shrink-0 bg-white pb-[env(safe-area-inset-bottom)] lg:pb-4">
+                    <div className="flex justify-between text-xs text-gray-500">
+                        <span>Subtotal</span>
+                        <span className="font-bold">{currency} {subtotal.toLocaleString()}</span>
+                    </div>
+                    {taxEnabled && taxMode === 'exempt' ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowTaxPanel(true)}
+                            className="flex w-full justify-between text-xs text-gray-500 hover:text-emerald-700"
+                        >
+                            <span>Tax exempt</span>
+                            <span className="font-bold">{currency} 0</span>
+                        </button>
+                    ) : taxEnabled && showTaxBreakdown ? (
+                        taxBreakdown.map((row) => (
+                            <button
+                                key={row.key}
+                                type="button"
+                                onClick={() => setShowTaxPanel(true)}
+                                className="flex w-full justify-between text-xs text-gray-500 hover:text-emerald-700"
+                            >
+                                <span>{row.label} ({row.rate}%)</span>
+                                <span className="font-bold">{currency} {row.amount.toLocaleString()}</span>
+                            </button>
+                        ))
+                    ) : taxEnabled ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowTaxPanel(true)}
+                            className="flex w-full justify-between text-xs text-gray-500 hover:text-emerald-700"
+                        >
+                            <span>{taxLabel || 'Tax'} ({Math.round(taxPct)}%)</span>
+                            <span className="font-bold">{currency} {tax.toLocaleString()}</span>
+                        </button>
+                    ) : null}
+                    {taxEnabled && taxMode !== 'standard' && (
+                        <p className="text-[10px] text-amber-600 font-medium">Tax mode: {taxMode.replace('_', ' ')}</p>
+                    )}
+                    {orderType === 'delivery' && deliveryFee > 0 && (
+                        <div className="flex justify-between text-xs text-gray-500">
+                            <span>Delivery Fee</span>
+                            <span className="font-bold">{currency} {deliveryFee.toLocaleString()}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between text-base font-semibold text-gray-900 pt-1 border-t border-gray-100">
+                        <span>Total</span>
+                        <span>{currency} {total.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                {/* Payment Area */}
+                {showPayment ? (
+                    <div className="p-4 max-lg:p-3 border-t border-gray-100 space-y-3 shrink-0 bg-white pb-[max(1rem,env(safe-area-inset-bottom))]">
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setShowPayment(false)} className="text-xs text-gray-400 hover:text-gray-600">
+                                <ArrowLeft className="w-4 h-4" />
+                            </button>
+                            <span className="text-xs font-bold text-gray-600">Select Payment</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { key: 'cash', label: 'Cash', icon: Banknote },
+                                { key: 'card', label: 'Card', icon: CreditCard },
+                                { key: 'digital_wallet', label: 'Digital', icon: Smartphone },
+                                { key: 'staff_account', label: 'Staff', icon: Users },
+                            ].map(pm => (
+                                <button
+                                    key={pm.key}
+                                    onClick={() => setPaymentMethod(pm.key)}
+                                    className={cn(
+                                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all',
+                                        paymentMethod === pm.key
+                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                                    )}
+                                >
+                                    <pm.icon className="w-3.5 h-3.5" />
+                                    {pm.label}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={handlePayment}
+                            disabled={!paymentMethod || isProcessing}
+                            className="w-full py-3 max-lg:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm max-lg:text-xs font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 touch-manipulation"
+                        >
+                            {isProcessing ? (
+                                <span className="animate-spin">⏳</span>
+                            ) : (
+                                <>
+                                    <Check className="w-4 h-4" />
+                                    Pay {currency} {total.toLocaleString()}
+                                </>
+                            )}
+                        </button>
+                    </div>
+                ) : (
+                    <div className="p-4 max-lg:p-3 border-t border-gray-100 space-y-2 shrink-0 bg-white pb-[max(1rem,env(safe-area-inset-bottom))] lg:pb-4">
+                        <button
+                            onClick={handleSendToKitchen}
+                            disabled={orderItems.length === 0 || isProcessing}
+                            className="w-full py-3 max-lg:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm max-lg:text-xs font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 touch-manipulation"
+                        >
+                            {isProcessing ? <span className="animate-spin">⏳</span> : <Send className="w-4 h-4" />}
+                            {orderType === 'delivery' ? 'Place Delivery Order' : orderType === 'takeaway' ? 'Place Takeaway Order' : 'Send to Kitchen'}
+                        </button>
+                        <button
+                            onClick={handleQuickPay}
+                            disabled={orderItems.length === 0 || isProcessing}
+                            className="w-full py-2.5 border-2 border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:border-gray-300 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            Quick Pay (Skip Kitchen)
+                        </button>
+                    </div>
+                )}
+            </div>
+            </div>
+
+            <PosHotkeyDock
+                className="hidden lg:block"
+                onAction={(action) => hotkeyHandlers[action]?.()}
+                disabledActions={{
+                    hold: true,
+                    discount: true,
+                    print: orderItems.length === 0,
+                    clear: orderItems.length === 0,
+                    pay: orderItems.length === 0 || isProcessing,
+                    payment: orderItems.length === 0 || isProcessing,
+                    tax: !taxEnabled,
+                }}
+            />
+
+            {taxEnabled && (
+            <PosTaxPanel
+                open={showTaxPanel}
+                onOpenChange={setShowTaxPanel}
+                taxMode={taxMode}
+                onTaxModeChange={handleTaxModeChange}
+                components={taxComponents}
+                currency={currency}
+                sampleTaxAmount={tax}
+            />
+            )}
+
+            {managerPinDialog}
+        </div>
+    );
+}

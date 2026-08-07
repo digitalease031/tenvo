@@ -1,0 +1,440 @@
+'use client';
+// v2: Removed ActionModalsHeader
+
+import React from 'react';
+import dynamic from 'next/dynamic';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Plus,
+    FileText,
+    Package,
+    Users,
+    Settings,
+    Warehouse,
+    BarChart3,
+    Truck,
+    ShoppingCart,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import { EntityDetailsDialog } from '@/components/EntityDetailsDialog';
+import { getNavItemAccess } from '@/lib/rbac/permissions';
+import { useBusiness } from '@/lib/context/BusinessContext';
+import { isPosRelevant } from '@/lib/config/domains';
+import { useResolvedBusinessId } from '@/lib/hooks/useResolvedBusinessId';
+
+const VendorForm = dynamic(
+    () => import('@/components/VendorForm').then((m) => ({ default: m.VendorForm })),
+    { ssr: false }
+);
+const EnhancedPOBuilder = dynamic(() => import('@/components/EnhancedPOBuilder'), { ssr: false });
+const ProductForm = dynamic(
+    () => import('@/components/ProductForm').then((m) => ({ default: m.ProductForm })),
+    { ssr: false }
+);
+const ProductWizard = dynamic(
+    () => import('@/components/inventory/ProductWizard').then((m) => ({ default: m.ProductWizard })),
+    { ssr: false }
+);
+const EnhancedInvoiceBuilder = dynamic(
+    () => import('@/components/EnhancedInvoiceBuilder').then((m) => ({ default: m.EnhancedInvoiceBuilder })),
+    { ssr: false }
+);
+const QuickInvoiceModal = dynamic(
+    () => import('@/components/invoice/QuickInvoiceModal').then((m) => ({ default: m.QuickInvoiceModal })),
+    { ssr: false }
+);
+const PaymentModal = dynamic(
+    () => import('@/components/invoice/PaymentModal').then((m) => ({ default: m.PaymentModal })),
+    { ssr: false }
+);
+const CustomerForm = dynamic(
+    () => import('@/components/CustomerForm').then((m) => ({ default: m.CustomerForm })),
+    { ssr: false }
+);
+const ExcelCustomerGrid = dynamic(
+    () => import('@/components/customer/ExcelCustomerGrid').then((m) => ({ default: m.ExcelCustomerGrid })),
+    { ssr: false }
+);
+const ExpenseEntryForm = dynamic(
+    () => import('@/components/ExpenseEntryForm').then((m) => ({ default: m.ExpenseEntryForm })),
+    { ssr: false }
+);
+
+export function ActionModals({
+    // Visibility States
+    showProductForm,
+    setShowProductForm,
+    showQuickAction,
+    setShowQuickAction,
+    showQuickInvoice,
+    setShowQuickInvoice,
+    showCustomerForm,
+    setShowCustomerForm,
+    showInvoiceBuilder,
+    setShowInvoiceBuilder,
+    showPaymentModal,
+    setShowPaymentModal,
+    selectedInvoiceForPayment,
+    setSelectedInvoiceForPayment,
+
+    // Data
+    editingProduct,
+    setEditingProduct,
+    editingCustomer,
+    setEditingCustomer,
+    invoiceInitialData,
+    setInvoiceInitialData,
+    customerFormData,
+    setCustomerFormData,
+    products,
+    customers,
+    invoices,
+    category,
+    colors,
+    currency,
+
+    // Handlers
+    onSaveProduct,
+    onSaveCustomer,
+    onSaveInvoice,
+    onTabChange,
+    formatCurrency,
+    loadProducts,
+
+    // Vendor Props
+    showVendorForm,
+    setShowVendorForm,
+    editingVendor,
+    setEditingVendor,
+    onSaveVendor,
+
+    // Expense quick add
+    showExpenseForm,
+    setShowExpenseForm,
+    vendors = [],
+    onExpenseSaved,
+
+    // PO Props
+    showPOBuilder,
+    setShowPOBuilder,
+    poInitialData,
+    setPoInitialData,
+    refreshData,
+    upsertInvoiceInState,
+    onPaymentRecorded,
+    business,
+    role = 'owner',
+    planTier = 'free',
+    domainKnowledge,
+
+    // Details Viewer Props
+    viewingItem,
+    setViewingItem,
+    viewingType,
+    setViewingType,
+    // User
+    user
+}) {
+    const activeBusinessId = useResolvedBusinessId(business?.id);
+    const posRelevant = isPosRelevant(category, domainKnowledge);
+    const { moduleAccess } = useBusiness();
+    const [showExcelCustomerGrid, setShowExcelCustomerGrid] = React.useState(false);
+
+    const canOpenTab = (tabKey) => {
+        const access = getNavItemAccess(tabKey, role, planTier, business?.settings, business?.platformFeatureOverrides, moduleAccess);
+        if (!access.visible) return false;
+        if (access.locked) {
+            toast.error(`Requires ${access.requiredPlan || 'higher'} plan`);
+            return false;
+        }
+        return true;
+    };
+
+    const safeTabChange = (tabKey) => {
+        if (!canOpenTab(tabKey)) return;
+        onTabChange(tabKey);
+        setShowQuickAction(false);
+    };
+
+    return (
+        <>
+            <EntityDetailsDialog
+                item={viewingItem}
+                type={viewingType}
+                open={!!viewingItem}
+                onClose={() => {
+                    setViewingItem(null);
+                    setViewingType(null);
+                }}
+                category={category}
+            />
+
+            <ExcelCustomerGrid
+                asPanel={false}
+                isOpen={showExcelCustomerGrid}
+                onClose={() => setShowExcelCustomerGrid(false)}
+                category={category}
+                businessId={activeBusinessId}
+                onSuccess={(newCustomers) => {
+                    if (Array.isArray(newCustomers) && typeof onSaveCustomer === 'function') {
+                        newCustomers.forEach((c) => onSaveCustomer(c));
+                    }
+                }}
+            />
+
+            {/* Product Form Modal -- Wizard for new, Full form for edit */}
+            <Dialog open={showProductForm} onOpenChange={setShowProductForm}>
+                <DialogContent
+                    hideCloseButton
+                    className={
+                        editingProduct
+                            ? 'flex max-h-[min(92dvh,900px)] w-[calc(100vw-1.5rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:w-full lg:max-w-4xl lg:p-0'
+                            : 'flex max-h-[min(92dvh,900px)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none sm:w-full lg:max-w-3xl lg:p-0'
+                    }
+                >
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+                        <DialogDescription>
+                            {editingProduct ? 'Modify the details of the selected product.' : 'Add a new product using the guided wizard.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    {editingProduct ? (
+                        <ProductForm
+                            product={editingProduct}
+                            category={category}
+                            onSave={onSaveProduct}
+                            onCancel={() => {
+                                setShowProductForm(false);
+                                setEditingProduct(null);
+                            }}
+                            currency={currency}
+                        />
+                    ) : (
+                        <ProductWizard
+                            category={category}
+                            onSave={async (data) => {
+                                await onSaveProduct?.(data);
+                                setShowProductForm(false);
+                            }}
+                            onCancel={() => {
+                                setShowProductForm(false);
+                                setEditingProduct(null);
+                            }}
+                            currency={currency}
+                        />
+                    )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quick Action Modal */}
+            <Dialog open={showQuickAction} onOpenChange={setShowQuickAction}>
+                <DialogContent className="max-w-xl rounded-2xl border-none p-4 shadow-2xl sm:p-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-semibold flex items-center gap-2">
+                            <span className="p-2 rounded-xl" style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}>
+                                <Plus className="w-6 h-6" />
+                            </span>
+                            Quick Actions
+                        </DialogTitle>
+                        <DialogDescription>Select a task to jump directly into action</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-4 mt-6">
+                        {[
+                            { label: 'Quick Checkout', icon: FileText, action: () => { setShowQuickInvoice(true); setShowQuickAction(false); } },
+                            { label: 'New Invoice', icon: FileText, action: () => { setShowInvoiceBuilder(true); setShowQuickAction(false); } },
+                            { label: 'Add Product', icon: Package, action: () => { setEditingProduct(null); setShowProductForm(true); setShowQuickAction(false); } },
+                            { label: 'New Customer', icon: Users, action: () => { setShowCustomerForm(true); setShowQuickAction(false); } },
+                            { label: 'Excel Customers', icon: Users, action: () => { setShowExcelCustomerGrid(true); setShowQuickAction(false); } },
+                            { label: 'New Vendor', icon: Truck, action: () => { setEditingVendor(null); setShowVendorForm(true); setShowQuickAction(false); } },
+                            { label: 'New Purchase', icon: ShoppingCart, action: () => { setPoInitialData(null); setShowPOBuilder(true); setShowQuickAction(false); } },
+                            { label: 'Record Stock', icon: Warehouse, action: () => safeTabChange('inventory') },
+                            { label: 'View Reports', icon: BarChart3, action: () => safeTabChange('reports') },
+                            { label: 'Manage Settings', icon: Settings, action: () => safeTabChange('settings') },
+                            ...(posRelevant ? [{ label: 'Campaigns', icon: BarChart3, action: () => safeTabChange('campaigns') }] : []),
+                        ].map((item, i) => (
+                            <button
+                                key={i}
+                                onClick={item.action}
+                                className="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-50 bg-gray-50/50 hover:bg-white hover:border-gray-100 hover:shadow-xl transition-all group text-left"
+                            >
+                                <div className="p-3 rounded-xl bg-white shadow-sm group-hover:scale-110 transition-transform" style={{ color: colors.primary }}>
+                                    <item.icon className="w-5 h-5" />
+                                </div>
+                                <span className="font-bold text-gray-900">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showCustomerForm} onOpenChange={(open) => {
+                setShowCustomerForm(open);
+                if (!open) setEditingCustomer(null);
+            }}>
+                <DialogContent hideCloseButton className="flex max-h-[min(92vh,860px)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col overflow-hidden border-none bg-transparent p-0 shadow-none sm:w-full">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Customer Form</DialogTitle>
+                    </DialogHeader>
+                    <CustomerForm
+                        initialData={editingCustomer}
+                        category={category}
+                        onSave={onSaveCustomer}
+                        onEntitlementError={() => {
+                            setShowCustomerForm(false);
+                            setEditingCustomer(null);
+                            onTabChange('settings');
+                        }}
+                        onClose={() => {
+                            setShowCustomerForm(false);
+                            setEditingCustomer(null);
+                        }}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            {/* Invoice Builder */}
+            {showInvoiceBuilder && (
+                <EnhancedInvoiceBuilder
+                    onClose={() => {
+                        setShowInvoiceBuilder(false);
+                        setInvoiceInitialData(null);
+                    }}
+                    onSave={onSaveInvoice}
+                    products={products}
+                    customers={customers}
+                    category={category}
+                    initialData={invoiceInitialData}
+                />
+            )}
+
+            <QuickInvoiceModal
+                isOpen={showQuickInvoice}
+                onClose={() => setShowQuickInvoice(false)}
+                onSave={onSaveInvoice}
+                businessId={activeBusinessId}
+                category={category}
+                products={products}
+                customers={customers}
+                recentTransactions={invoices}
+                currency={currency}
+            />
+
+            <Dialog open={showVendorForm} onOpenChange={(open) => {
+                setShowVendorForm(open);
+                if (!open) setEditingVendor(null);
+            }}>
+                <DialogContent hideCloseButton className="flex max-h-[min(92vh,860px)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col overflow-hidden border-none bg-transparent p-0 shadow-none sm:w-full">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Vendor Form</DialogTitle>
+                    </DialogHeader>
+                    <VendorForm
+                        initialData={editingVendor}
+                        category={category}
+                        onSave={onSaveVendor}
+                        onEntitlementError={() => {
+                            setShowVendorForm(false);
+                            setEditingVendor(null);
+                            onTabChange('settings');
+                        }}
+                        onClose={() => {
+                            setShowVendorForm(false);
+                            setEditingVendor(null);
+                        }}
+                        business={business}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showPOBuilder} onOpenChange={setShowPOBuilder}>
+                <DialogContent className="flex max-h-[min(92dvh,900px)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden border-none bg-transparent p-0 shadow-none sm:w-full lg:max-w-4xl xl:max-w-5xl">
+                    <div className="sr-only">
+                        <DialogTitle>Purchase Order Builder</DialogTitle>
+                    </div>
+                    <EnhancedPOBuilder
+                        businessId={activeBusinessId}
+                        category={category}
+                        colors={colors}
+                        onSuccess={() => {
+                            setShowPOBuilder(false);
+                            refreshData?.();
+                        }}
+                        onCancel={() => setShowPOBuilder(false)}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            {/* Payment Modal */}
+            {showPaymentModal && selectedInvoiceForPayment && (
+                <PaymentModal
+                    isOpen={showPaymentModal}
+                    onClose={() => {
+                        setShowPaymentModal(false);
+                        setSelectedInvoiceForPayment(null);
+                    }}
+                    invoice={selectedInvoiceForPayment}
+                    currency={currency}
+                    onRecordPayment={async (paymentData) => {
+                        const { recordInvoicePaymentAction } = await import('@/lib/actions/standard/invoice-payments');
+                        const result = await recordInvoicePaymentAction({
+                            businessId: activeBusinessId,
+                            invoiceId: selectedInvoiceForPayment.id,
+                            amount: paymentData.amount,
+                            paymentMethod: paymentData.paymentMethod,
+                            paymentDate: paymentData.paymentDate,
+                            referenceNumber: paymentData.referenceNumber,
+                            notes: paymentData.notes,
+                            userId: user?.id
+                        });
+
+                        if (result.success) {
+                            const paidInvoice = result.invoice;
+                            if (paidInvoice?.id && typeof upsertInvoiceInState === 'function') {
+                                const patch = { id: paidInvoice.id };
+                                if (paidInvoice.payment_status != null) patch.payment_status = paidInvoice.payment_status;
+                                if (paidInvoice.status != null) patch.status = paidInvoice.status;
+                                const nextBalance = paidInvoice.balance ?? paidInvoice.new_balance;
+                                if (nextBalance !== undefined && nextBalance !== null) patch.balance = nextBalance;
+                                if (paidInvoice.grand_total != null) patch.grand_total = paidInvoice.grand_total;
+                                if (paidInvoice.invoice_number) patch.invoice_number = paidInvoice.invoice_number;
+                                if (selectedInvoiceForPayment.customer_name) {
+                                    patch.customer_name = selectedInvoiceForPayment.customer_name;
+                                }
+                                upsertInvoiceInState(patch);
+                            }
+                            setShowPaymentModal(false);
+                            setSelectedInvoiceForPayment(null);
+                            onPaymentRecorded?.(paidInvoice);
+                            // Do not refresh inventory here — sales list is already patched.
+                        } else {
+                            throw new Error(result.error || 'Failed to record payment');
+                        }
+                    }}
+                />
+            )}
+
+            {showExpenseForm && (
+                <ExpenseEntryForm
+                    vendors={vendors}
+                    category={category}
+                    onClose={() => setShowExpenseForm(false)}
+                    onSave={async () => {
+                        setShowExpenseForm(false);
+                        await onExpenseSaved?.();
+                    }}
+                />
+            )}
+
+        </>
+    );
+}

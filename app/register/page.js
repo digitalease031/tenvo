@@ -658,23 +658,43 @@ export default function RegisterWizard() {
         
         // CRITICAL: Check approval status BEFORE any other operations
         if (bizResult.requiresApproval) {
-            if (!bizResult.seedFailed) {
-                toast.success('Registration received! Waiting for approval.', { duration: 4000 });
-            }
             // Clear any cached business shell to prevent optimistic dashboard load
             if (typeof window !== 'undefined') {
                 try {
                     localStorage.removeItem('businessData');
                     localStorage.removeItem('userRole');
                     localStorage.removeItem('lastBusinessDomain');
+                    // Also clear registration form state
+                    localStorage.removeItem('registrationData');
+                    localStorage.removeItem('registrationStep');
+                    localStorage.removeItem('registrationSavedAt');
                 } catch (e) {
                     console.error('Failed to clear cache:', e);
                 }
+            }
+            
+            // Show toast WITH delay before navigation to ensure it's visible
+            if (!bizResult.seedFailed) {
+                toast.success('Registration received! Redirecting to approval status...', {
+                    duration: 2000,
+                    id: 'registration-pending',
+                });
                 
-                // Use window.location.href for full page load (blocks React state updates)
-                window.location.href = '/pending-approval';
+                // Wait for toast to render before navigating
+                setTimeout(() => {
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/pending-approval';
+                    } else {
+                        router.replace('/pending-approval');
+                    }
+                }, 500); // 500ms delay ensures toast is visible
             } else {
-                router.replace('/pending-approval');
+                // If seed failed, navigate immediately (no toast shown)
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/pending-approval';
+                } else {
+                    router.replace('/pending-approval');
+                }
             }
             return;
         }

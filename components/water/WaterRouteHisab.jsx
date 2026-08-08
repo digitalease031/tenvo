@@ -61,6 +61,8 @@ import {
   isWaterHisabBillRemindable,
   WATER_HISAB_SIZE_GROUPS,
   WATER_HISAB_DEFAULT_ENABLED_SIZES,
+  WATER_HISAB_COLUMN_TYPES,
+  WATER_HISAB_CHECKLIST_MODES,
 } from '@/lib/storefront/waterShopHisab';
 import {
   printWaterDailySaleBill,
@@ -207,6 +209,8 @@ export function WaterRouteHisab({ businessId, category }) {
   const [bottleLoading, setBottleLoading] = useState(false);
   const [savingBottleSettings, setSavingBottleSettings] = useState(false);
   const [enabledSizeIds, setEnabledSizeIds] = useState([...WATER_HISAB_DEFAULT_ENABLED_SIZES]);
+  const [enabledColumns, setEnabledColumns] = useState(['delivered', 'received']);
+  const [checklistMode, setChecklistMode] = useState('rider_wise');
   const [savingSizes, setSavingSizes] = useState(false);
   const [showNewBottles, setShowNewBottles] = useState(true);
   const [savingNewBottleToggle, setSavingNewBottleToggle] = useState(false);
@@ -315,6 +319,12 @@ export function WaterRouteHisab({ businessId, category }) {
       setDayKpis(res.kpis || null);
       if (Array.isArray(res.enabledSizeIds) && res.enabledSizeIds.length) {
         setEnabledSizeIds(res.enabledSizeIds);
+      }
+      if (Array.isArray(res.enabledColumns) && res.enabledColumns.length) {
+        setEnabledColumns(res.enabledColumns);
+      }
+      if (res.checklistMode) {
+        setChecklistMode(res.checklistMode);
       }
       setDayDirty(false);
       setDaySnapshotReady(true);
@@ -528,18 +538,22 @@ export function WaterRouteHisab({ businessId, category }) {
     let list = allRows;
     const area = String(selectedArea || '').trim();
 
-    if (area && area !== 'ALL') {
-      const filtered = allRows.filter((r) => {
-        const rArea = String(r.routeLabel || '').trim().toLowerCase();
-        return rArea === area.toLowerCase() || rArea.includes(area.toLowerCase());
-      });
-      if (filtered.length) {
-        list = filtered;
-      } else {
-        notify.error(`No customer stops found matching area "${area}" on today's sheet`);
-        return;
+    // Apply filtering only if checklistMode is 'rider_wise'
+    if (checklistMode === 'rider_wise') {
+      if (area && area !== 'ALL') {
+        const filtered = allRows.filter((r) => {
+          const rArea = String(r.routeLabel || '').trim().toLowerCase();
+          return rArea === area.toLowerCase() || rArea.includes(area.toLowerCase());
+        });
+        if (filtered.length) {
+          list = filtered;
+        } else {
+          notify.error(`No customer stops found matching area "${area}" on today's sheet`);
+          return;
+        }
       }
     }
+    // If checklistMode is 'full_list', always use all rows (no filtering)
 
     if (!list.length) {
       notify.error('No route customers loaded for today yet');
@@ -548,7 +562,9 @@ export function WaterRouteHisab({ businessId, category }) {
 
     setBulkPrinting(true);
     try {
-      const routeTitle = area && area !== 'ALL' ? area : (shift.routeLabel || 'All Areas');
+      const routeTitle = checklistMode === 'full_list' 
+        ? 'All Customers (Full List)'
+        : (area && area !== 'ALL' ? area : (shift.routeLabel || 'All Areas'));
       const ok = await printWaterDeliveryChecklist(
         {
           business: thermalBusiness,
@@ -566,10 +582,11 @@ export function WaterRouteHisab({ businessId, category }) {
         notify.error('Could not print delivery checklist');
         return;
       }
+      const modeLabel = checklistMode === 'full_list' ? ' (Full List)' : '';
       notify.compactSave(
         mode === 'print'
-          ? `Checklist for ${shift.riderName} [${routeTitle}] (${paperSize}) sent to printer`
-          : `Checklist PDF for ${shift.riderName} [${routeTitle}] (${paperSize}) downloaded`
+          ? `Checklist for ${shift.riderName} [${routeTitle}]${modeLabel} (${paperSize}) sent to printer`
+          : `Checklist PDF for ${shift.riderName} [${routeTitle}]${modeLabel} (${paperSize}) downloaded`
       );
     } catch (e) {
       notify.error(e?.message || 'Delivery checklist print failed');
@@ -584,18 +601,22 @@ export function WaterRouteHisab({ businessId, category }) {
     let list = allRows;
     const area = String(selectedArea || '').trim();
 
-    if (area && area !== 'ALL') {
-      const filtered = allRows.filter((r) => {
-        const rArea = String(r.routeLabel || '').trim().toLowerCase();
-        return rArea === area.toLowerCase() || rArea.includes(area.toLowerCase());
-      });
-      if (filtered.length) {
-        list = filtered;
-      } else {
-        notify.error(`No customer stops found matching area "${area}" on today's sheet`);
-        return;
+    // Apply filtering only if checklistMode is 'rider_wise'
+    if (checklistMode === 'rider_wise') {
+      if (area && area !== 'ALL') {
+        const filtered = allRows.filter((r) => {
+          const rArea = String(r.routeLabel || '').trim().toLowerCase();
+          return rArea === area.toLowerCase() || rArea.includes(area.toLowerCase());
+        });
+        if (filtered.length) {
+          list = filtered;
+        } else {
+          notify.error(`No customer stops found matching area "${area}" on today's sheet`);
+          return;
+        }
       }
     }
+    // If checklistMode is 'full_list', always use all rows (no filtering)
 
     if (!list.length) {
       notify.error('No route customers loaded for today yet');
@@ -604,7 +625,9 @@ export function WaterRouteHisab({ businessId, category }) {
 
     setBulkPrinting(true);
     try {
-      const routeTitle = area && area !== 'ALL' ? area : (shift.routeLabel || 'All Areas');
+      const routeTitle = checklistMode === 'full_list'
+        ? 'All Customers (Full List)'
+        : (area && area !== 'ALL' ? area : (shift.routeLabel || 'All Areas'));
       const ok = await printWaterAreaList(
         {
           business: thermalBusiness,
@@ -622,7 +645,8 @@ export function WaterRouteHisab({ businessId, category }) {
         notify.error('Could not open area list');
         return;
       }
-      notify.compactSave(`Area list for ${shift.riderName} [${routeTitle}] (${paperSize}) opened for print`);
+      const modeLabel = checklistMode === 'full_list' ? ' (Full List)' : '';
+      notify.compactSave(`Area list for ${shift.riderName} [${routeTitle}]${modeLabel} (${paperSize}) opened for print`);
     } catch (e) {
       notify.error(e?.message || 'Area list print failed');
     } finally {
@@ -739,6 +763,71 @@ export function WaterRouteHisab({ businessId, category }) {
     } catch (e) {
       notify.error(e?.message || 'Failed to update sheet sizes');
       await loadDay();
+    } finally {
+      setSavingSizes(false);
+    }
+  };
+
+  const toggleSheetColumn = async (columnId) => {
+    if (!businessId || savingSizes) return;
+    const id = String(columnId);
+    const currentlyOn = enabledColumns.includes(id);
+    let next = currentlyOn
+      ? enabledColumns.filter((c) => c !== id)
+      : [...enabledColumns, id];
+    if (!next.length) {
+      notify.error('Keep at least one column type enabled');
+      return;
+    }
+    setSavingSizes(true);
+    setEnabledColumns(next);
+    try {
+      const res = await saveWaterHisabSheetSettingsAction({
+        businessId,
+        category,
+        enabledColumns: next,
+      });
+      if (!res?.success) {
+        notify.error(res?.error || 'Failed to update column visibility');
+        await loadDay();
+        return;
+      }
+      setEnabledColumns(res.enabledColumns || next);
+      notify.compactSave('Column visibility updated');
+      await loadDay();
+    } catch (e) {
+      notify.error(e?.message || 'Failed to update columns');
+      await loadDay();
+    } finally {
+      setSavingSizes(false);
+    }
+  };
+
+  const toggleChecklistMode = async () => {
+    if (!businessId || savingSizes) return;
+    const nextMode = checklistMode === 'rider_wise' ? 'full_list' : 'rider_wise';
+    setSavingSizes(true);
+    setChecklistMode(nextMode);
+    try {
+      const res = await saveWaterHisabSheetSettingsAction({
+        businessId,
+        category,
+        checklistMode: nextMode,
+      });
+      if (!res?.success) {
+        notify.error(res?.error || 'Failed to update checklist mode');
+        setChecklistMode(checklistMode); // revert
+        return;
+      }
+      setChecklistMode(res.checklistMode || nextMode);
+      notify.compactSave(
+        nextMode === 'full_list' 
+          ? 'Checklist mode: Print full list (no rider filter)'
+          : 'Checklist mode: Filter by rider'
+      );
+    } catch (e) {
+      notify.error(e?.message || 'Failed to update checklist mode');
+      setChecklistMode(checklistMode); // revert
     } finally {
       setSavingSizes(false);
     }
@@ -2003,29 +2092,81 @@ export function WaterRouteHisab({ businessId, category }) {
         />
 
         {view === 'daily' ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Sizes</span>
-            {WATER_HISAB_SIZE_GROUPS.map((g) => {
-              const on = enabledSizeIds.includes(g.id);
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  disabled={savingSizes || loading}
-                  onClick={() => toggleSheetSize(g.id)}
-                  className={cn(
-                    'rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors',
-                    on
-                      ? 'border-sky-300 bg-sky-50 text-sky-800'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
-                    (savingSizes || loading) && 'opacity-60'
-                  )}
-                  title={on ? `Hide ${g.label} columns` : `Show ${g.label} columns`}
-                >
-                  {g.label}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Size toggles */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Sizes</span>
+              {WATER_HISAB_SIZE_GROUPS.map((g) => {
+                const on = enabledSizeIds.includes(g.id);
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    disabled={savingSizes || loading}
+                    onClick={() => toggleSheetSize(g.id)}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors',
+                      on
+                        ? 'border-sky-300 bg-sky-50 text-sky-800'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                      (savingSizes || loading) && 'opacity-60'
+                    )}
+                    title={on ? `Hide ${g.label} columns` : `Show ${g.label} columns`}
+                  >
+                    {g.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Column type toggles (Del/Rec) */}
+            <div className="flex flex-wrap items-center gap-1.5 border-l border-gray-200 pl-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Columns</span>
+              {WATER_HISAB_COLUMN_TYPES.map((c) => {
+                const on = enabledColumns.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={savingSizes || loading}
+                    onClick={() => toggleSheetColumn(c.id)}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors',
+                      on
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                      (savingSizes || loading) && 'opacity-60'
+                    )}
+                    title={on ? `Hide ${c.label} columns` : `Show ${c.label} columns`}
+                  >
+                    {c.shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Checklist mode toggle */}
+            <div className="flex items-center gap-1.5 border-l border-gray-200 pl-3">
+              <button
+                type="button"
+                disabled={savingSizes || loading}
+                onClick={toggleChecklistMode}
+                className={cn(
+                  'rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                  checklistMode === 'rider_wise'
+                    ? 'border-purple-300 bg-purple-50 text-purple-800'
+                    : 'border-orange-300 bg-orange-50 text-orange-800',
+                  (savingSizes || loading) && 'opacity-60'
+                )}
+                title={
+                  checklistMode === 'rider_wise'
+                    ? 'Checklist prints rider-wise (filtered). Click to print full list always.'
+                    : 'Checklist prints full list always. Click to enable rider-wise filtering.'
+                }
+              >
+                {checklistMode === 'rider_wise' ? '👤 Rider Filter' : '📋 Full List'}
+              </button>
+            </div>
           </div>
         ) : null}
 

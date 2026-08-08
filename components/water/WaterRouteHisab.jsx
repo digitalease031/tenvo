@@ -46,6 +46,7 @@ import {
   setWaterHisabBillPaymentStatusAction,
   getWaterRiderShiftsAction,
   saveWaterRiderShiftAction,
+  deleteWaterRiderShiftAction,
   getWaterBottleFloatIntelligenceAction,
   saveWaterBottleFloatSettingsAction,
   saveWaterHisabSheetSettingsAction,
@@ -495,6 +496,137 @@ export function WaterRouteHisab({ businessId, category }) {
       notify.error(e?.message || 'Failed to save rider shift');
     } finally {
       setSavingRiderShift(false);
+    }
+  };
+
+  const handleDeleteRiderShift = async (shiftId) => {
+    if (!shiftId || !businessId) return;
+    setSavingRiderShift(true);
+    try {
+      const res = await deleteWaterRiderShiftAction({
+        businessId,
+        category,
+        deliveryDate,
+        shiftId,
+      });
+      if (!res?.success) {
+        notify.error(res?.error || 'Failed to delete rider shift');
+        return;
+      }
+      notify.compactSave('Rider shift record deleted');
+      await loadRiderShifts();
+    } catch (e) {
+      notify.error(e?.message || 'Failed to delete rider shift');
+    } finally {
+      setSavingRiderShift(false);
+    }
+  };
+
+  const handlePrintRiderChecklist = async (shift, selectedArea, mode = 'print', paperSize = '58mm') => {
+    if (!shift) return;
+    const allRows = rows || [];
+    let list = allRows;
+    const area = String(selectedArea || '').trim();
+
+    if (area && area !== 'ALL') {
+      const filtered = allRows.filter((r) => {
+        const rArea = String(r.routeLabel || '').trim().toLowerCase();
+        return rArea === area.toLowerCase() || rArea.includes(area.toLowerCase());
+      });
+      if (filtered.length) {
+        list = filtered;
+      } else {
+        notify.error(`No customer stops found matching area "${area}" on today's sheet`);
+        return;
+      }
+    }
+
+    if (!list.length) {
+      notify.error('No route customers loaded for today yet');
+      return;
+    }
+
+    setBulkPrinting(true);
+    try {
+      const routeTitle = area && area !== 'ALL' ? area : (shift.routeLabel || 'All Areas');
+      const ok = await printWaterDeliveryChecklist(
+        {
+          business: thermalBusiness,
+          rows: list,
+          products,
+          deliveryDate,
+          riderName: shift.riderName || 'Rider',
+          routeLabel: routeTitle,
+          vehicleNo: shift.vehicleNo || '',
+          paperSize,
+        },
+        mode
+      );
+      if (!ok) {
+        notify.error('Could not print delivery checklist');
+        return;
+      }
+      notify.compactSave(
+        mode === 'print'
+          ? `Checklist for ${shift.riderName} [${routeTitle}] (${paperSize}) sent to printer`
+          : `Checklist PDF for ${shift.riderName} [${routeTitle}] (${paperSize}) downloaded`
+      );
+    } catch (e) {
+      notify.error(e?.message || 'Delivery checklist print failed');
+    } finally {
+      setBulkPrinting(false);
+    }
+  };
+
+  const handlePrintRiderAreaList = async (shift, selectedArea, paperSize = 'A4') => {
+    if (!shift) return;
+    const allRows = rows || [];
+    let list = allRows;
+    const area = String(selectedArea || '').trim();
+
+    if (area && area !== 'ALL') {
+      const filtered = allRows.filter((r) => {
+        const rArea = String(r.routeLabel || '').trim().toLowerCase();
+        return rArea === area.toLowerCase() || rArea.includes(area.toLowerCase());
+      });
+      if (filtered.length) {
+        list = filtered;
+      } else {
+        notify.error(`No customer stops found matching area "${area}" on today's sheet`);
+        return;
+      }
+    }
+
+    if (!list.length) {
+      notify.error('No route customers loaded for today yet');
+      return;
+    }
+
+    setBulkPrinting(true);
+    try {
+      const routeTitle = area && area !== 'ALL' ? area : (shift.routeLabel || 'All Areas');
+      const ok = await printWaterAreaList(
+        {
+          business: thermalBusiness,
+          rows: list,
+          products,
+          deliveryDate,
+          riderName: shift.riderName || 'Rider',
+          routeLabel: routeTitle,
+          vehicleNo: shift.vehicleNo || '',
+          paperSize,
+        },
+        'print'
+      );
+      if (!ok) {
+        notify.error('Could not open area list');
+        return;
+      }
+      notify.compactSave(`Area list for ${shift.riderName} [${routeTitle}] (${paperSize}) opened for print`);
+    } catch (e) {
+      notify.error(e?.message || 'Area list print failed');
+    } finally {
+      setBulkPrinting(false);
     }
   };
 
@@ -2140,6 +2272,9 @@ export function WaterRouteHisab({ businessId, category }) {
           dailyRows={rows}
           products={products}
           onSaveShift={handleSaveRiderShift}
+          onDeleteShift={handleDeleteRiderShift}
+          onPrintRiderChecklist={handlePrintRiderChecklist}
+          onPrintRiderAreaList={handlePrintRiderAreaList}
         />
       ) : view === 'bottle-control' ? (
         <BottleControlSheet
@@ -3371,6 +3506,9 @@ function RiderShiftsSheet({
   dailyRows = [],
   products = [],
   onSaveShift,
+  onDeleteShift,
+  onPrintRiderChecklist,
+  onPrintRiderAreaList,
 }) {
   const [form, setForm] = useState({
     id: null,
@@ -3386,6 +3524,18 @@ function RiderShiftsSheet({
     notes: '',
   });
   const [editingId, setEditingId] = useState(null);
+  const [selectedAreaByShift, setSelectedAreaByShift] = useState({});
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  // Available unique areas from active daily route sheet
+  const availableAreas = useMemo(() => {
+    const set = new Set();
+    dailyRows.forEach((r) => {
+      const lbl = String(r.routeLabel || '').trim();
+      if (lbl) set.add(lbl);
+    });
+    return [...set].sort();
+  }, [dailyRows]);
 
   // Build smart suggestion lists from saved rider directory, past shift history, and active daily route sheet
   const knownRiders = useMemo(() => {
@@ -3785,46 +3935,151 @@ function RiderShiftsSheet({
               <th className="p-3 text-right">Cash Recovered</th>
               <th className="p-3 text-right">Cash Shortage</th>
               <th className="p-3 text-center">Status</th>
-              <th className="p-3 text-center">Action</th>
+              <th className="p-3 text-center min-w-[14rem]">Area & Checklist Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {shifts.map((s) => (
-              <tr key={s.id} className={cn('hover:bg-gray-50', editingId === s.id && 'bg-sky-50 ring-1 ring-sky-200')}>
-                <td className="p-3 font-semibold text-gray-900">
-                  {s.riderName}
-                  {s.vehicleNo ? <span className="block text-[11px] text-gray-400 font-normal">{s.vehicleNo}</span> : null}
-                </td>
-                <td className="p-3 text-gray-600">{s.routeLabel}</td>
-                <td className="p-3 text-gray-600">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 text-[10px] font-semibold">
-                    {s.shiftType || 'Morning'}
-                  </span>
-                </td>
-                <td className="p-3 text-right font-medium text-sky-700">{s.loadedBottles}</td>
-                <td className="p-3 text-right text-gray-600">{s.returnedFull}</td>
-                <td className="p-3 text-right font-semibold text-emerald-700">{s.deliveredBottles}</td>
-                <td className="p-3 text-right text-gray-600">{s.returnedEmpty}</td>
-                <td className="p-3 text-right font-medium text-gray-900">{formatCurrency(s.cashCollected, currency)}</td>
-                <td className={cn('p-3 text-right font-semibold', s.cashShortage > 0 ? 'text-rose-600' : 'text-gray-600')}>
-                  {formatCurrency(s.cashShortage, currency)}
-                </td>
-                <td className="p-3 text-center">
-                  <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold', s.isBalanced ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>
-                    {s.isBalanced ? 'Balanced' : 'Shortage'}
-                  </span>
-                </td>
-                <td className="p-3 text-center">
-                  <button
-                    type="button"
-                    onClick={() => handleEditShift(s)}
-                    className="text-[10px] text-sky-600 hover:text-sky-800 font-semibold hover:underline"
-                  >
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {shifts.map((s) => {
+              const currentArea = selectedAreaByShift[s.id] ?? (s.routeLabel || 'ALL');
+              const filteredStopCount = currentArea === 'ALL'
+                ? dailyRows.length
+                : dailyRows.filter((r) => {
+                    const rLbl = String(r.routeLabel || '').trim().toLowerCase();
+                    return rLbl === currentArea.toLowerCase() || rLbl.includes(currentArea.toLowerCase());
+                  }).length;
+
+              return (
+                <tr key={s.id} className={cn('hover:bg-gray-50', editingId === s.id && 'bg-sky-50 ring-1 ring-sky-200')}>
+                  <td className="p-3 font-semibold text-gray-900">
+                    {s.riderName}
+                    {s.vehicleNo ? <span className="block text-[11px] text-gray-400 font-normal">{s.vehicleNo}</span> : null}
+                  </td>
+                  <td className="p-3 text-gray-600">
+                    <span className="font-medium text-gray-800">{s.routeLabel || '—'}</span>
+                  </td>
+                  <td className="p-3 text-gray-600">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 text-[10px] font-semibold">
+                      {s.shiftType || 'Morning'}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right font-medium text-sky-700">{s.loadedBottles}</td>
+                  <td className="p-3 text-right text-gray-600">{s.returnedFull}</td>
+                  <td className="p-3 text-right font-semibold text-emerald-700">{s.deliveredBottles}</td>
+                  <td className="p-3 text-right text-gray-600">{s.returnedEmpty}</td>
+                  <td className="p-3 text-right font-medium text-gray-900">{formatCurrency(s.cashCollected, currency)}</td>
+                  <td className={cn('p-3 text-right font-semibold', s.cashShortage > 0 ? 'text-rose-600' : 'text-gray-600')}>
+                    {formatCurrency(s.cashShortage, currency)}
+                  </td>
+                  <td className="p-3 text-center">
+                    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold', s.isBalanced ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>
+                      {s.isBalanced ? 'Balanced' : 'Shortage'}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="flex flex-col items-center gap-1.5 py-1">
+                      {/* Area Selector for Checklist */}
+                      <select
+                        value={currentArea}
+                        onChange={(e) => setSelectedAreaByShift(prev => ({ ...prev, [s.id]: e.target.value }))}
+                        className="h-7 w-full rounded border border-sky-200 bg-sky-50 px-1.5 text-[11px] font-semibold text-sky-900 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                        title="Select area to print route checklist for this rider"
+                      >
+                        <option value="ALL">🌐 All Areas / Routes ({dailyRows.length} stops)</option>
+                        {s.routeLabel && (
+                          <option value={s.routeLabel}>📍 Rider Route: {s.routeLabel}</option>
+                        )}
+                        {availableAreas
+                          .filter(a => a.toLowerCase() !== (s.routeLabel || '').toLowerCase())
+                          .map(a => {
+                            const count = dailyRows.filter(r => String(r.routeLabel || '').trim().toLowerCase() === a.toLowerCase()).length;
+                            return (
+                              <option key={a} value={a}>
+                                📍 Area: {a} ({count} stops)
+                              </option>
+                            );
+                          })}
+                      </select>
+
+                      {/* Action Cluster Buttons */}
+                      <div className="flex items-center gap-1 flex-wrap justify-center">
+                        <div className="relative inline-flex rounded shadow-xs">
+                          <button
+                            type="button"
+                            onClick={() => onPrintRiderChecklist?.(s, currentArea, 'print', '58mm')}
+                            className="inline-flex h-6 items-center gap-1 rounded-l border border-sky-300 bg-sky-600 px-2 text-[10px] font-semibold text-white hover:bg-sky-700 transition-colors"
+                            title={`Print 58mm checklist for ${s.riderName} (${currentArea})`}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Checklist ({filteredStopCount})
+                          </button>
+                          <select
+                            defaultValue=""
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'print-58') onPrintRiderChecklist?.(s, currentArea, 'print', '58mm');
+                              else if (val === 'print-80') onPrintRiderChecklist?.(s, currentArea, 'print', '80mm');
+                              else if (val === 'pdf-58') onPrintRiderChecklist?.(s, currentArea, 'pdf', '58mm');
+                              else if (val === 'pdf-80') onPrintRiderChecklist?.(s, currentArea, 'pdf', '80mm');
+                              else if (val === 'area-a4') onPrintRiderAreaList?.(s, currentArea, 'A4');
+                              else if (val === 'area-a5') onPrintRiderAreaList?.(s, currentArea, 'A5');
+                              e.target.value = '';
+                            }}
+                            className="h-6 rounded-r border border-l-0 border-sky-300 bg-sky-600 px-0.5 text-[10px] font-bold text-white hover:bg-sky-700 cursor-pointer focus:outline-none"
+                            title="Select format (58mm, 80mm, A4 Area Register, PDF)"
+                          >
+                            <option value="" disabled>▼</option>
+                            <option value="print-58">🖨️ Thermal 58mm Checklist</option>
+                            <option value="print-80">🖨️ Thermal 80mm Wide</option>
+                            <option value="area-a4">📋 A4 Area List (Plant Register)</option>
+                            <option value="area-a5">📋 A5 Area List Compact</option>
+                            <option value="pdf-58">📄 Download PDF (58mm)</option>
+                            <option value="pdf-80">📄 Download PDF (80mm)</option>
+                          </select>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleEditShift(s)}
+                          className="inline-flex h-6 items-center px-2 text-[10px] text-sky-700 font-semibold border border-sky-200 rounded bg-white hover:bg-sky-50 transition-colors"
+                          title="Edit shift load-out details"
+                        >
+                          Edit
+                        </button>
+
+                        {confirmDeleteId === s.id ? (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => { setConfirmDeleteId(null); onDeleteShift?.(s.id); }}
+                              className="inline-flex h-6 items-center px-1.5 text-[10px] text-white font-bold bg-rose-600 rounded hover:bg-rose-700 transition-colors"
+                              title="Confirm delete"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="inline-flex h-6 items-center px-1 text-[10px] text-gray-500 font-medium hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(s.id)}
+                            className="inline-flex h-6 items-center px-1.5 text-[10px] text-rose-600 font-semibold border border-rose-200 rounded bg-white hover:bg-rose-50 transition-colors"
+                            title="Delete shift record"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {!shifts.length && (
               <tr>
                 <td colSpan={11} className="p-8 text-center text-gray-400">

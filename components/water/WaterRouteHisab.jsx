@@ -74,6 +74,7 @@ import {
   printWaterDeliveryChecklist,
   printWaterAreaList,
   createWaterPeriodPdfBlob,
+  printWaterAllCustomersBillSummary,
 } from '@/lib/print/waterHisabThermalBill';
 import { downloadStandardInvoicePdfFromRow } from '@/lib/print/clientInvoicePrint';
 import { openWhatsAppSmart, shareOrDownloadMilkHisabBillPdf } from '@/lib/storefront/milkShopHisabReminders';
@@ -1608,6 +1609,41 @@ export function WaterRouteHisab({ businessId, category }) {
     }
   };
 
+  const handlePrintA4BillSummary = async (mode = 'print') => {
+    if (!billRows.length || !business) {
+      notify.error('No bills to print for this period');
+      return;
+    }
+    setBulkPrinting(true);
+    try {
+      const { kind, label } = resolvePeriodMeta(billingPeriod, periodLabel);
+      const ok = await printWaterAllCustomersBillSummary(
+        {
+          business: thermalBusiness,
+          rows: billRows,
+          productColumns,
+          periodLabel: label,
+          period: billingPeriod,
+          kind,
+        },
+        mode
+      );
+      if (!ok) {
+        notify.error('Print operation was cancelled or failed');
+        return;
+      }
+      notify.compactSave(
+        mode === 'print'
+          ? `A4 bills summary (${billRows.length} customers) sent to printer`
+          : `A4 bills summary PDF downloaded`
+      );
+    } catch (e) {
+      notify.error(e?.message || 'A4 summary print failed');
+    } finally {
+      setBulkPrinting(false);
+    }
+  };
+
   const handleDownloadStandardInvoice = async (row) => {
     if (!row?.invoiceId) {
       notify.error('Generate the weekly/monthly invoice first for a standard A4 bill');
@@ -2306,6 +2342,22 @@ export function WaterRouteHisab({ businessId, category }) {
               >
                 <Download className="h-4 w-4 mr-1.5" />
                 All {billKind === 'week' ? 'weekly' : 'monthly'} bills
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => handlePrintA4BillSummary('print')}
+                disabled={bulkPrinting || loading || !billRows.length}
+                title="Print professional A4 all-customers bill summary report — one page with all customers in a compact table"
+                className="border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+              >
+                {bulkPrinting ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4 mr-1.5" />
+                )}
+                A4 Summary
               </Button>
               <Button
                 type="button"

@@ -431,7 +431,7 @@ check(
 
 check(
   'No duplicate import statements',
-  (componentFile.match(/import\b[\s\S]*?\bprintWaterAllCustomersBillSummary\b[\s\S]*?from/g) || []).length === 1,
+  (componentFile.match(/import\s*\{[^}]*printWaterAllCustomersBillSummary[^}]*\}\s*from/g) || []).length === 1,
   'Should only import printWaterAllCustomersBillSummary once'
 );
 

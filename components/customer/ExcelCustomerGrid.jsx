@@ -218,6 +218,10 @@ export function ExcelCustomerGrid({
         } catch {}
     }, [hiddenColumns, storageKeyPrefix]);
 
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    const [showColumnPicker, setShowColumnPicker] = useState(false);
+    const [colFilter, setColFilter] = useState('');
+
     const [rows, setRows] = useState(() =>
         Array.from({ length: DEFAULT_ROW_COUNT }, () => createEmptyCustomerRow(isWater))
     );

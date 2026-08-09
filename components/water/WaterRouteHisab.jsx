@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   CalendarDays,
@@ -214,6 +214,46 @@ export function WaterRouteHisab({ businessId, category }) {
   const [enabledColumns, setEnabledColumns] = useState(['delivered', 'received']);
   const [checklistMode, setChecklistMode] = useState('rider_wise');
   const [savingSizes, setSavingSizes] = useState(false);
+
+  /**
+   * Per-product column visibility: { [productId]: { del: boolean, rec: boolean } }
+   * Default: 19L Bottle shows Del+Rec; everything else hidden until products load,
+   * then auto-defaults are applied in a useEffect.
+   */
+  const [visibleProductColumns, setVisibleProductColumns] = useState({});
+
+  /**
+   * After products load, seed default visibility:
+   * - 19L Bottle → del: true, rec: true
+   * - All others → del: false, rec: false (hidden by default)
+   * If only one product exists, show it.
+   */
+  useEffect(() => {
+    if (!products.length) return;
+    setVisibleProductColumns((prev) => {
+      // Build defaults for any NEW products not yet in state
+      const next = { ...prev };
+      let hasAnyVisible = Object.values(next).some((v) => v.del || v.rec);
+      for (const p of products) {
+        const pid = String(p.id);
+        if (next[pid] !== undefined) continue; // already configured
+        // Is this a 19L Bottle? (type = bottle, sizeGroup = 19l)
+        const is19lBottle =
+          p.productType === 'bottle' && p.sizeGroup === '19l';
+        // Only one product total → always show it
+        const isOnly = products.length === 1;
+        const show = isOnly || is19lBottle || (!hasAnyVisible && products.indexOf(p) === 0);
+        next[pid] = { del: show, rec: show };
+        if (show) hasAnyVisible = true;
+      }
+      // If nothing ended up visible (e.g. no 19L bottle), show the first product
+      const anyVisible = Object.values(next).some((v) => v.del || v.rec);
+      if (!anyVisible && products.length) {
+        next[String(products[0].id)] = { del: true, rec: true };
+      }
+      return next;
+    });
+  }, [products]);
   const [showNewBottles, setShowNewBottles] = useState(true);
   const [savingNewBottleToggle, setSavingNewBottleToggle] = useState(false);
   const [exportingExpensePdf, setExportingExpensePdf] = useState(false);
@@ -833,6 +873,24 @@ export function WaterRouteHisab({ businessId, category }) {
     } finally {
       setSavingSizes(false);
     }
+  };
+
+  /**
+   * Toggle Del or Rec visibility for a specific product column.
+   * At least one product×field must stay visible to avoid a blank sheet.
+   * @param {string} productId
+   * @param {'del'|'rec'} field
+   */
+  const toggleProductColumnVisibility = (productId, field) => {
+    setVisibleProductColumns((prev) => {
+      const pid = String(productId);
+      const cur = prev[pid] || { del: false, rec: false };
+      const next = { ...prev, [pid]: { ...cur, [field]: !cur[field] } };
+      // Guard: at least one cell must remain visible
+      const anyVisible = Object.values(next).some((v) => v.del || v.rec);
+      if (!anyVisible) return prev; // revert silently
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -2156,30 +2214,14 @@ export function WaterRouteHisab({ businessId, category }) {
               })}
             </div>
 
-            {/* Column type toggles (Del/Rec) */}
-            <div className="flex flex-wrap items-center gap-1.5 border-l border-gray-200 pl-3">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Columns</span>
-              {WATER_HISAB_COLUMN_TYPES.map((c) => {
-                const on = enabledColumns.includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    disabled={savingSizes || loading}
-                    onClick={() => toggleSheetColumn(c.id)}
-                    className={cn(
-                      'rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors',
-                      on
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
-                      (savingSizes || loading) && 'opacity-60'
-                    )}
-                    title={on ? `Hide ${c.label} columns` : `Show ${c.label} columns`}
-                  >
-                    {c.shortLabel}
-                  </button>
-                );
-              })}
+            {/* Column visibility dropdown — pick which product columns and Del/Rec are shown */}
+            <div className="flex items-center gap-1.5 border-l border-gray-200 pl-3">
+              <ColumnVisibilityDropdown
+                products={products}
+                visibleProductColumns={visibleProductColumns}
+                onToggle={toggleProductColumnVisibility}
+                disabled={savingSizes || loading}
+              />
             </div>
 
             {/* Checklist mode toggle */}
@@ -2453,6 +2495,7 @@ export function WaterRouteHisab({ businessId, category }) {
           onPdfDaily={(row) => handlePrintDailyCustomer(row, 'pdf')}
           printingId={printingId}
           readOnly={offlineEnabled && !isOnline && !daySnapshotReady}
+          visibleProductColumns={visibleProductColumns}
         />
       ) : view === 'rider-shifts' ? (
         <RiderShiftsSheet
@@ -2755,6 +2798,171 @@ function dailyRowQtyEntries(row, products) {
     .filter(Boolean);
 }
 
+/**
+ * Dropdown that lists each resolved product column (e.g. "19L Bottle", "19L Refill")
+ * with individual Del / Rec checkboxes. Replaces the old global Del/Rec pill toggles.
+ * Pure client-side visibility — data is always saved in full; this just hides columns.
+ */
+function ColumnVisibilityDropdown({ products = [], visibleProductColumns = {}, onToggle, disabled = false }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Summary label for the trigger button
+  const visibleCount = products.filter((p) => {
+    const v = visibleProductColumns[String(p.id)];
+    return v && (v.del || v.rec);
+  }).length;
+  const totalCount = products.length;
+
+  const label =
+    totalCount === 0
+      ? 'Columns'
+      : visibleCount === 0 || visibleCount === totalCount
+      ? 'Columns'
+      : `${visibleCount} of ${totalCount} shown`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        disabled={disabled || !products.length}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+          open
+            ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+          (disabled || !products.length) && 'opacity-50 cursor-not-allowed'
+        )}
+        title="Choose which product columns and Del/Rec to show on the daily sheet"
+      >
+        <span>Columns</span>
+        {label !== 'Columns' && (
+          <span className="rounded-full bg-indigo-100 px-1.5 text-[10px] font-bold text-indigo-700">
+            {label}
+          </span>
+        )}
+        <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && products.length > 0 && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="border-b border-gray-100 px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Show columns
+            </p>
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Data always saves — this only hides columns from view.
+            </p>
+          </div>
+          <div className="max-h-72 overflow-y-auto py-1">
+            {products.map((p) => {
+              const pid = String(p.id);
+              const v = visibleProductColumns[pid] || { del: false, rec: false };
+              const label = shortWaterHisabProductLabel(p, 20);
+              const sizeTag = p.sizeGroup
+                ? { '19l': '19L', '12l': '12L', '5l': '5L', pet: 'PET', deposit: 'DEP', stand: 'STD' }[p.sizeGroup] || p.sizeGroup.toUpperCase()
+                : null;
+              const typeTag = p.productType
+                ? { refill: 'Refill', bottle: 'Bottle', case: 'Case', deposit: 'Deposit', stand: 'Stand' }[p.productType] || ''
+                : null;
+
+              return (
+                <div key={pid} className="px-3 py-2 hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs font-semibold text-gray-800 truncate flex-1">{label}</span>
+                    {sizeTag && (
+                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-sky-50 text-sky-700">
+                        {sizeTag}
+                        {typeTag ? ` · ${typeTag}` : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={v.del}
+                        onChange={() => onToggle(pid, 'del')}
+                        className="h-3.5 w-3.5 rounded border-gray-300 accent-emerald-600 cursor-pointer"
+                      />
+                      <span className="text-[11px] font-semibold text-emerald-700">Del</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={v.rec}
+                        onChange={() => onToggle(pid, 'rec')}
+                        className="h-3.5 w-3.5 rounded border-gray-300 accent-amber-500 cursor-pointer"
+                      />
+                      <span className="text-[11px] font-semibold text-amber-700">Rec</span>
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t border-gray-100 px-3 py-2 flex gap-2">
+            <button
+              type="button"
+              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+              onClick={() => {
+                for (const p of products) {
+                  const pid = String(p.id);
+                  const v = visibleProductColumns[pid] || { del: false, rec: false };
+                  if (!v.del) onToggle(pid, 'del');
+                  if (!v.rec) onToggle(pid, 'rec');
+                }
+              }}
+            >
+              Show all
+            </button>
+            <span className="text-gray-300">·</span>
+            <button
+              type="button"
+              className="text-[11px] font-semibold text-gray-500 hover:text-gray-700"
+              onClick={() => {
+                // Hide all except the first visible one to maintain the guard
+                let keptOne = false;
+                for (const p of products) {
+                  const pid = String(p.id);
+                  const v = visibleProductColumns[pid] || { del: false, rec: false };
+                  if (!keptOne && (v.del || v.rec)) {
+                    keptOne = true;
+                    continue; // keep this one
+                  }
+                  if (v.del) onToggle(pid, 'del');
+                  if (v.rec) onToggle(pid, 'rec');
+                }
+              }}
+            >
+              Reset
+            </button>
+            <span className="ml-auto">
+              <button
+                type="button"
+                className="text-[11px] font-semibold text-gray-400 hover:text-gray-600"
+                onClick={() => setOpen(false)}
+              >
+                Done
+              </button>
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DailySheet({
   products,
   rows,
@@ -2766,7 +2974,29 @@ function DailySheet({
   onPdfDaily,
   printingId = null,
   readOnly = false,
+  visibleProductColumns = {},
 }) {
+  // Derive which products have visible Del/Rec — fall back to showing all if nothing is configured
+  const visibleProducts = useMemo(() => {
+    const anyConfigured = products.some((p) => {
+      const v = visibleProductColumns[String(p.id)];
+      return v && (v.del || v.rec);
+    });
+    if (!anyConfigured) return products; // no config yet → show everything
+    return products.filter((p) => {
+      const v = visibleProductColumns[String(p.id)];
+      return v && (v.del || v.rec);
+    });
+  }, [products, visibleProductColumns]);
+
+  const showDel = (p) => {
+    const v = visibleProductColumns[String(p.id)];
+    return !v || v.del; // default true when unconfigured
+  };
+  const showRec = (p) => {
+    const v = visibleProductColumns[String(p.id)];
+    return !v || v.rec; // default true when unconfigured
+  };
   const [expandedId, setExpandedId] = useState(null);
 
   if (!rows.length) {
@@ -2945,47 +3175,51 @@ function DailySheet({
                       <thead className="bg-gray-50 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                         <tr>
                           <th className="px-2.5 py-2">Product</th>
-                          <th className="px-2 py-2 text-right w-20">Del</th>
-                          <th className="px-2 py-2 text-right w-20">Rec</th>
+                          {visibleProducts.some(showDel) && <th className="px-2 py-2 text-right w-20">Del</th>}
+                          {visibleProducts.some(showRec) && <th className="px-2 py-2 text-right w-20">Rec</th>}
                           <th className="px-2.5 py-2 text-right w-16">Rate</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {products.map((p) => (
+                        {visibleProducts.map((p) => (
                           <tr key={p.id}>
                             <td className="px-2.5 py-1.5 font-medium text-gray-900">
                               {shortWaterHisabProductLabel(p, 18)}
                             </td>
-                            <td className="px-2 py-1.5 text-right">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                inputMode="decimal"
-                                value={
-                                  row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''
-                                }
-                                onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                                className="ml-auto h-9 w-[4.25rem] tabular-nums text-center bg-white"
-                                disabled={readOnly}
-                                aria-label={`${p.name} delivered`}
-                              />
-                            </td>
-                            <td className="px-2 py-1.5 text-right">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                inputMode="decimal"
-                                value={
-                                  row.recByProduct?.[String(p.id)] ?? row.recByProduct?.[p.id] ?? ''
-                                }
-                                onChange={(e) => onRec?.(row.customerId, p.id, e.target.value)}
-                                className="ml-auto h-9 w-[4.25rem] tabular-nums text-center bg-white"
-                                disabled={readOnly}
-                                aria-label={`${p.name} empties received`}
-                              />
-                            </td>
+                            {showDel(p) && (
+                              <td className="px-2 py-1.5 text-right">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  inputMode="decimal"
+                                  value={
+                                    row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''
+                                  }
+                                  onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
+                                  className="ml-auto h-9 w-[4.25rem] tabular-nums text-center bg-white"
+                                  disabled={readOnly}
+                                  aria-label={`${p.name} delivered`}
+                                />
+                              </td>
+                            )}
+                            {showRec(p) && (
+                              <td className="px-2 py-1.5 text-right">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  inputMode="decimal"
+                                  value={
+                                    row.recByProduct?.[String(p.id)] ?? row.recByProduct?.[p.id] ?? ''
+                                  }
+                                  onChange={(e) => onRec?.(row.customerId, p.id, e.target.value)}
+                                  className="ml-auto h-9 w-[4.25rem] tabular-nums text-center bg-white"
+                                  disabled={readOnly}
+                                  aria-label={`${p.name} empties received`}
+                                />
+                              </td>
+                            )}
                             <td className="px-2.5 py-1.5 text-right text-[11px] tabular-nums text-gray-500">
                               {formatCurrency(
                                 Number(row.productRate) > 0
@@ -3100,21 +3334,33 @@ function DailySheet({
               <th className="px-2.5 py-2 whitespace-nowrap border-r border-slate-200">House</th>
               <th className="px-3 py-2 whitespace-nowrap border-r border-slate-200">Customer</th>
               <th className="px-2.5 py-2 whitespace-nowrap border-r border-slate-200">Route</th>
-              {products.map((p) => (
-                <th
-                  key={p.id}
-                  className="px-2 py-1.5 text-center align-bottom border-r border-slate-200 bg-slate-200/50"
-                  title={`${p.name} · Del / Rec empties`}
-                >
-                  <span className="block truncate text-[11px] font-bold text-slate-800 uppercase tracking-tight">
-                    {shortWaterHisabProductLabel(p, 16)}
-                  </span>
-                  <div className="mt-1 grid grid-cols-2 gap-1 text-[10px] font-bold normal-case border-t border-slate-300 pt-0.5">
-                    <span className="text-emerald-700">Del</span>
-                    <span className="text-amber-700">Rec</span>
-                  </div>
-                </th>
-              ))}
+              {visibleProducts.map((p) => {
+                const hasDel = showDel(p);
+                const hasRec = showRec(p);
+                const cols = (hasDel ? 1 : 0) + (hasRec ? 1 : 0);
+                return (
+                  <th
+                    key={p.id}
+                    colSpan={cols}
+                    className="px-2 py-1.5 text-center align-bottom border-r border-slate-200 bg-slate-200/50"
+                    title={`${p.name} · Del / Rec empties`}
+                  >
+                    <span className="block truncate text-[11px] font-bold text-slate-800 uppercase tracking-tight">
+                      {shortWaterHisabProductLabel(p, 16)}
+                    </span>
+                    {cols > 1 ? (
+                      <div className="mt-1 grid grid-cols-2 gap-1 text-[10px] font-bold normal-case border-t border-slate-300 pt-0.5">
+                        {hasDel && <span className="text-emerald-700">Del</span>}
+                        {hasRec && <span className="text-amber-700">Rec</span>}
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-[10px] font-bold normal-case border-t border-slate-300 pt-0.5 text-center">
+                        {hasDel ? <span className="text-emerald-700">Del</span> : <span className="text-amber-700">Rec</span>}
+                      </div>
+                    )}
+                  </th>
+                );
+              })}
               <th className="px-2.5 py-2 text-center whitespace-nowrap border-r border-slate-200">Cash</th>
               <th className="px-2.5 py-2 text-center whitespace-nowrap border-r border-slate-200">Disc</th>
               <th className="px-3 py-2 whitespace-nowrap border-r border-slate-200">Notes</th>
@@ -3156,33 +3402,37 @@ function DailySheet({
                     disabled={readOnly}
                   />
                 </td>
-                {products.map((p) => (
+                {visibleProducts.map((p) => (
                   <td key={p.id} className="px-1.5 py-1 text-center bg-slate-50/30">
                     <div className="inline-flex items-center gap-1.5">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        inputMode="decimal"
-                        value={row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''}
-                        onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        className="h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:bg-emerald-50/50 focus:outline-none transition-colors"
-                        disabled={readOnly}
-                        title="Delivered bottles"
-                      />
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        inputMode="decimal"
-                        value={row.recByProduct?.[String(p.id)] ?? row.recByProduct?.[p.id] ?? ''}
-                        onChange={(e) => onRec?.(row.customerId, p.id, e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        className="h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 focus:bg-amber-50/50 focus:outline-none transition-colors"
-                        disabled={readOnly}
-                        title="Empty bottles received"
-                      />
+                      {showDel(p) && (
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          inputMode="decimal"
+                          value={row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''}
+                          onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          className="h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:bg-emerald-50/50 focus:outline-none transition-colors"
+                          disabled={readOnly}
+                          title="Delivered bottles"
+                        />
+                      )}
+                      {showRec(p) && (
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          inputMode="decimal"
+                          value={row.recByProduct?.[String(p.id)] ?? row.recByProduct?.[p.id] ?? ''}
+                          onChange={(e) => onRec?.(row.customerId, p.id, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          className="h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 focus:bg-amber-50/50 focus:outline-none transition-colors"
+                          disabled={readOnly}
+                          title="Empty bottles received"
+                        />
+                      )}
                     </div>
                   </td>
                 ))}

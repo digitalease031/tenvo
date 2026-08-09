@@ -75,6 +75,7 @@ import {
   printWaterAreaList,
   createWaterPeriodPdfBlob,
   printWaterAllCustomersBillSummary,
+  resolvePeriodMeta,
 } from '@/lib/print/waterHisabThermalBill';
 import { downloadStandardInvoicePdfFromRow } from '@/lib/print/clientInvoicePrint';
 import { openWhatsAppSmart, shareOrDownloadMilkHisabBillPdf } from '@/lib/storefront/milkShopHisabReminders';

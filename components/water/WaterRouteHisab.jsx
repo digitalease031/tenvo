@@ -223,37 +223,43 @@ export function WaterRouteHisab({ businessId, category }) {
   const [visibleProductColumns, setVisibleProductColumns] = useState({});
 
   /**
-   * After products load, seed default visibility:
-   * - 19L Bottle → del: true, rec: true
-   * - All others → del: false, rec: false (hidden by default)
-   * If only one product exists, show it.
+   * After products load/change, sync default visibility:
+   * - Seed new products (19L Bottle → shown, rest → hidden by default)
+   * - Prune IDs that no longer exist in the current product list
+   * - If nothing is visible after pruning, fall back to first available product
    */
   useEffect(() => {
-    if (!products.length) return;
+    if (!products.length) {
+      setVisibleProductColumns({});
+      return;
+    }
+    const currentIds = new Set(products.map((p) => String(p.id)));
     setVisibleProductColumns((prev) => {
-      // Build defaults for any NEW products not yet in state
-      const next = { ...prev };
-      let hasAnyVisible = Object.values(next).some((v) => v.del || v.rec);
+      // Remove stale product IDs
+      const pruned = {};
+      for (const [pid, v] of Object.entries(prev)) {
+        if (currentIds.has(pid)) pruned[pid] = v;
+      }
+      // Seed any new products not yet in state
+      let hasAnyVisible = Object.values(pruned).some((v) => v.del || v.rec);
       for (const p of products) {
         const pid = String(p.id);
-        if (next[pid] !== undefined) continue; // already configured
-        // Is this a 19L Bottle? (type = bottle, sizeGroup = 19l)
-        const is19lBottle =
-          p.productType === 'bottle' && p.sizeGroup === '19l';
-        // Only one product total → always show it
+        if (pruned[pid] !== undefined) continue; // already configured
+        const is19lBottle = p.productType === 'bottle' && p.sizeGroup === '19l';
         const isOnly = products.length === 1;
         const show = isOnly || is19lBottle || (!hasAnyVisible && products.indexOf(p) === 0);
-        next[pid] = { del: show, rec: show };
+        pruned[pid] = { del: show, rec: show };
         if (show) hasAnyVisible = true;
       }
-      // If nothing ended up visible (e.g. no 19L bottle), show the first product
-      const anyVisible = Object.values(next).some((v) => v.del || v.rec);
+      // If nothing visible (e.g. user hid everything then sizes changed), show first product
+      const anyVisible = Object.values(pruned).some((v) => v.del || v.rec);
       if (!anyVisible && products.length) {
-        next[String(products[0].id)] = { del: true, rec: true };
+        pruned[String(products[0].id)] = { del: true, rec: true };
       }
-      return next;
+      return pruned;
     });
   }, [products]);
+
   const [showNewBottles, setShowNewBottles] = useState(true);
   const [savingNewBottleToggle, setSavingNewBottleToggle] = useState(false);
   const [exportingExpensePdf, setExportingExpensePdf] = useState(false);
@@ -2220,6 +2226,7 @@ export function WaterRouteHisab({ businessId, category }) {
                 products={products}
                 visibleProductColumns={visibleProductColumns}
                 onToggle={toggleProductColumnVisibility}
+                onBulkSet={setVisibleProductColumns}
                 disabled={savingSizes || loading}
               />
             </div>
@@ -2803,7 +2810,7 @@ function dailyRowQtyEntries(row, products) {
  * with individual Del / Rec checkboxes. Replaces the old global Del/Rec pill toggles.
  * Pure client-side visibility — data is always saved in full; this just hides columns.
  */
-function ColumnVisibilityDropdown({ products = [], visibleProductColumns = {}, onToggle, disabled = false }) {
+function ColumnVisibilityDropdown({ products = [], visibleProductColumns = {}, onToggle, onBulkSet, disabled = false }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -2916,12 +2923,12 @@ function ColumnVisibilityDropdown({ products = [], visibleProductColumns = {}, o
               type="button"
               className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
               onClick={() => {
+                // Show all products Del+Rec atomically
+                const next = {};
                 for (const p of products) {
-                  const pid = String(p.id);
-                  const v = visibleProductColumns[pid] || { del: false, rec: false };
-                  if (!v.del) onToggle(pid, 'del');
-                  if (!v.rec) onToggle(pid, 'rec');
+                  next[String(p.id)] = { del: true, rec: true };
                 }
+                onBulkSet?.(next);
               }}
             >
               Show all
@@ -2931,18 +2938,16 @@ function ColumnVisibilityDropdown({ products = [], visibleProductColumns = {}, o
               type="button"
               className="text-[11px] font-semibold text-gray-500 hover:text-gray-700"
               onClick={() => {
-                // Hide all except the first visible one to maintain the guard
-                let keptOne = false;
+                // Reset to default: 19L Bottle Del+Rec only; fallback to first product
+                const next = {};
+                let seeded = false;
                 for (const p of products) {
-                  const pid = String(p.id);
-                  const v = visibleProductColumns[pid] || { del: false, rec: false };
-                  if (!keptOne && (v.del || v.rec)) {
-                    keptOne = true;
-                    continue; // keep this one
-                  }
-                  if (v.del) onToggle(pid, 'del');
-                  if (v.rec) onToggle(pid, 'rec');
+                  const is19lBottle = p.productType === 'bottle' && p.sizeGroup === '19l';
+                  const show = is19lBottle || (!seeded && products.indexOf(p) === 0);
+                  next[String(p.id)] = { del: show, rec: show };
+                  if (show) seeded = true;
                 }
+                onBulkSet?.(next);
               }}
             >
               Reset

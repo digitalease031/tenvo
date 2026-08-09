@@ -160,13 +160,13 @@ export function ExcelCustomerGrid({
     const activeBusinessId = useResolvedBusinessId(businessId || business?.id);
     const isWater = isWaterHisabRelevant(category);
 
-    // Include businessId so different tenants don't share the same layout.
-    // Stable ref: built once per mount; changes only when business/domain actually changes.
-    const storageKeyPrefix = useMemo(
-        () => `tenvo_cust_grid_v2_${activeBusinessId || 'anon'}_${isWater ? 'water' : 'std'}`,
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [] // intentionally empty — we never want the key to change mid-session
-    );
+    // Build a stable storage key from the props that ARE synchronously available at mount.
+    // businessId prop or business.id prop is the most reliable source — context may hydrate late.
+    // We use a ref so the key is frozen after first render and never changes mid-session.
+    const _rawBid = businessId || business?.id || '';
+    const _domain = isWaterHisabRelevant(category) ? 'water' : 'std';
+    const storageKeyPrefixRef = useRef(`tenvo_cust_grid_v2_${_rawBid || 'anon'}_${_domain}`);
+    const storageKeyPrefix = storageKeyPrefixRef.current;
 
     // Available columns for current domain
     const availableColumns = useMemo(() => {

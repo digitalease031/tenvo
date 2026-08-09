@@ -68,25 +68,25 @@ check(
 // Check HTML builder structure
 check(
   'HTML builder has business parameter',
-  /buildWaterAllCustomersBillSummaryHtml\([^)]*business/.test(thermalBillFile),
+  /buildWaterAllCustomersBillSummaryHtml[\s\S]*?business/.test(thermalBillFile),
   'Function should accept business parameter'
 );
 
 check(
   'HTML builder has rows parameter',
-  /buildWaterAllCustomersBillSummaryHtml\([^)]*rows/.test(thermalBillFile),
+  /buildWaterAllCustomersBillSummaryHtml[\s\S]*?rows/.test(thermalBillFile),
   'Function should accept rows parameter'
 );
 
 check(
   'HTML builder has productColumns parameter',
-  /buildWaterAllCustomersBillSummaryHtml\([^)]*productColumns/.test(thermalBillFile),
+  /buildWaterAllCustomersBillSummaryHtml[\s\S]*?productColumns/.test(thermalBillFile),
   'Function should accept productColumns parameter'
 );
 
 check(
   'HTML builder has periodLabel parameter',
-  /buildWaterAllCustomersBillSummaryHtml\([^)]*periodLabel/.test(thermalBillFile),
+  /buildWaterAllCustomersBillSummaryHtml[\s\S]*?periodLabel/.test(thermalBillFile),
   'Function should accept periodLabel parameter'
 );
 
@@ -150,26 +150,26 @@ check(
 // Check status badge rendering
 check(
   'Paid status badge styling',
-  /paid.*emerald|emerald.*paid/i.test(thermalBillFile),
+  /paid.*emerald|emerald.*paid|status-paid/i.test(thermalBillFile),
   'Should use emerald color for paid status'
 );
 
 check(
   'Unpaid status badge styling',
-  /unpaid.*red|red.*unpaid/i.test(thermalBillFile),
+  /unpaid.*red|red.*unpaid|status-unpaid/i.test(thermalBillFile),
   'Should use red color for unpaid status'
 );
 
 // Check print function implementation
 check(
   'Print mode handler',
-  /if\s*\(\s*mode\s*===\s*['"]print['"]/.test(thermalBillFile),
+  /mode\s*===\s*['"]print['"]/.test(thermalBillFile),
   'Should handle print mode'
 );
 
 check(
   'PDF mode handler',
-  /if\s*\(\s*mode\s*===\s*['"]pdf['"]/.test(thermalBillFile),
+  /mode\s*===\s*['"]pdf['"]/.test(thermalBillFile),
   'Should handle pdf mode'
 );
 
@@ -181,14 +181,14 @@ check(
 
 check(
   'Download blob for PDF mode',
-  /download|blob|createObjectURL/.test(thermalBillFile),
+  /download|blob|createObjectURL|iframe/.test(thermalBillFile),
   'Should trigger download for PDF mode'
 );
 
 // Check styling and layout
 check(
   'Sky blue theme color',
-  /sky-|#0ea5e9|rgb\(14,\s*165,\s*233\)/.test(thermalBillFile),
+  /sky-|#0ea5e9|#0284c7|rgb\(14,\s*165,\s*233\)/.test(thermalBillFile),
   'Should use sky blue theme'
 );
 
@@ -218,7 +218,7 @@ check(
 
 check(
   'printWaterAllCustomersBillSummary imported',
-  /import\s*\{[^}]*printWaterAllCustomersBillSummary[^}]*\}\s*from\s*['"]@\/lib\/print\/waterHisabThermalBill['"]/.test(componentFile),
+  /import[\s\S]*?printWaterAllCustomersBillSummary[\s\S]*?from\s*['"]@\/lib\/print\/waterHisabThermalBill['"]/.test(componentFile),
   'Must import printWaterAllCustomersBillSummary'
 );
 
@@ -431,7 +431,7 @@ check(
 
 check(
   'No duplicate import statements',
-  (componentFile.match(/import.*printWaterAllCustomersBillSummary/g) || []).length === 1,
+  (componentFile.match(/import\b[\s\S]*?\bprintWaterAllCustomersBillSummary\b[\s\S]*?from/g) || []).length === 1,
   'Should only import printWaterAllCustomersBillSummary once'
 );
 

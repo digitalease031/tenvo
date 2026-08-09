@@ -1,4 +1,4 @@
-'use client';
+  'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -160,47 +160,58 @@ export function ExcelCustomerGrid({
     const activeBusinessId = useResolvedBusinessId(businessId || business?.id);
     const isWater = isWaterHisabRelevant(category);
 
-    const storageKeyPrefix = `tenvo_cust_grid_v1_${isWater ? 'water' : 'std'}`;
+    // Include businessId so different tenants don't share the same layout.
+    // Stable ref: built once per mount; changes only when business/domain actually changes.
+    const storageKeyPrefix = useMemo(
+        () => `tenvo_cust_grid_v2_${activeBusinessId || 'anon'}_${isWater ? 'water' : 'std'}`,
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [] // intentionally empty — we never want the key to change mid-session
+    );
 
     // Available columns for current domain
     const availableColumns = useMemo(() => {
         return ALL_CUSTOMER_COLUMNS.filter(c => !c.isWaterOnly || isWater);
     }, [isWater]);
 
-    // Initial column order & visibility state
+    // Initial column order — read once from localStorage, validated against availableColumns
     const [columnOrder, setColumnOrder] = useState(() => {
         try {
-            const savedOrder = localStorage.getItem(`${storageKeyPrefix}_order`);
-            if (savedOrder) {
-                const parsed = JSON.parse(savedOrder);
-                const validIds = availableColumns.map(c => c.id);
-                const reordered = parsed.filter(id => validIds.includes(id));
-                const missing = validIds.filter(id => !reordered.includes(id));
-                return [...reordered, ...missing];
+            const saved = localStorage.getItem(`${storageKeyPrefix}_order`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length) {
+                    // Keep only IDs that still exist in availableColumns; append any new ones at end
+                    const validIds = new Set(ALL_CUSTOMER_COLUMNS.map(c => c.id));
+                    const reordered = parsed.filter(id => validIds.has(id));
+                    const missing = ALL_CUSTOMER_COLUMNS
+                        .filter(c => !reordered.includes(c.id))
+                        .map(c => c.id);
+                    return [...reordered, ...missing];
+                }
             }
         } catch {}
-        return availableColumns.map(c => c.id);
+        return ALL_CUSTOMER_COLUMNS.map(c => c.id);
     });
 
     const [hiddenColumns, setHiddenColumns] = useState(() => {
         try {
-            const savedHidden = localStorage.getItem(`${storageKeyPrefix}_hidden`);
-            if (savedHidden) return new Set(JSON.parse(savedHidden));
+            const saved = localStorage.getItem(`${storageKeyPrefix}_hidden`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) return new Set(parsed);
+            }
         } catch {}
         return new Set();
     });
 
-    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-    const [showColumnPicker, setShowColumnPicker] = useState(false);
-    const [colFilter, setColFilter] = useState('');
-
-    // Persist column preferences
+    // Persist column order whenever it changes
     useEffect(() => {
         try {
             localStorage.setItem(`${storageKeyPrefix}_order`, JSON.stringify(columnOrder));
         } catch {}
     }, [columnOrder, storageKeyPrefix]);
 
+    // Persist hidden columns whenever they change — always write, even empty set
     useEffect(() => {
         try {
             localStorage.setItem(`${storageKeyPrefix}_hidden`, JSON.stringify(Array.from(hiddenColumns)));
@@ -407,17 +418,30 @@ export function ExcelCustomerGrid({
 
     // Reset columns to default
     const resetColumnsToDefault = () => {
-        setColumnOrder(availableColumns.map(c => c.id));
-        setHiddenColumns(new Set());
+        const defaultOrder = ALL_CUSTOMER_COLUMNS.map(c => c.id);
+        const defaultHidden = new Set();
+        setColumnOrder(defaultOrder);
+        setHiddenColumns(defaultHidden);
+        try {
+            localStorage.setItem(`${storageKeyPrefix}_order`, JSON.stringify(defaultOrder));
+            localStorage.setItem(`${storageKeyPrefix}_hidden`, JSON.stringify([]));
+        } catch {}
         toast.success('Columns reset to default layout');
     };
 
-    // Active ordered visible columns
+    // Active ordered visible columns — uses columnOrder against ALL_CUSTOMER_COLUMNS
+    // so non-water columns are naturally excluded via availableColumns filter
     const visibleOrderedColumns = useMemo(() => {
         const map = new Map(availableColumns.map(c => [c.id, c]));
-        return columnOrder
-            .filter(id => map.has(id) && !hiddenColumns.has(id))
+        const ordered = columnOrder
+            .filter(id => map.has(id))
             .map(id => map.get(id));
+        // Append any availableColumns not yet in columnOrder (newly added columns)
+        const inOrder = new Set(columnOrder);
+        for (const col of availableColumns) {
+            if (!inOrder.has(col.id)) ordered.push(col);
+        }
+        return ordered.filter(col => !hiddenColumns.has(col.id));
     }, [availableColumns, columnOrder, hiddenColumns]);
 
     // Header Sort toggle

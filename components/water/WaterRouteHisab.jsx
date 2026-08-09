@@ -811,6 +811,8 @@ export function WaterRouteHisab({ businessId, category }) {
         businessId,
         category,
         enabledSizeIds: next,
+        enabledColumns,   // always pass current columns so server doesn't clobber them
+        checklistMode,    // always pass current mode
       });
       if (!res?.success) {
         notify.error(res?.error || 'Failed to update sheet sizes');
@@ -848,7 +850,9 @@ export function WaterRouteHisab({ businessId, category }) {
       const res = await saveWaterHisabSheetSettingsAction({
         businessId,
         category,
+        enabledSizeIds,   // always pass current sizes so server doesn't clobber them
         enabledColumns: next,
+        checklistMode,    // always pass current mode
       });
       if (!res?.success) {
         notify.error(res?.error || 'Failed to update column visibility');
@@ -875,6 +879,8 @@ export function WaterRouteHisab({ businessId, category }) {
       const res = await saveWaterHisabSheetSettingsAction({
         businessId,
         category,
+        enabledSizeIds,   // preserve current sizes
+        enabledColumns,   // preserve current columns
         checklistMode: nextMode,
       });
       if (!res?.success) {

@@ -336,6 +336,7 @@ export function WaterRouteHisab({ businessId, category }) {
       if (offlineEnabled && typeof navigator !== 'undefined' && !navigator.onLine) {
         const snap = await readDaySnapshot(businessId, deliveryDate);
         if (!snap) {
+          // Only blank on genuine first-load miss — keep stale rows visible on refresh
           setRows([]);
           setProducts([]);
           setDayKpis(null);
@@ -371,9 +372,14 @@ export function WaterRouteHisab({ businessId, category }) {
           }
         }
         notify.error(res?.error || 'Failed to load day sheet');
-        setRows([]);
-        setProducts([]);
-        setDayKpis(null);
+        // Only blank the sheet on a true first load (nothing to show yet).
+        // On refresh, keep existing rows visible so a transient error doesn't wipe
+        // the user's current view.
+        if (rows.length === 0) {
+          setRows([]);
+          setProducts([]);
+          setDayKpis(null);
+        }
         setDaySnapshotReady(false);
         return;
       }
@@ -2510,10 +2516,39 @@ export function WaterRouteHisab({ businessId, category }) {
       ) : null}
 
       {loading || riderLoading || bottleLoading || (view === 'expenses' && expenseLoading) ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-400">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading…
-        </div>
+        // First load (no data yet) → full-page spinner; subsequent refreshes → keep previous data
+        // visible with a subtle inline indicator so tab switches feel instant.
+        rows.length === 0 && products.length === 0 && view === 'daily' ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-400">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading…
+          </div>
+        ) : view === 'daily' ? (
+          <>
+            <div className="flex items-center gap-1.5 pb-1 text-xs text-gray-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Refreshing…
+            </div>
+            <DailySheet
+              products={products}
+              rows={visibleRows}
+              currency={currency}
+              onQty={updateQty}
+              onRec={updateRec}
+              onField={updateRowField}
+              onPrintDaily={(row) => handlePrintDailyCustomer(row, 'print')}
+              onPdfDaily={(row) => handlePrintDailyCustomer(row, 'pdf')}
+              printingId={printingId}
+              readOnly={offlineEnabled && !isOnline && !daySnapshotReady}
+              visibleProductColumns={visibleProductColumns}
+            />
+          </>
+        ) : (
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-400">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading…
+          </div>
+        )
       ) : view === 'daily' ? (
         <DailySheet
           products={products}

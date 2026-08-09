@@ -235,7 +235,7 @@ export function WaterRouteHisab({ businessId, category }) {
    * After products load/change, sync default visibility:
    * - Seed new products (19L Bottle → shown, rest → hidden by default)
    * - Prune IDs that no longer exist in the current product list
-   * - If nothing is visible after pruning, fall back to first available product
+   * - If nothing is visible after pruning, fall back to first product
    */
   useEffect(() => {
     if (!products.length) {
@@ -249,6 +249,10 @@ export function WaterRouteHisab({ businessId, category }) {
       for (const [pid, v] of Object.entries(prev)) {
         if (currentIds.has(pid)) pruned[pid] = v;
       }
+      // Determine if any 19L bottle exists — used to decide fallback
+      const has19lBottle = products.some(
+        (p) => p.productType === 'bottle' && p.sizeGroup === '19l'
+      );
       // Seed any new products not yet in state
       let hasAnyVisible = Object.values(pruned).some((v) => v.del || v.rec);
       for (const p of products) {
@@ -256,11 +260,13 @@ export function WaterRouteHisab({ businessId, category }) {
         if (pruned[pid] !== undefined) continue; // already configured
         const is19lBottle = p.productType === 'bottle' && p.sizeGroup === '19l';
         const isOnly = products.length === 1;
-        const show = isOnly || is19lBottle || (!hasAnyVisible && products.indexOf(p) === 0);
+        // Fallback to first product ONLY when no 19L bottle exists in the catalog
+        const isFallback = !hasAnyVisible && !has19lBottle && products.indexOf(p) === 0;
+        const show = isOnly || is19lBottle || isFallback;
         pruned[pid] = { del: show, rec: show };
         if (show) hasAnyVisible = true;
       }
-      // If nothing visible (e.g. user hid everything then sizes changed), show first product
+      // If nothing visible (e.g. user hid everything), show first product as emergency fallback
       const anyVisible = Object.values(pruned).some((v) => v.del || v.rec);
       if (!anyVisible && products.length) {
         pruned[String(products[0].id)] = { del: true, rec: true };
@@ -2950,12 +2956,16 @@ function ColumnVisibilityDropdown({ products = [], visibleProductColumns = {}, o
               type="button"
               className="text-[11px] font-semibold text-gray-500 hover:text-gray-700"
               onClick={() => {
-                // Reset to default: 19L Bottle Del+Rec only; fallback to first product
+                // Reset to default: 19L Bottle Del+Rec only; fallback to first product only if no bottle
+                const has19lBottle = products.some(
+                  (p) => p.productType === 'bottle' && p.sizeGroup === '19l'
+                );
                 const next = {};
                 let seeded = false;
                 for (const p of products) {
                   const is19lBottle = p.productType === 'bottle' && p.sizeGroup === '19l';
-                  const show = is19lBottle || (!seeded && products.indexOf(p) === 0);
+                  const isFallback = !seeded && !has19lBottle && products.indexOf(p) === 0;
+                  const show = is19lBottle || isFallback;
                   next[String(p.id)] = { del: show, rec: show };
                   if (show) seeded = true;
                 }
@@ -2993,13 +3003,17 @@ function DailySheet({
   readOnly = false,
   visibleProductColumns = {},
 }) {
-  // Derive which products have visible Del/Rec — fall back to showing all if nothing is configured
+  // Derive which products have visible Del/Rec — when no config exists yet, default to 19L Bottle only
   const visibleProducts = useMemo(() => {
     const anyConfigured = products.some((p) => {
       const v = visibleProductColumns[String(p.id)];
       return v && (v.del || v.rec);
     });
-    if (!anyConfigured) return products; // no config yet → show everything
+    if (!anyConfigured) {
+      // No config yet (first render) — default to 19L Bottle; fallback to first product
+      const bottle = products.find((p) => p.productType === 'bottle' && p.sizeGroup === '19l');
+      return bottle ? [bottle] : products.slice(0, 1);
+    }
     return products.filter((p) => {
       const v = visibleProductColumns[String(p.id)];
       return v && (v.del || v.rec);

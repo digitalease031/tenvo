@@ -81,58 +81,67 @@ import { downloadStandardInvoicePdfFromRow } from '@/lib/print/clientInvoicePrin
 import { openWhatsAppSmart, shareOrDownloadMilkHisabBillPdf } from '@/lib/storefront/milkShopHisabReminders';
 import { MARKETING_STAT_VALUE } from '@/lib/utils/typography';
 import { resolveBusinessCountryIso } from '@/lib/utils/businessRegionalContext';
-
-/** Water Route Hisab Phase 1: online-only (offline queue deferred). */
-function isWaterHisabOfflineEnabled() {
-  return false;
-}
-function isWaterHisabNetworkFailure() {
-  return false;
-}
-const noopAsync = async () => {};
-const syncPendingStub = async () => ({ synced: 0, failed: 0 });
-const queueDaySaveStub = async () => {
-  throw new Error('Offline hisab not enabled');
-};
-const readSnapshotStub = async () => null;
+import { useWaterHisabOffline } from '@/lib/hooks/useWaterHisabOffline';
+import { isWaterHisabOfflineEnabled, isWaterHisabNetworkFailure } from '@/lib/utils/waterHisabOfflineAccess';
 
 /**
- * Milk-compatible offline hook shape. Tracks browser online state so Generate /
- * Remind / bulk print gates work; queue/cache stay no-ops until Phase 1 ships.
+ * Offline status banner — shows when offline or when there are unsynced saves.
+ * Renders nothing when online and all saves are in sync.
  */
-function useWaterHisabOffline(_businessId, { enabled: _enabled = false } = {}) {
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
+function WaterHisabOfflineBanner({ offlineEnabled, isOnline, pendingCount, isSyncing, daySnapshotReady, view, onSync }) {
+  if (!offlineEnabled && isOnline) return null;
+
+  // Online + no pending — only show the banner when there's something actionable
+  if (isOnline && pendingCount === 0) return null;
+
+  const isOffline = !isOnline;
+  const hasPending = pendingCount > 0;
+
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold',
+        isOffline
+          ? 'border-amber-200 bg-amber-50 text-amber-900'
+          : 'border-sky-200 bg-sky-50 text-sky-900'
+      )}
+    >
+      <span
+        className={cn(
+          'inline-block h-2 w-2 rounded-full shrink-0',
+          isOffline ? 'bg-amber-500' : 'bg-sky-500'
+        )}
+      />
+      {isOffline ? (
+        <span>
+          You are offline
+          {view === 'daily' && !daySnapshotReady
+            ? ' — this day sheet was not cached yet. Reconnect to load it.'
+            : ' — working from local cache. Changes will sync when you reconnect.'}
+        </span>
+      ) : (
+        <span>
+          {pendingCount} unsaved route change{pendingCount === 1 ? '' : 's'} waiting to sync
+          {isSyncing ? ' — syncing now…' : ''}
+        </span>
+      )}
+      {!isOffline && hasPending && !isSyncing && (
+        <button
+          type="button"
+          onClick={onSync}
+          className="ml-auto rounded border border-sky-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-50 transition-colors"
+        >
+          Sync now
+        </button>
+      )}
+      {isSyncing && (
+        <span className="ml-auto inline-flex items-center gap-1 text-sky-600">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Syncing…
+        </span>
+      )}
+    </div>
   );
-
-  useEffect(() => {
-    const onOnline = () => setIsOnline(true);
-    const onOffline = () => setIsOnline(false);
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
-    setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
-    return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-    };
-  }, []);
-
-  return {
-    isOnline,
-    pendingCount: 0,
-    isSyncing: false,
-    lastSyncAt: null,
-    refreshPending: noopAsync,
-    syncPending: syncPendingStub,
-    queueDaySave: queueDaySaveStub,
-    cacheDaySnapshot: noopAsync,
-    readDaySnapshot: readSnapshotStub,
-    cachePeriodSnapshot: noopAsync,
-    readPeriodSnapshot: readSnapshotStub,
-  };
-}
-function WaterHisabOfflineBanner() {
-  return null;
 }
 
 
@@ -2461,6 +2470,16 @@ export function WaterRouteHisab({ businessId, category }) {
       <MobileStatStrip items={view === 'daily' ? dayStatItems : view === 'rider-shifts' ? riderStatItems : view === 'bottle-control' ? bottleStatItems : view === 'expenses' ? expenseStatItems : billStatItems} layout="scroll" />
       <HisabKpiStrip items={view === 'daily' ? dayStatItems : view === 'rider-shifts' ? riderStatItems : view === 'bottle-control' ? bottleStatItems : view === 'expenses' ? expenseStatItems : billStatItems} />
 
+      <WaterHisabOfflineBanner
+        offlineEnabled={offlineEnabled}
+        isOnline={isOnline}
+        pendingCount={pendingCount}
+        isSyncing={isSyncing}
+        daySnapshotReady={daySnapshotReady}
+        view={view}
+        onSync={syncPending}
+      />
+
       {view === 'daily' && dayDirty ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Unsaved changes. Click <span className="font-semibold">Save day</span> so deliveries are
@@ -2475,13 +2494,6 @@ export function WaterRouteHisab({ businessId, category }) {
           {' · '}Generate creates standard A4 invoices · Print icons: 58mm day sheet · File icon: A4 Delivery Bill
           {urduBillsEnabled ? ' · اردو thermal available' : ''}
           {' · '}Remind can share the 58mm day sheet PDF
-        </p>
-      ) : null}
-
-      {view === 'daily' && offlineEnabled && !isOnline && !daySnapshotReady ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
-          This day was not cached for offline use. Reconnect, open the day once, then you can log the
-          route without internet.
         </p>
       ) : null}
 

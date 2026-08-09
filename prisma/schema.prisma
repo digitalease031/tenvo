@@ -2016,7 +2016,6 @@ model restaurant_orders {
   customers              customers?               @relation(fields: [customer_id], references: [id])
   restaurant_order_items restaurant_order_items[]
   kitchen_orders         kitchen_orders[]
-  restaurant_reservations restaurant_reservations[]
 
   @@unique([business_id, order_number])
   @@index([business_id])

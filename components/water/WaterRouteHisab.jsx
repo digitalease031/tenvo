@@ -249,20 +249,19 @@ export function WaterRouteHisab({ businessId, category }) {
       for (const [pid, v] of Object.entries(prev)) {
         if (currentIds.has(pid)) pruned[pid] = v;
       }
-      // Determine if any 19L bottle exists — used to decide fallback
-      const has19lBottle = products.some(
-        (p) => p.productType === 'bottle' && p.sizeGroup === '19l'
-      );
+      // Determine if any 19L product exists — used to decide fallback.
+      // Match on sizeGroup only (not productType) so "19L Refill" also triggers auto-show.
+      const has19lProduct = products.some((p) => p.sizeGroup === '19l');
       // Seed any new products not yet in state
       let hasAnyVisible = Object.values(pruned).some((v) => v.del || v.rec);
       for (const p of products) {
         const pid = String(p.id);
         if (pruned[pid] !== undefined) continue; // already configured
-        const is19lBottle = p.productType === 'bottle' && p.sizeGroup === '19l';
+        const is19l = p.sizeGroup === '19l'; // show DEL+REC for any 19L product
         const isOnly = products.length === 1;
-        // Fallback to first product ONLY when no 19L bottle exists in the catalog
-        const isFallback = !hasAnyVisible && !has19lBottle && products.indexOf(p) === 0;
-        const show = isOnly || is19lBottle || isFallback;
+        // Fallback to first product ONLY when no 19L product exists in the catalog
+        const isFallback = !hasAnyVisible && !has19lProduct && products.indexOf(p) === 0;
+        const show = isOnly || is19l || isFallback;
         pruned[pid] = { del: show, rec: show };
         if (show) hasAnyVisible = true;
       }
@@ -2997,16 +2996,14 @@ function ColumnVisibilityDropdown({ products = [], visibleProductColumns = {}, o
               type="button"
               className="text-[11px] font-semibold text-gray-500 hover:text-gray-700"
               onClick={() => {
-                // Reset to default: 19L Bottle Del+Rec only; fallback to first product only if no bottle
-                const has19lBottle = products.some(
-                  (p) => p.productType === 'bottle' && p.sizeGroup === '19l'
-                );
+                // Reset to default: any 19L product Del+Rec; fallback to first product only
+                const has19l = products.some((p) => p.sizeGroup === '19l');
                 const next = {};
                 let seeded = false;
                 for (const p of products) {
-                  const is19lBottle = p.productType === 'bottle' && p.sizeGroup === '19l';
-                  const isFallback = !seeded && !has19lBottle && products.indexOf(p) === 0;
-                  const show = is19lBottle || isFallback;
+                  const is19l = p.sizeGroup === '19l';
+                  const isFallback = !seeded && !has19l && products.indexOf(p) === 0;
+                  const show = is19l || isFallback;
                   next[String(p.id)] = { del: show, rec: show };
                   if (show) seeded = true;
                 }
@@ -3044,16 +3041,16 @@ function DailySheet({
   readOnly = false,
   visibleProductColumns = {},
 }) {
-  // Derive which products have visible Del/Rec — when no config exists yet, default to 19L Bottle only
+  // Derive which products have visible Del/Rec — when no config exists yet, default to any 19L product
   const visibleProducts = useMemo(() => {
     const anyConfigured = products.some((p) => {
       const v = visibleProductColumns[String(p.id)];
       return v && (v.del || v.rec);
     });
     if (!anyConfigured) {
-      // No config yet (first render) — default to 19L Bottle; fallback to first product
-      const bottle = products.find((p) => p.productType === 'bottle' && p.sizeGroup === '19l');
-      return bottle ? [bottle] : products.slice(0, 1);
+      // No config yet (first render) — default to first 19L product; fallback to first product
+      const first19l = products.find((p) => p.sizeGroup === '19l');
+      return first19l ? [first19l] : products.slice(0, 1);
     }
     return products.filter((p) => {
       const v = visibleProductColumns[String(p.id)];

@@ -3970,6 +3970,7 @@ function RiderShiftsSheet({
   const [editingId, setEditingId] = useState(null);
   const [selectedAreaByShift, setSelectedAreaByShift] = useState({});
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
 
   // Available unique areas from active daily route sheet
   const availableAreas = useMemo(() => {
@@ -4379,7 +4380,7 @@ function RiderShiftsSheet({
               <th className="p-3 text-right">Cash Recovered</th>
               <th className="p-3 text-right">Cash Shortage</th>
               <th className="p-3 text-center">Status</th>
-              <th className="p-3 text-center min-w-[14rem]">Area & Checklist Action</th>
+              <th className="p-3 text-center w-32">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -4420,106 +4421,129 @@ function RiderShiftsSheet({
                     </span>
                   </td>
                   <td className="p-3 text-center">
-                    <div className="flex flex-col items-center gap-1.5 py-1">
-                      {/* Area Selector for Checklist */}
-                      <select
-                        value={currentArea}
-                        onChange={(e) => setSelectedAreaByShift(prev => ({ ...prev, [s.id]: e.target.value }))}
-                        className="h-7 w-full rounded border border-sky-200 bg-sky-50 px-1.5 text-[11px] font-semibold text-sky-900 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
-                        title="Select area to print route checklist for this rider"
-                      >
-                        <option value="ALL">🌐 All Areas / Routes ({dailyRows.length} stops)</option>
-                        {s.routeLabel && (
-                          <option value={s.routeLabel}>📍 Rider Route: {s.routeLabel}</option>
-                        )}
-                        {availableAreas
-                          .filter(a => a.toLowerCase() !== (s.routeLabel || '').toLowerCase())
-                          .map(a => {
-                            const count = dailyRows.filter(r => String(r.routeLabel || '').trim().toLowerCase() === a.toLowerCase()).length;
-                            return (
-                              <option key={a} value={a}>
-                                📍 Area: {a} ({count} stops)
-                              </option>
-                            );
-                          })}
-                      </select>
-
-                      {/* Action Cluster Buttons */}
-                      <div className="flex items-center gap-1 flex-wrap justify-center">
-                        <div className="relative inline-flex rounded shadow-xs">
-                          <button
-                            type="button"
-                            onClick={() => onPrintRiderChecklist?.(s, currentArea, 'print', '58mm')}
-                            className="inline-flex h-6 items-center gap-1 rounded-l border border-sky-300 bg-sky-600 px-2 text-[10px] font-semibold text-white hover:bg-sky-700 transition-colors"
-                            title={`Print 58mm checklist for ${s.riderName} (${currentArea})`}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Checklist ({filteredStopCount})
-                          </button>
-                          <select
-                            defaultValue=""
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === 'print-58') onPrintRiderChecklist?.(s, currentArea, 'print', '58mm');
-                              else if (val === 'print-80') onPrintRiderChecklist?.(s, currentArea, 'print', '80mm');
-                              else if (val === 'pdf-58') onPrintRiderChecklist?.(s, currentArea, 'pdf', '58mm');
-                              else if (val === 'pdf-80') onPrintRiderChecklist?.(s, currentArea, 'pdf', '80mm');
-                              else if (val === 'area-a4') onPrintRiderAreaList?.(s, currentArea, 'A4');
-                              else if (val === 'area-a5') onPrintRiderAreaList?.(s, currentArea, 'A5');
-                              e.target.value = '';
-                            }}
-                            className="h-6 rounded-r border border-l-0 border-sky-300 bg-sky-600 px-0.5 text-[10px] font-bold text-white hover:bg-sky-700 cursor-pointer focus:outline-none"
-                            title="Select format (58mm, 80mm, A4 Area Register, PDF)"
-                          >
-                            <option value="" disabled>▼</option>
-                            <option value="print-58">🖨️ Thermal 58mm Checklist</option>
-                            <option value="print-80">🖨️ Thermal 80mm Wide</option>
-                            <option value="area-a4">📋 A4 Area List (Plant Register)</option>
-                            <option value="area-a5">📋 A5 Area List Compact</option>
-                            <option value="pdf-58">📄 Download PDF (58mm)</option>
-                            <option value="pdf-80">📄 Download PDF (80mm)</option>
-                          </select>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleEditShift(s)}
-                          className="inline-flex h-6 items-center px-2 text-[10px] text-sky-700 font-semibold border border-sky-200 rounded bg-white hover:bg-sky-50 transition-colors"
-                          title="Edit shift load-out details"
+                    {openActionId === s.id ? (
+                      /* ── Expanded action panel ── */
+                      <div className="flex flex-col items-center gap-1.5 py-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                        {/* Area Selector */}
+                        <select
+                          value={currentArea}
+                          onChange={(e) => setSelectedAreaByShift(prev => ({ ...prev, [s.id]: e.target.value }))}
+                          className="h-7 w-full rounded border border-sky-200 bg-sky-50 px-1.5 text-[11px] font-semibold text-sky-900 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                          title="Select area to print route checklist for this rider"
                         >
-                          Edit
-                        </button>
+                          <option value="ALL">🌐 All Areas / Routes ({dailyRows.length} stops)</option>
+                          {s.routeLabel && (
+                            <option value={s.routeLabel}>📍 Rider Route: {s.routeLabel}</option>
+                          )}
+                          {availableAreas
+                            .filter(a => a.toLowerCase() !== (s.routeLabel || '').toLowerCase())
+                            .map(a => {
+                              const count = dailyRows.filter(r => String(r.routeLabel || '').trim().toLowerCase() === a.toLowerCase()).length;
+                              return (
+                                <option key={a} value={a}>
+                                  📍 Area: {a} ({count} stops)
+                                </option>
+                              );
+                            })}
+                        </select>
 
-                        {confirmDeleteId === s.id ? (
-                          <div className="inline-flex items-center gap-1">
+                        {/* Action Cluster Buttons */}
+                        <div className="flex items-center gap-1 flex-wrap justify-center">
+                          <div className="relative inline-flex rounded shadow-xs">
                             <button
                               type="button"
-                              onClick={() => { setConfirmDeleteId(null); onDeleteShift?.(s.id); }}
-                              className="inline-flex h-6 items-center px-1.5 text-[10px] text-white font-bold bg-rose-600 rounded hover:bg-rose-700 transition-colors"
-                              title="Confirm delete"
+                              onClick={() => onPrintRiderChecklist?.(s, currentArea, 'print', '58mm')}
+                              className="inline-flex h-6 items-center gap-1 rounded-l border border-sky-300 bg-sky-600 px-2 text-[10px] font-semibold text-white hover:bg-sky-700 transition-colors"
+                              title={`Print 58mm checklist for ${s.riderName} (${currentArea})`}
                             >
-                              Confirm
+                              <FileText className="h-3 w-3" />
+                              Checklist ({filteredStopCount})
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDeleteId(null)}
-                              className="inline-flex h-6 items-center px-1 text-[10px] text-gray-500 font-medium hover:underline"
+                            <select
+                              defaultValue=""
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === 'print-58') onPrintRiderChecklist?.(s, currentArea, 'print', '58mm');
+                                else if (val === 'print-80') onPrintRiderChecklist?.(s, currentArea, 'print', '80mm');
+                                else if (val === 'pdf-58') onPrintRiderChecklist?.(s, currentArea, 'pdf', '58mm');
+                                else if (val === 'pdf-80') onPrintRiderChecklist?.(s, currentArea, 'pdf', '80mm');
+                                else if (val === 'area-a4') onPrintRiderAreaList?.(s, currentArea, 'A4');
+                                else if (val === 'area-a5') onPrintRiderAreaList?.(s, currentArea, 'A5');
+                                e.target.value = '';
+                              }}
+                              className="h-6 rounded-r border border-l-0 border-sky-300 bg-sky-600 px-0.5 text-[10px] font-bold text-white hover:bg-sky-700 cursor-pointer focus:outline-none"
+                              title="Select format"
                             >
-                              Cancel
-                            </button>
+                              <option value="" disabled>▼</option>
+                              <option value="print-58">🖨️ Thermal 58mm Checklist</option>
+                              <option value="print-80">🖨️ Thermal 80mm Wide</option>
+                              <option value="area-a4">📋 A4 Area List (Plant Register)</option>
+                              <option value="area-a5">📋 A5 Area List Compact</option>
+                              <option value="pdf-58">📄 Download PDF (58mm)</option>
+                              <option value="pdf-80">📄 Download PDF (80mm)</option>
+                            </select>
                           </div>
-                        ) : (
+
                           <button
                             type="button"
-                            onClick={() => setConfirmDeleteId(s.id)}
-                            className="inline-flex h-6 items-center px-1.5 text-[10px] text-rose-600 font-semibold border border-rose-200 rounded bg-white hover:bg-rose-50 transition-colors"
-                            title="Delete shift record"
+                            onClick={() => handleEditShift(s)}
+                            className="inline-flex h-6 items-center px-2 text-[10px] text-sky-700 font-semibold border border-sky-200 rounded bg-white hover:bg-sky-50 transition-colors"
+                            title="Edit shift load-out details"
                           >
-                            Delete
+                            Edit
                           </button>
-                        )}
+
+                          {confirmDeleteId === s.id ? (
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => { setConfirmDeleteId(null); onDeleteShift?.(s.id); }}
+                                className="inline-flex h-6 items-center px-1.5 text-[10px] text-white font-bold bg-rose-600 rounded hover:bg-rose-700 transition-colors"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="inline-flex h-6 items-center px-1 text-[10px] text-gray-500 font-medium hover:underline"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(s.id)}
+                              className="inline-flex h-6 items-center px-1.5 text-[10px] text-rose-600 font-semibold border border-rose-200 rounded bg-white hover:bg-rose-50 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          )}
+
+                          {/* Collapse button */}
+                          <button
+                            type="button"
+                            onClick={() => setOpenActionId(null)}
+                            className="inline-flex h-6 items-center px-1.5 text-[10px] text-gray-400 font-medium border border-gray-200 rounded bg-white hover:bg-gray-50 transition-colors"
+                            title="Collapse"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* ── Collapsed trigger ── */
+                      <button
+                        type="button"
+                        onClick={() => setOpenActionId(s.id)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-colors"
+                        title="Expand area & checklist actions"
+                      >
+                        <FileText className="h-3 w-3" />
+                        Actions
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               );

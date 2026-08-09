@@ -23,6 +23,7 @@ import { getPosUiConfig } from '@/lib/utils/posHelpers';
 import { nextPosPaymentMethod } from '@/lib/config/posHotkeys';
 import { usePosReceipt } from '@/lib/hooks/usePosReceipt';
 import { Button } from '@/components/ui/button';
+import { printKotWindow } from '@/lib/pdf/kotPrint';
 import toast from 'react-hot-toast';
 
 const RESTAURANT_PAYMENT_METHODS = ['cash', 'card', 'digital_wallet', 'staff_account'];
@@ -365,10 +366,33 @@ export function RestaurantPOS({ businessId, products = [], onCompleteSale, onOrd
             });
 
             if (result.success) {
-                const label = skipKitchen ? 'Order ready for payment' : 'sent to kitchen';
-                toast.success(`Order #${result.order?.order_number || 'NEW'} ${label}`, {
+                const tokenText = result.order?.token_number ? ` Token #${result.order.token_number}` : '';
+                const label = skipKitchen ? 'ready for payment' : 'sent to kitchen';
+                toast.success(`Order #${result.order?.order_number || 'NEW'}${tokenText} ${label}`, {
                     icon: skipKitchen ? '💳' : '🔥',
+                    duration: 5000,
                 });
+
+                // Trigger KOT print if sent to kitchen
+                if (!skipKitchen) {
+                    try {
+                        printKotWindow({
+                            businessName: business?.business_name || 'Restaurant',
+                            orderNumber: result.order?.order_number,
+                            tokenNumber: result.order?.token_number,
+                            orderType,
+                            tableNumber: selectedTable?.table_number || selectedTable?.name,
+                            covers: orderType === 'dine-in' ? covers : null,
+                            customerName,
+                            customerPhone,
+                            items: orderItems,
+                            waiterNote,
+                        });
+                    } catch (kotErr) {
+                        console.warn('[RestaurantPOS] KOT print window blocked or failed:', kotErr);
+                    }
+                }
+
                 setCurrentOrderId(result.order?.id || null);
                 onOrderSent?.();
                 setShowPayment(true);

@@ -37,6 +37,7 @@ const RestaurantPOS = lazyHubTab(() => import('@/components/restaurant/Restauran
 const FloorPlanEditor = lazyHubTab(() => import('@/components/restaurant/FloorPlanEditor').then(mod => mod.FloorPlanEditor));
 const KitchenDisplaySystem = lazyHubTab(() => import('@/components/restaurant/KitchenDisplaySystem').then(mod => mod.KitchenDisplaySystem));
 const ReservationManager = lazyHubTab(() => import('@/components/restaurant/ReservationManager').then(mod => mod.ReservationManager));
+const OrderHistory = lazyHubTab(() => import('@/components/restaurant/OrderHistory').then(mod => mod.OrderHistory));
 const FinanceHub = lazyHubTab(() => import('@/components/finance/FinanceHub'));
 const PayrollDashboard = lazyHubTab(() => import('@/components/hr/PayrollDashboard').then(mod => mod.PayrollDashboard));
 const AttendanceTracker = lazyHubTab(() => import('@/components/hr/AttendanceTracker').then(mod => mod.AttendanceTracker));
@@ -943,6 +944,7 @@ export function DashboardTabs({
                                             { key: 'manager', label: 'Manager' },
                                             { key: 'floorplan', label: 'Floor Plan' },
                                             { key: 'reservations', label: 'Reservations' },
+                                            { key: 'history', label: 'Order History' },
                                         ].map(v => (
                                             <button
                                                 key={v.key}
@@ -961,6 +963,7 @@ export function DashboardTabs({
                                         { key: 'manager', label: 'Manager' },
                                         { key: 'floorplan', label: 'Floor' },
                                         { key: 'reservations', label: 'Bookings' },
+                                        { key: 'history', label: 'History' },
                                     ].map((v) => (
                                         <button
                                             key={v.key}
@@ -987,6 +990,11 @@ export function DashboardTabs({
                                     <ReservationManager
                                         businessId={activeBusinessId}
                                         tables={restaurantTables || []}
+                                    />
+                                )}
+                                {restaurantView === 'history' && (
+                                    <OrderHistory
+                                        businessId={activeBusinessId}
                                     />
                                 )}
                                 {restaurantView === 'manager' && (

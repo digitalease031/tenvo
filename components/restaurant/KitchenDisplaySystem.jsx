@@ -88,7 +88,12 @@ function KitchenTicket({ order, onStatusUpdate, onBump }) {
             {/* Ticket Header */}
             <div className="flex items-center justify-between px-4 py-2 bg-white/60 border-b border-inherit">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg font-semibold text-gray-900">
+                    {order.token_number && (
+                        <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-lg text-xs font-black">
+                            TOKEN #{order.token_number}
+                        </span>
+                    )}
+                    <span className="text-sm font-semibold text-gray-900">
                         #{order.order_number || order.id?.slice(-4)}
                     </span>
                     <span className={cn(
@@ -167,17 +172,47 @@ export function KitchenDisplaySystem({ businessId }) {
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(true);
 
+    const prevCountRef = React.useRef(0);
+
+    const playNewOrderChime = useCallback(() => {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5);
+        } catch (e) {
+            // Audio context may be blocked before user interaction
+        }
+    }, []);
+
     const loadQueue = useCallback(async () => {
         if (!businessId) return;
         try {
             const result = await getKitchenQueueAction(businessId, station);
-            if (result.success) setQueue(result.orders || result.queue || []);
+            if (result.success) {
+                const newOrders = result.orders || result.queue || [];
+                if (soundEnabled && newOrders.length > prevCountRef.current && prevCountRef.current > 0) {
+                    playNewOrderChime();
+                }
+                prevCountRef.current = newOrders.length;
+                setQueue(newOrders);
+            }
         } catch (err) {
             console.error('[KDS] Failed to load queue:', err);
         } finally {
             setLoading(false);
         }
-    }, [businessId, station]);
+    }, [businessId, station, soundEnabled, playNewOrderChime]);
 
     useEffect(() => { loadQueue(); }, [loadQueue]);
 
@@ -197,7 +232,7 @@ export function KitchenDisplaySystem({ businessId }) {
             });
 
             if (result.success) {
-                toast.success(`Order moved to ${newStatus}`, { icon: newStatus === 'ready' ? '[OK]' : '🏁' });
+                toast.success(`Order moved to ${newStatus}`, { icon: newStatus === 'ready' ? '✅' : '🏁' });
                 loadQueue();
             } else {
                 toast.error(result.error || 'Failed to update');

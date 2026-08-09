@@ -3433,40 +3433,46 @@ function DailySheet({
                     disabled={readOnly}
                   />
                 </td>
-                {visibleProducts.map((p) => (
-                  <td key={p.id} className="px-1.5 py-1 text-center bg-slate-50/30">
-                    <div className="inline-flex items-center gap-1.5">
-                      {showDel(p) && (
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          inputMode="decimal"
-                          value={row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''}
-                          onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          className="h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:bg-emerald-50/50 focus:outline-none transition-colors"
-                          disabled={readOnly}
-                          title="Delivered bottles"
-                        />
+                {visibleProducts.map((p) => {
+                  const hasDel = showDel(p);
+                  const hasRec = showRec(p);
+                  return (
+                    <React.Fragment key={p.id}>
+                      {hasDel && (
+                        <td className="px-1 py-1 text-center bg-emerald-50/20">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            inputMode="decimal"
+                            value={row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''}
+                            onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            className="mx-auto h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:bg-emerald-50/50 focus:outline-none transition-colors"
+                            disabled={readOnly}
+                            title={`${p.name} - Delivered bottles`}
+                          />
+                        </td>
                       )}
-                      {showRec(p) && (
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          inputMode="decimal"
-                          value={row.recByProduct?.[String(p.id)] ?? row.recByProduct?.[p.id] ?? ''}
-                          onChange={(e) => onRec?.(row.customerId, p.id, e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          className="h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 focus:bg-amber-50/50 focus:outline-none transition-colors"
-                          disabled={readOnly}
-                          title="Empty bottles received"
-                        />
+                      {hasRec && (
+                        <td className="px-1 py-1 text-center bg-amber-50/20">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            inputMode="decimal"
+                            value={row.recByProduct?.[String(p.id)] ?? row.recByProduct?.[p.id] ?? ''}
+                            onChange={(e) => onRec?.(row.customerId, p.id, e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            className="mx-auto h-8 w-16 px-1 tabular-nums text-center text-xs font-mono font-semibold border-gray-300 rounded-sm bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 focus:bg-amber-50/50 focus:outline-none transition-colors"
+                            disabled={readOnly}
+                            title={`${p.name} - Empty bottles received`}
+                          />
+                        </td>
                       )}
-                    </div>
-                  </td>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
                 <td className="px-1.5 py-1 text-center">
                   <Input
                     type="number"

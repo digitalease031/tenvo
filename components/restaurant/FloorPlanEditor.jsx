@@ -298,25 +298,32 @@ export function FloorPlanEditor({
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Width (px)</label>
-                                        <Input
-                                            type="number"
-                                            value={selectedTable.width}
-                                            onChange={(e) => handleUpdateTable(selectedTable.id, { width: parseInt(e.target.value) || 0 })}
-                                            className="h-10 rounded-xl text-sm"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Height (px)</label>
-                                        <Input
-                                            type="number"
-                                            value={selectedTable.height}
-                                            onChange={(e) => handleUpdateTable(selectedTable.id, { height: parseInt(e.target.value) || 0 })}
-                                            className="h-10 rounded-xl text-sm"
-                                        />
-                                    </div>
+                                <div className="pt-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            const tableNum = selectedTable.name || selectedTable.table_number || '1';
+                                            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`DINE_IN_TABLE_${tableNum}`)}`;
+                                            const printWin = window.open('', '_blank', 'width=400,height=500');
+                                            if (printWin) {
+                                                printWin.document.write(`
+                                                    <div style="text-align:center;font-family:sans-serif;padding:30px;">
+                                                        <h2 style="margin-bottom:5px;">SCAN TO ORDER</h2>
+                                                        <p style="color:#666;margin-top:0;">Table ${tableNum} - Self Service Menu</p>
+                                                        <img src="${qrUrl}" width="220" style="margin:20px 0;"/>
+                                                        <p style="font-size:12px;color:#888;">Scan with your camera to browse menu & order</p>
+                                                    </div>
+                                                `);
+                                                printWin.document.close();
+                                                printWin.focus();
+                                                setTimeout(() => { printWin.print(); }, 300);
+                                            }
+                                        }}
+                                        className="w-full text-xs font-bold rounded-xl text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                    >
+                                        Print Table QR Code
+                                    </Button>
                                 </div>
 
                                 <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 space-y-2">

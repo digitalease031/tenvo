@@ -1,6 +1,4 @@
-'use client';
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Calendar, Clock, Users, Phone, Plus, ChevronLeft, ChevronRight,
@@ -15,6 +13,13 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import {
+    getReservationsAction,
+    saveReservationAction,
+    updateReservationStatusAction,
+    deleteReservationAction
+} from '@/lib/actions/standard/reservations';
+import toast from 'react-hot-toast';
 
 const TIME_SLOTS = [];
 for (let h = 11; h <= 22; h++) {
@@ -29,13 +34,6 @@ const STATUS_CONFIG = {
     cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-400' },
     noshow: { label: 'No Show', color: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400' },
 };
-
-const DEMO_RESERVATIONS = [
-    { id: 'r1', customerName: 'Ahmed Khan', phone: '+92-300-1234567', partySize: 4, tableId: '1', date: new Date().toISOString().split('T')[0], time: '19:00', duration: 90, status: 'confirmed', notes: 'Birthday celebration' },
-    { id: 'r2', customerName: 'Sara Ali', phone: '+92-321-7654321', partySize: 2, tableId: '2', date: new Date().toISOString().split('T')[0], time: '20:00', duration: 60, status: 'pending', notes: '' },
-    { id: 'r3', customerName: 'Usman Iqbal', phone: '+92-333-9876543', partySize: 6, tableId: '3', date: new Date().toISOString().split('T')[0], time: '13:00', duration: 120, status: 'seated', notes: 'VIP guest' },
-    { id: 'r4', customerName: 'Fatima Noor', phone: '+92-345-1112233', partySize: 3, tableId: '4', date: new Date(Date.now() + 86400000).toISOString().split('T')[0], time: '19:30', duration: 90, status: 'confirmed', notes: 'Allergic to nuts' },
-];
 
 function formatDate(date) {
     return new Intl.DateTimeFormat('en-PK', { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
@@ -52,7 +50,8 @@ function getWeekDays(baseDate) {
 }
 
 export function ReservationManager({ businessId, tables = [], onSave }) {
-    const [reservations, setReservations] = useState(DEMO_RESERVATIONS);
+    const [reservations, setReservations] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewMode, setViewMode] = useState('day'); // 'day' | 'week'
     const [showDialog, setShowDialog] = useState(false);
@@ -63,6 +62,30 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
         customerName: '', phone: '', partySize: 2, tableId: '',
         date: '', time: '19:00', duration: 90, notes: ''
     });
+
+    const loadReservations = useCallback(async () => {
+        if (!businessId) return;
+        setLoading(true);
+        try {
+            const dateStr = selectedDate.toISOString().split('T')[0];
+            const filters = viewMode === 'day' ? { date: dateStr } : {
+                startDate: getWeekDays(selectedDate)[0].toISOString().split('T')[0],
+                endDate: getWeekDays(selectedDate)[6].toISOString().split('T')[0],
+            };
+            const res = await getReservationsAction(businessId, filters);
+            if (res.success) {
+                setReservations(res.reservations || []);
+            }
+        } catch (err) {
+            console.error('[ReservationManager] fetch error:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [businessId, selectedDate, viewMode]);
+
+    useEffect(() => {
+        loadReservations();
+    }, [loadReservations]);
 
     const displayTables = tables.length > 0 ? tables : [
         { id: '1', name: 'Table 1', capacity: 4 },
@@ -85,28 +108,12 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
         if (searchTerm) {
             const q = searchTerm.toLowerCase();
             filtered = filtered.filter(r =>
-                r.customerName.toLowerCase().includes(q) ||
-                r.phone.includes(q)
+                (r.customerName || r.customer_name || '').toLowerCase().includes(q) ||
+                (r.phone || r.customer_phone || '').includes(q)
             );
         }
         return filtered;
     }, [reservations, dateStr, viewMode, filterStatus, searchTerm]);
-
-    // Check for conflicts
-    const hasConflict = (tableId, date, time, duration, excludeId = null) => {
-        const newStart = parseInt(time.split(':')[0]) * 60 + parseInt(time.split(':')[1]);
-        const newEnd = newStart + duration;
-
-        return reservations.some(r => {
-            if (r.id === excludeId) return false;
-            if (r.tableId !== tableId || r.date !== date) return false;
-            if (r.status === 'cancelled' || r.status === 'noshow') return false;
-
-            const rStart = parseInt(r.time.split(':')[0]) * 60 + parseInt(r.time.split(':')[1]);
-            const rEnd = rStart + r.duration;
-            return newStart < rEnd && newEnd > rStart;
-        });
-    };
 
     const openNewDialog = () => {
         setEditingReservation(null);
@@ -120,45 +127,69 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
     const openEditDialog = (res) => {
         setEditingReservation(res);
         setFormData({
-            customerName: res.customerName, phone: res.phone, partySize: res.partySize,
-            tableId: res.tableId, date: res.date, time: res.time,
-            duration: res.duration, notes: res.notes
+            customerName: res.customerName || res.customer_name || '',
+            phone: res.phone || res.customer_phone || '',
+            partySize: res.partySize || res.party_size || 2,
+            tableId: res.tableId || res.table_id || '',
+            date: res.date,
+            time: res.time,
+            duration: res.duration || 90,
+            notes: res.notes || ''
         });
         setShowDialog(true);
     };
 
-    const handleSave = () => {
-        if (!formData.customerName || !formData.phone || !formData.tableId) return;
-
-        const conflict = hasConflict(formData.tableId, formData.date, formData.time, formData.duration, editingReservation?.id);
-        if (conflict) {
-            alert('This table is already booked at the selected time. Please choose another slot.');
+    const handleSave = async () => {
+        if (!formData.customerName || !formData.phone || !formData.tableId) {
+            toast.error('Name, phone, and table are required');
             return;
         }
 
-        if (editingReservation) {
-            setReservations(prev => prev.map(r =>
-                r.id === editingReservation.id ? { ...r, ...formData } : r
-            ));
-        } else {
-            const newRes = {
-                id: `r-${Date.now()}`,
+        try {
+            const payload = {
+                businessId,
+                id: editingReservation?.id || null,
                 ...formData,
-                status: 'confirmed'
             };
-            setReservations(prev => [...prev, newRes]);
+            const result = await saveReservationAction(payload);
+            if (result.success) {
+                toast.success(editingReservation ? 'Reservation updated' : 'Booking confirmed!', { icon: '📅' });
+                setShowDialog(false);
+                loadReservations();
+            } else {
+                toast.error(result.error || 'Failed to save reservation');
+            }
+        } catch (err) {
+            toast.error(err.message || 'Error saving reservation');
         }
-        setShowDialog(false);
     };
 
-    const updateStatus = (id, newStatus) => {
-        setReservations(prev => prev.map(r =>
-            r.id === id ? { ...r, status: newStatus } : r
-        ));
+    const updateStatus = async (id, newStatus) => {
+        try {
+            const result = await updateReservationStatusAction({ businessId, id, status: newStatus });
+            if (result.success) {
+                toast.success(`Booking ${newStatus}`);
+                setReservations(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+            } else {
+                toast.error(result.error || 'Failed to update status');
+            }
+        } catch (err) {
+            toast.error('Status update failed');
+        }
     };
 
-    const deleteReservation = (id) => {
-        setReservations(prev => prev.filter(r => r.id !== id));
+    const deleteReservation = async (id) => {
+        try {
+            const result = await deleteReservationAction({ businessId, id });
+            if (result.success) {
+                toast.success('Reservation deleted');
+                setReservations(prev => prev.filter(r => r.id !== id));
+            } else {
+                toast.error(result.error || 'Delete failed');
+            }
+        } catch (err) {
+            toast.error('Delete failed');
+        }
     };
 
     const navigateDate = (direction) => {

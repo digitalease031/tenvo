@@ -20,6 +20,11 @@ import {
 export default function GRNView({ poId, businessId, business, onUpdateStatus, colors }) {
     const { currency: ctxCurrency } = useBusiness();
     const currency = business?.currency || ctxCurrency || 'PKR';
+    const brandColorHex =
+        business?.settings?.brand?.primaryColor ||
+        business?.settingsParsed?.brand?.primaryColor ||
+        colors?.primary ||
+        '#0284c7';
     const [purchase, setPurchase] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -177,7 +182,7 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                     <div className="border-t border-gray-100 pt-3">
                         <div className="flex justify-between text-xl font-semibold text-gray-900">
                             <span>Net Payable</span>
-                            <span style={{ color: colors?.primary }}>{formatCurrency(purchase.total_amount, currency)}</span>
+                            <span style={{ color: brandColorHex }}>{formatCurrency(purchase.total_amount, currency)}</span>
                         </div>
                     </div>
                 </div>

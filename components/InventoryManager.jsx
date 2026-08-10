@@ -495,7 +495,7 @@ export function InventoryManager({
         }
       } catch (error) {
         console.error('Create error:', error);
-        toast.error(formatInventoryActionError(error));
+        toast.error(formatInventoryActionError(error), { id: 'inventory-product-save', duration: 5000 });
         throw error;
       } finally {
         setLoading(false);
@@ -1767,8 +1767,8 @@ export function InventoryManager({
       if (busyCellSaveGenRef.current.get(saveKey) === gen) {
         setProducts(oldProducts);
       }
-      toast.error(`Failed to update ${field}: ${formatInventoryActionError(error)}`, {
-        id: 'inventory-cell-error',
+      toast.error(formatInventoryActionError(error), {
+        id: 'inventory-product-save',
         duration: 5000,
       });
       console.error('Inventory cell update error:', error);

@@ -112,7 +112,7 @@ export function PurchaseDocumentForm({
             expected_delivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             notes: '',
             shipping_address: '',
-            warehouse_id: warehouses[0]?.id || '',
+            warehouse_id: warehouses.find(w => w.is_primary)?.id || warehouses[0]?.id || '',
             items: []
         };
     });

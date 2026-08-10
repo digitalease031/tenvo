@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
@@ -1040,8 +1040,8 @@ function BusinessDashboardContent() {
       return savedProduct;
     } catch (error) {
       console.error('Error saving product:', error);
-      toast.error('Failed to save product: ' + formatInventoryActionError(error), {
-        id: 'dashboard-product-save',
+      toast.error(formatInventoryActionError(error), {
+        id: 'inventory-product-save',
         duration: 5000,
       });
       throw error;

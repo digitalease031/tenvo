@@ -259,6 +259,14 @@ export function ExpenseEntryForm({
             if (result.success) {
                 if (payload.category) writeLastCategory(payload.businessId, payload.category);
                 toast.success(tx(t, 'expense_saved', 'Expense recorded'));
+                
+                // Emit global event so Route Hisab and other components can reload
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('expense-saved', { 
+                        detail: { expense: result.expense } 
+                    }));
+                }
+                
                 onSave?.(result.expense);
                 onClose?.();
             } else if (isValidationError(result)) {

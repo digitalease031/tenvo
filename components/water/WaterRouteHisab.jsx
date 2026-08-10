@@ -933,6 +933,18 @@ export function WaterRouteHisab({ businessId, category }) {
     else if (view === 'expenses') void loadExpenses();
   }, [view, loadDay, loadBills, loadRiderShifts, loadBottleIntelligence, loadExpenses]);
 
+  // Listen for global expense-saved event (triggered when ExpenseEntryForm saves via modal)
+  useEffect(() => {
+    const handleExpenseSaved = () => {
+      if (view === 'expenses' && !expenseLoading) {
+        console.log('[WaterRouteHisab] Expense saved — reloading expense data');
+        void loadExpenses(expensePeriodKey);
+      }
+    };
+    window.addEventListener('expense-saved', handleExpenseSaved);
+    return () => window.removeEventListener('expense-saved', handleExpenseSaved);
+  }, [view, expensePeriodKey, loadExpenses, expenseLoading]);
+
   // After background sync lands, refresh the visible sheet from the server.
   useEffect(() => {
     if (!offlineEnabled || !lastSyncAt || !isOnline) return;

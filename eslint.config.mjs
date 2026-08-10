@@ -5,6 +5,21 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
     ...nextVitals,
     ...nextTs,
+    {
+        rules: {
+            // Prevent malformed JSDoc comments that can break method definitions
+            'no-irregular-whitespace': ['error', {
+                skipComments: false,
+                skipRegExps: false,
+                skipTemplates: false,
+            }],
+            // Warn about potential JSDoc issues
+            'spaced-comment': ['warn', 'always', {
+                markers: ['/'],
+                exceptions: ['*'],
+            }],
+        },
+    },
     // Override default ignores of eslint-config-next.
     globalIgnores([
         // Default ignores of eslint-config-next:

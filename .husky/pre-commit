@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run Restaurant POS verification
+echo "🔍 Verifying Restaurant POS integrity..."
+node scripts/verify-restaurant-pos-fix.mjs || {
+  echo "❌ Restaurant POS verification failed!"
+  exit 1
+}
+
+# Run linting
+echo "🧹 Running linter..."
+npm run lint || {
+  echo "❌ Linting failed!"
+  exit 1
+}
+
+echo "✅ Pre-commit checks passed!"

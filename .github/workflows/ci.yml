@@ -26,6 +26,9 @@ jobs:
       - name: Verify domain wiring
         run: bun run verify:domains
 
+      - name: Verify Restaurant POS Fix
+        run: node scripts/verify-restaurant-pos-fix.mjs
+
       - name: Lint
         run: bun run lint
 

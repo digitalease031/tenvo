@@ -1,0 +1,216 @@
+# Restaurant POS Monitoring Alerts Configuration
+# Use this with your monitoring service (DataDog, Sentry, CloudWatch, etc.)
+
+alerts:
+  # Critical Alerts
+  - name: restaurant_order_creation_failure
+    severity: critical
+    description: "Restaurant order creation is failing"
+    condition: |
+      error_rate(service:restaurant-pos, operation:createOrder) > 5%
+    notification_channels:
+      - pagerduty
+      - slack-critical
+    actions:
+      - trigger: immediate
+      - escalate_after: 5 minutes
+
+  - name: ensure_token_column_error
+    severity: critical
+    description: "ensureTokenColumn method errors detected"
+    condition: |
+      log_contains("ensureTokenColumn is not a function") OR
+      log_contains("ensureTokenColumn warning")
+    notification_channels:
+      - pagerduty
+      - slack-critical
+    actions:
+      - trigger: immediate
+      - page: on-call-dev
+    
+  - name: token_number_generation_failure
+    severity: high
+    description: "Token number generation failing"
+    condition: |
+      sql_error_code = "42703" AND
+      table = "restaurant_orders" AND
+      column = "token_number"
+    notification_channels:
+      - slack-engineering
+    actions:
+      - trigger: immediate
+      - create_incident: true
+
+  # Performance Alerts
+  - name: slow_order_creation
+    severity: warning
+    description: "Order creation taking too long"
+    condition: |
+      p95(duration, operation:createOrder) > 5000ms
+    notification_channels:
+      - slack-engineering
+    actions:
+      - trigger: after 10 occurrences
+      
+  - name: slow_kot_printing
+    severity: warning
+    description: "KOT printing experiencing delays"
+    condition: |
+      p95(duration, operation:printKOT) > 3000ms
+    notification_channels:
+      - slack-engineering
+
+  # Business Metrics
+  - name: zero_orders_during_peak
+    severity: warning
+    description: "No restaurant orders during peak hours"
+    condition: |
+      count(restaurant_orders) = 0 AND
+      hour_of_day BETWEEN 11 AND 14 OR hour_of_day BETWEEN 18 AND 21
+    notification_channels:
+      - slack-product
+    actions:
+      - trigger: after 15 minutes
+
+  - name: high_order_cancellation_rate
+    severity: warning
+    description: "Unusual number of order cancellations"
+    condition: |
+      cancellation_rate(restaurant_orders) > 10%
+    notification_channels:
+      - slack-product
+
+# Log Patterns to Monitor
+log_patterns:
+  - pattern: "ensureTokenColumn"
+    severity: high
+    alert_on: any_match
+    
+  - pattern: "Token number generation failed"
+    severity: critical
+    alert_on: any_match
+    
+  - pattern: "Restaurant order creation failed"
+    severity: high
+    alert_on: 5 matches in 5 minutes
+    
+  - pattern: "Kitchen order creation failed"
+    severity: warning
+    alert_on: 3 matches in 5 minutes
+
+# Database Queries to Monitor
+database_monitors:
+  - name: token_number_null_check
+    query: |
+      SELECT COUNT(*) as null_count
+      FROM restaurant_orders
+      WHERE created_at > NOW() - INTERVAL '1 hour'
+        AND token_number IS NULL
+    condition: null_count > 5
+    severity: warning
+    check_interval: 15 minutes
+    
+  - name: failed_order_count
+    query: |
+      SELECT COUNT(*) as failed_count
+      FROM restaurant_orders
+      WHERE created_at > NOW() - INTERVAL '1 hour'
+        AND status = 'error'
+    condition: failed_count > 0
+    severity: high
+    check_interval: 5 minutes
+
+# API Endpoint Health Checks
+health_checks:
+  - endpoint: /api/v1/restaurant/orders
+    method: POST
+    expected_status: 200
+    timeout: 5000ms
+    interval: 1 minute
+    alert_on_failure: 3 consecutive failures
+    
+  - endpoint: /api/health
+    method: GET
+    expected_status: 200
+    timeout: 2000ms
+    interval: 30 seconds
+    alert_on_failure: 5 consecutive failures
+
+# Success Rate Thresholds
+success_rate_thresholds:
+  createRestaurantOrder:
+    warning: 98%
+    critical: 95%
+    window: 5 minutes
+    
+  settleRestaurantOrder:
+    warning: 99%
+    critical: 97%
+    window: 5 minutes
+    
+  printKOT:
+    warning: 95%
+    critical: 90%
+    window: 5 minutes
+
+# Response Time Thresholds (milliseconds)
+response_time_thresholds:
+  createOrder:
+    p50: 500
+    p95: 2000
+    p99: 5000
+    
+  settleOrder:
+    p50: 300
+    p95: 1000
+    p99: 3000
+    
+  getKitchenQueue:
+    p50: 200
+    p95: 500
+    p99: 1000
+
+# Notification Channels Configuration
+notification_channels:
+  pagerduty:
+    integration_key: ${PAGERDUTY_INTEGRATION_KEY}
+    escalation_policy: engineering-oncall
+    
+  slack-critical:
+    webhook_url: ${SLACK_CRITICAL_WEBHOOK}
+    channel: "#alerts-critical"
+    
+  slack-engineering:
+    webhook_url: ${SLACK_ENG_WEBHOOK}
+    channel: "#engineering-alerts"
+    
+  slack-product:
+    webhook_url: ${SLACK_PRODUCT_WEBHOOK}
+    channel: "#product-alerts"
+    
+  email:
+    recipients:
+      - oncall@tenvo.store
+      - engineering-team@tenvo.store
+
+# Dashboard Links
+dashboards:
+  - name: Restaurant POS Overview
+    url: https://monitoring.tenvo.store/dashboards/restaurant-pos
+    
+  - name: Order Creation Metrics
+    url: https://monitoring.tenvo.store/dashboards/orders
+    
+  - name: Database Performance
+    url: https://monitoring.tenvo.store/dashboards/database
+
+# Runbook Links
+runbooks:
+  - name: Order Creation Failure
+    url: https://docs.tenvo.store/runbooks/restaurant-order-creation-failure
+    
+  - name: Token Number Issues
+    url: https://docs.tenvo.store/runbooks/token-number-troubleshooting
+    
+  - name: Database Migration Issues
+    url: https://docs.tenvo.store/runbooks/database-migrations

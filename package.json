@@ -86,6 +86,7 @@
     "verify:pwa-install": "node scripts/verify-pwa-install.mjs",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
     "verify:pos-hotkeys": "node scripts/verify-pos-hotkeys.mjs",
+    "verify:restaurant-pos": "node scripts/verify-restaurant-pos-fix.mjs",
     "verify:domain-operations": "node scripts/verify-domain-operations.mjs",
     "verify:domain-knowledge-overrides": "bun scripts/verify-domain-knowledge-overrides.mjs",
     "verify:invoice-pdf": "bun scripts/verify-invoice-pdf-format.mjs",

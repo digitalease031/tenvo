@@ -457,3 +457,173 @@ export function getBreadcrumbSchema(breadcrumbs: readonly BreadcrumbItem[]): Jso
 export function renderJSONLD(schema: JsonLdObject): string {
   return `<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
 }
+
+/** Schema for demo store showcases */
+export function getDemoStoreSchema(demo: {
+  name: string;
+  domain: string;
+  vertical: string;
+  description: string;
+  heroImage?: string;
+}): JsonLdObject {
+  const site = getSiteUrl();
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: demo.name,
+    url: `https://${demo.domain}`,
+    description: demo.description,
+    image: demo.heroImage,
+    provider: {
+      '@type': 'SoftwareApplication',
+      name: 'TENVO',
+      url: site,
+    },
+    about: {
+      '@type': 'Thing',
+      name: demo.vertical,
+    },
+  };
+}
+
+/** Schema for industry solution pages */
+export function getIndustrySolutionSchema(industry: {
+  name: string;
+  slug: string;
+  description: string;
+  features: string[];
+  keywords: string[];
+}): JsonLdObject {
+  const site = getSiteUrl();
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: `TENVO for ${industry.name}`,
+    description: industry.description,
+    brand: {
+      '@type': 'Brand',
+      name: 'TENVO',
+    },
+    url: `${site}/solutions/${industry.slug}`,
+    category: 'Business Software',
+    keywords: industry.keywords.join(', '),
+    featureList: industry.features,
+    offers: {
+      '@type': 'AggregateOffer',
+      url: `${site}/pricing`,
+      availability: 'https://schema.org/InStock',
+      priceCurrency: 'PKR',
+    },
+  };
+}
+
+/** Schema for video content (demos, tutorials) */
+export function getVideoObjectSchema(video: {
+  name: string;
+  description: string;
+  thumbnailUrl: string;
+  uploadDate: string;
+  duration?: string;
+  contentUrl?: string;
+  embedUrl?: string;
+}): JsonLdObject {
+  const site = getSiteUrl();
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: video.name,
+    description: video.description,
+    thumbnailUrl: video.thumbnailUrl,
+    uploadDate: video.uploadDate,
+    ...(video.duration ? { duration: video.duration } : {}),
+    ...(video.contentUrl ? { contentUrl: video.contentUrl } : {}),
+    ...(video.embedUrl ? { embedUrl: video.embedUrl } : {}),
+    publisher: {
+      '@type': 'Organization',
+      name: 'TENVO',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${site}/tenvo.svg`,
+      },
+    },
+  };
+}
+
+/** Schema for how-to guides */
+export function getHowToSchema(guide: {
+  name: string;
+  description: string;
+  steps: Array<{ name: string; text: string; image?: string }>;
+  totalTime?: string;
+}): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: guide.name,
+    description: guide.description,
+    ...(guide.totalTime ? { totalTime: guide.totalTime } : {}),
+    step: guide.steps.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: step.name,
+      text: step.text,
+      ...(step.image ? { image: step.image } : {}),
+    })),
+  };
+}
+
+/** Schema for customer reviews/testimonials */
+export function getReviewSchema(review: {
+  author: string;
+  company?: string;
+  rating: number;
+  reviewBody: string;
+  datePublished?: string;
+}): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Review',
+    author: {
+      '@type': review.company ? 'Organization' : 'Person',
+      name: review.author,
+    },
+    reviewRating: {
+      '@type': 'Rating',
+      ratingValue: review.rating,
+      bestRating: 5,
+      worstRating: 1,
+    },
+    reviewBody: review.reviewBody,
+    ...(review.datePublished ? { datePublished: review.datePublished } : {}),
+  };
+}
+
+/** Schema for comparison pages */
+export function getComparisonSchema(comparison: {
+  name: string;
+  description: string;
+  items: Array<{
+    name: string;
+    url?: string;
+    description: string;
+    pros: string[];
+    cons: string[];
+  }>;
+}): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: comparison.name,
+    description: comparison.description,
+    itemListElement: comparison.items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      item: {
+        '@type': 'Thing',
+        name: item.name,
+        ...(item.url ? { url: item.url } : {}),
+        description: item.description,
+      },
+    })),
+  };
+}

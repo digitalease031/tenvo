@@ -87,13 +87,9 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
         loadReservations();
     }, [loadReservations]);
 
-    const displayTables = tables.length > 0 ? tables : [
-        { id: '1', name: 'Table 1', capacity: 4 },
-        { id: '2', name: 'Table 2', capacity: 2 },
-        { id: '3', name: 'Table 3', capacity: 6 },
-        { id: '4', name: 'Table 4', capacity: 4 },
-        { id: '5', name: 'Table 5', capacity: 8 },
-    ];
+    // No dummy fallback - require real database tables for reservations
+    // This prevents UUID errors when trying to save reservations with invalid table IDs
+    const displayTables = tables;
 
     const dateStr = selectedDate.toISOString().split('T')[0];
 
@@ -116,6 +112,10 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
     }, [reservations, dateStr, viewMode, filterStatus, searchTerm]);
 
     const openNewDialog = () => {
+        if (!displayTables || displayTables.length === 0) {
+            toast.error('Please create tables first before making reservations', { icon: '🪑' });
+            return;
+        }
         setEditingReservation(null);
         setFormData({
             customerName: '', phone: '', partySize: 2, tableId: displayTables[0]?.id || '',
@@ -140,8 +140,13 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
     };
 
     const handleSave = async () => {
-        if (!formData.customerName || !formData.phone || !formData.tableId) {
-            toast.error('Name, phone, and table are required');
+        if (!formData.customerName || !formData.phone) {
+            toast.error('Name and phone are required');
+            return;
+        }
+        
+        if (!formData.tableId) {
+            toast.error('Please select a table for the reservation');
             return;
         }
 
@@ -200,6 +205,16 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
 
     // Day View -- Time Slots × Tables Grid
     const renderDayView = () => {
+        if (!displayTables || displayTables.length === 0) {
+            return (
+                <div className="p-8 text-center">
+                    <Armchair className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-gray-700 mb-1">No Tables Available</p>
+                    <p className="text-xs text-gray-400">Create tables first to start managing reservations</p>
+                </div>
+            );
+        }
+
         const dayRes = reservations.filter(r => r.date === dateStr && r.status !== 'cancelled' && r.status !== 'noshow');
 
         return (
@@ -426,14 +441,20 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
                     <h4 className="px-1 text-xs font-bold uppercase tracking-wider text-gray-500">
                         {formatDate(selectedDate)} — {filteredReservations.length} booking{filteredReservations.length !== 1 ? 's' : ''}
                     </h4>
-                    {filteredReservations.length === 0 ? (
+                    {!displayTables || displayTables.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-10 text-center">
+                            <Armchair className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm font-bold text-gray-700 mb-1">No Tables Available</p>
+                            <p className="text-xs text-gray-400">Create tables first to start managing reservations</p>
+                        </div>
+                    ) : filteredReservations.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-10 text-center text-sm text-gray-500 lg:hidden">
                             No bookings for this day
                         </div>
                     ) : null}
                     {filteredReservations.map(res => {
                         const cfg = STATUS_CONFIG[res.status];
-                        const table = displayTables.find(t => t.id === res.tableId);
+                        const table = displayTables?.find(t => t.id === res.tableId);
                         return (
                             <motion.div
                                 key={res.id}
@@ -548,18 +569,24 @@ export function ReservationManager({ businessId, tables = [], onSave }) {
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <Label className="text-xs font-bold text-gray-600">Table</Label>
-                                <select
-                                    value={formData.tableId}
-                                    onChange={(e) => setFormData(p => ({ ...p, tableId: e.target.value }))}
-                                    className="mt-1 w-full h-9 text-sm rounded-lg border border-gray-200 px-2"
-                                >
-                                    {displayTables.map(t => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.name} ({t.capacity} seats)
-                                        </option>
-                                    ))}
-                                </select>
+                                <Label className="text-xs font-bold text-gray-600">Table *</Label>
+                                {!displayTables || displayTables.length === 0 ? (
+                                    <div className="mt-1 h-9 px-3 flex items-center text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg">
+                                        No tables available
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={formData.tableId}
+                                        onChange={(e) => setFormData(p => ({ ...p, tableId: e.target.value }))}
+                                        className="mt-1 w-full h-9 text-sm rounded-lg border border-gray-200 px-2"
+                                    >
+                                        {displayTables.map(t => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.name} ({t.capacity} seats)
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                             <div>
                                 <Label className="text-xs font-bold text-gray-600">Duration (min)</Label>

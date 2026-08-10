@@ -3,6 +3,7 @@ import { caseStudies } from '@/lib/marketing/case-studies';
 import { MARKETING_SITEMAP_ROUTES } from '@/lib/marketing/seo';
 import { getSiteUrl } from '@/lib/marketing/site-url';
 import { listDomainPackages } from '@/lib/config/domainPackages';
+import { CLIENT_DEMO_STORES } from '@/lib/marketing/demoStores';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = getSiteUrl();
@@ -29,5 +30,27 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.75,
   }));
 
-  return [...marketing, ...industryPlanPages, ...caseStudyPages];
+  // Add demo stores landing page
+  const demoStoresLanding = {
+    url: `${base}/demo-stores`,
+    lastModified,
+    changeFrequency: 'weekly' as const,
+    priority: 0.85,
+  };
+
+  // Add individual demo store links (external domains)
+  const demoStoreLinks = CLIENT_DEMO_STORES.map((store) => ({
+    url: `https://${store.domain}`,
+    lastModified,
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
+  }));
+
+  return [
+    ...marketing,
+    demoStoresLanding,
+    ...industryPlanPages,
+    ...caseStudyPages,
+    ...demoStoreLinks,
+  ];
 }

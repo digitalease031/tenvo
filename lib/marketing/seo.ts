@@ -38,6 +38,108 @@ export const DEFAULT_KEYWORDS = [
   'Mindscape Analytics',
 ] as const;
 
+/** Industry-specific long-tail keywords for vertical targeting */
+export const INDUSTRY_KEYWORDS = {
+  'restaurant-cafe': [
+    'restaurant pos system pakistan',
+    'restaurant billing software',
+    'food ordering system',
+    'restaurant management software',
+    'kitchen order management',
+    'table management system',
+    'restaurant inventory management',
+    'delivery management software pakistan',
+  ],
+  'pharmacy': [
+    'pharmacy management software',
+    'pharmacy billing system pakistan',
+    'pharmacy inventory software',
+    'medicine stock management',
+    'prescription management system',
+    'pharmacy pos software',
+    'medical inventory system',
+  ],
+  'auto-parts': [
+    'auto parts inventory software',
+    'auto parts management system',
+    'spare parts inventory pakistan',
+    'automotive parts tracking',
+    'vehicle parts catalog software',
+    'auto parts ecommerce pakistan',
+  ],
+  'garments': [
+    'clothing boutique software pakistan',
+    'garment inventory management',
+    'fashion retail software',
+    'apparel pos system',
+    'clothing store management',
+    'boutique billing software pakistan',
+    'textile wholesale software',
+  ],
+  'supermarket': [
+    'grocery store software pakistan',
+    'supermarket pos system',
+    'retail billing software',
+    'grocery inventory management',
+    'retail chain management software',
+    'fmcg inventory system',
+  ],
+  'gym-fitness': [
+    'gym management software pakistan',
+    'fitness center software',
+    'gym membership management',
+    'fitness studio billing',
+    'gym pos system pakistan',
+    'health club management software',
+  ],
+  'milk-shop': [
+    'milk shop billing software',
+    'dairy business software pakistan',
+    'milk delivery management',
+    'doodh shop software',
+    'dairy inventory system',
+    'milk route management software',
+  ],
+  'vehicle-dealership': [
+    'vehicle showroom software pakistan',
+    'car dealership management system',
+    'auto dealership software',
+    'vehicle sales management',
+    'showroom inventory system',
+  ],
+  'furniture': [
+    'furniture store software pakistan',
+    'furniture inventory management',
+    'furniture showroom software',
+    'home furnishing retail software',
+  ],
+  'gems-jewellery': [
+    'jewellery store software pakistan',
+    'jewellery inventory management',
+    'gold shop software',
+    'jewellery pos system',
+    'gems and jewellery billing',
+  ],
+  'electronics': [
+    'electronics store software pakistan',
+    'electronics inventory management',
+    'mobile shop software',
+    'electronics pos system',
+  ],
+  'general': [
+    'business software pakistan',
+    'urdu billing software',
+    'fbr compliant software',
+    'pakistan pos system',
+    'small business erp pakistan',
+    'cloud accounting pakistan',
+    'online store builder pakistan',
+    'ecommerce platform pakistan',
+    'multi warehouse software',
+    'barcode inventory system',
+  ],
+} as const;
+
 /** Homepage FAQ copy (must match visible accordion on /). */
 export const HOME_PAGE_FAQS: readonly FaqItem[] = [
   {

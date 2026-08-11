@@ -27,7 +27,7 @@ export default function SolutionsPage() {
 
   return (
     <MarketingLayout transparentNav={false}>
-      <main className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-white"
+      <main className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-white">
         {/* Hero Section */}
         <section className={cn(MARKETING_CONTAINER, "py-16 lg:py-24")}>
           <div className="mx-auto max-w-4xl text-center">

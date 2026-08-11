@@ -1,7 +1,6 @@
 import { buildMarketingMetadata } from '@/lib/marketing/seo';
 import { DemoStoresShowcase } from '@/components/marketing/DemoStoresShowcase';
-import { MarketingHeader } from '@/components/marketing/MarketingHeader';
-import { MarketingFooter } from '@/components/marketing/MarketingFooter';
+import MarketingLayout from '@/components/marketing/layout/MarketingLayout';
 import { getDemoStoreListSchema } from '@/lib/marketing/demoStoreSchema';
 
 export const metadata = buildMarketingMetadata({
@@ -28,16 +27,14 @@ export default function DemoStoresPage() {
   const schema = getDemoStoreListSchema();
 
   return (
-    <>
+    <MarketingLayout>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
-      <MarketingHeader />
-      <main className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
         <DemoStoresShowcase />
-      </main>
-      <MarketingFooter />
-    </>
+      </div>
+    </MarketingLayout>
   );
 }

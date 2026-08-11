@@ -85,7 +85,7 @@ function validateProduct(schema: JsonLdObject, errors: string[], warnings: strin
   }
 }
 
-function validateFAQPage(schema: JsonLdObject, errors: string[], warnings: string[]): void {
+function validateFAQPage(schema: JsonLdObject, errors: string[], _warnings: string[]): void {
   if (!schema.mainEntity) {
     errors.push('FAQPage: Missing required "mainEntity"');
     return;

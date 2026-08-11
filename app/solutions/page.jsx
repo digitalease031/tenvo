@@ -1,9 +1,10 @@
 import { buildMarketingMetadata } from '@/lib/marketing/seo';
-import { MarketingHeader } from '@/components/marketing/MarketingHeader';
-import { MarketingFooter } from '@/components/marketing/MarketingFooter';
+import MarketingLayout from '@/components/marketing/layout/MarketingLayout';
 import Link from 'next/link';
 import { listDomainPackages } from '@/lib/config/domainPackages';
 import { ArrowRight, Store, TrendingUp, Shield, Zap } from 'lucide-react';
+import { MARKETING_CONTAINER } from '@/lib/utils/marketingLayout';
+import { cn } from '@/lib/utils';
 
 export const metadata = buildMarketingMetadata({
   title: 'Solutions by Industry - TENVO Business Software',
@@ -25,11 +26,10 @@ export default function SolutionsPage() {
   const packages = listDomainPackages();
 
   return (
-    <>
-      <MarketingHeader />
-      <main className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-white">
+    <MarketingLayout transparentNav={false}>
+      <main className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-white"
         {/* Hero Section */}
-        <section className="container mx-auto px-4 py-16 lg:py-24">
+        <section className={cn(MARKETING_CONTAINER, "py-16 lg:py-24")}>
           <div className="mx-auto max-w-4xl text-center">
             <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-4 py-1.5 text-sm font-semibold text-teal-700 mb-6">
               <Store className="h-4 w-4" />
@@ -65,7 +65,7 @@ export default function SolutionsPage() {
         </section>
 
         {/* Benefits Grid */}
-        <section className="container mx-auto px-4 py-12">
+        <section className={cn(MARKETING_CONTAINER, "py-12")}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
               <div className="rounded-lg bg-teal-50 p-3 w-fit mb-4">
@@ -106,7 +106,7 @@ export default function SolutionsPage() {
         </section>
 
         {/* Industry Solutions Grid */}
-        <section className="container mx-auto px-4 py-16">
+        <section className={cn(MARKETING_CONTAINER, "py-16")}>
           <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
             Choose Your Industry
           </h2>
@@ -151,7 +151,7 @@ export default function SolutionsPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="container mx-auto px-4 py-16">
+        <section className={cn(MARKETING_CONTAINER, "py-16")}>
           <div className="rounded-3xl bg-gradient-to-r from-teal-600 to-cyan-600 p-12 text-center shadow-2xl max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold text-white mb-4">
               Ready to Transform Your Business?
@@ -177,7 +177,6 @@ export default function SolutionsPage() {
           </div>
         </section>
       </main>
-      <MarketingFooter />
-    </>
+    </MarketingLayout>
   );
 }

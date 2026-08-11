@@ -243,7 +243,7 @@ export function checkContentQuality(post: {
 }): ContentQualityCheck[] {
   const checks: ContentQualityCheck[] = [];
   const wordCount = post.content.split(/\s+/).length;
-  const primaryKeyword = post.keywords[0];
+  const primaryKeyword = post.keywords[0] || '';
 
   // Title length (50-60 chars optimal)
   checks.push({
@@ -277,34 +277,41 @@ export function checkContentQuality(post: {
   });
 
   // Keyword in title
-  checks.push({
-    criterion: 'Primary keyword in title',
-    passed: post.title.toLowerCase().includes(primaryKeyword.toLowerCase()),
-    recommendation: !post.title.toLowerCase().includes(primaryKeyword.toLowerCase())
-      ? `Include primary keyword "${primaryKeyword}" in the title.`
-      : undefined,
-  });
+  if (primaryKeyword) {
+    checks.push({
+      criterion: 'Primary keyword in title',
+      passed: post.title.toLowerCase().includes(primaryKeyword.toLowerCase()),
+      recommendation: !post.title.toLowerCase().includes(primaryKeyword.toLowerCase())
+        ? `Include primary keyword "${primaryKeyword}" in the title.`
+        : undefined,
+    });
+  }
 
   // Keyword in description
-  checks.push({
-    criterion: 'Primary keyword in description',
-    passed: post.description.toLowerCase().includes(primaryKeyword.toLowerCase()),
-    recommendation: !post.description.toLowerCase().includes(primaryKeyword.toLowerCase())
-      ? `Include primary keyword "${primaryKeyword}" in the meta description.`
-      : undefined,
-  });
+  if (primaryKeyword) {
+    checks.push({
+      criterion: 'Primary keyword in description',
+      passed: post.description.toLowerCase().includes(primaryKeyword.toLowerCase()),
+      recommendation: !post.description.toLowerCase().includes(primaryKeyword.toLowerCase())
+        ? `Include primary keyword "${primaryKeyword}" in the meta description.`
+        : undefined,
+    });
+  }
 
   // Keyword density (1-2% optimal)
-  const keywordOccurrences = (post.content.toLowerCase().match(new RegExp(primaryKeyword.toLowerCase(), 'g')) || []).length;
-  const keywordDensity = (keywordOccurrences / wordCount) * 100;
-  checks.push({
-    criterion: 'Keyword density',
-    passed: keywordDensity >= 1 && keywordDensity <= 2,
-    recommendation: keywordDensity < 1
-      ? `Keyword density is low (${keywordDensity.toFixed(2)}%). Use keyword more naturally.`
-      : keywordDensity > 2
-      ? `Keyword density is high (${keywordDensity.toFixed(2)}%). Reduce keyword usage to avoid stuffing.`
-      : undefined,
+  if (primaryKeyword) {
+    const keywordOccurrences = (post.content.toLowerCase().match(new RegExp(primaryKeyword.toLowerCase(), 'g')) || []).length;
+    const keywordDensity = (keywordOccurrences / wordCount) * 100;
+    checks.push({
+      criterion: 'Keyword density',
+      passed: keywordDensity >= 1 && keywordDensity <= 2,
+      recommendation: keywordDensity < 1
+        ? `Keyword density is low (${keywordDensity.toFixed(2)}%). Use keyword more naturally.`
+        : keywordDensity > 2
+        ? `Keyword density is high (${keywordDensity.toFixed(2)}%). Reduce keyword usage to avoid stuffing.`
+        : undefined,
+    });
+  }
   });
 
   return checks;

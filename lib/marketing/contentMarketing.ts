@@ -312,7 +312,6 @@ export function checkContentQuality(post: {
         : undefined,
     });
   }
-  });
 
   return checks;
 }

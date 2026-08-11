@@ -179,26 +179,43 @@ export const MARKETING_SITEMAP_ROUTES: ReadonlyArray<{
   priority: number;
   changeFrequency: SitemapChangeFrequency;
 }> = [
-  { path: '', priority: 1, changeFrequency: 'weekly' },
-  { path: '/pricing', priority: 0.95, changeFrequency: 'weekly' },
-  { path: '/register', priority: 0.9, changeFrequency: 'monthly' },
-  { path: '/demo', priority: 0.9, changeFrequency: 'weekly' },
-  { path: '/contact', priority: 0.9, changeFrequency: 'weekly' },
-  { path: '/features', priority: 0.85, changeFrequency: 'monthly' },
-  { path: '/why-tenvo', priority: 0.85, changeFrequency: 'monthly' },
-  { path: '/integrations', priority: 0.8, changeFrequency: 'monthly' },
-  { path: '/industries', priority: 0.8, changeFrequency: 'monthly' },
-  { path: '/industry-plans', priority: 0.85, changeFrequency: 'monthly' },
-  { path: '/about', priority: 0.75, changeFrequency: 'monthly' },
-  { path: '/case-studies', priority: 0.75, changeFrequency: 'weekly' },
-  { path: '/solutions/marketing-crm', priority: 0.7, changeFrequency: 'monthly' },
-  { path: '/help', priority: 0.5, changeFrequency: 'monthly' },
-  { path: '/docs', priority: 0.5, changeFrequency: 'monthly' },
+  // Homepage - highest priority
+  { path: '', priority: 1, changeFrequency: 'daily' },
+  
+  // Core conversion pages - very high priority
+  { path: '/pricing', priority: 0.98, changeFrequency: 'weekly' },
+  { path: '/register', priority: 0.98, changeFrequency: 'weekly' },
+  { path: '/demo', priority: 0.95, changeFrequency: 'weekly' },
+  { path: '/contact', priority: 0.95, changeFrequency: 'weekly' },
+  
+  // Product pages - high traffic potential
+  { path: '/features', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/solutions', priority: 0.88, changeFrequency: 'weekly' },
+  { path: '/demo-stores', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/why-tenvo', priority: 0.88, changeFrequency: 'weekly' },
+  { path: '/integrations', priority: 0.85, changeFrequency: 'weekly' },
+  
+  // Industry pages - conversion drivers
+  { path: '/industries', priority: 0.88, changeFrequency: 'weekly' },
+  { path: '/industry-plans', priority: 0.88, changeFrequency: 'weekly' },
+  { path: '/solutions/marketing-crm', priority: 0.82, changeFrequency: 'weekly' },
+  
+  // Trust & credibility
+  { path: '/case-studies', priority: 0.85, changeFrequency: 'weekly' },
+  { path: '/about', priority: 0.8, changeFrequency: 'monthly' },
+  
+  // Support pages - lower but still important
+  { path: '/help', priority: 0.6, changeFrequency: 'weekly' },
+  { path: '/docs', priority: 0.6, changeFrequency: 'weekly' },
+  
+  // Company/brand pages
+  { path: '/careers', priority: 0.5, changeFrequency: 'monthly' },
+  { path: '/press', priority: 0.5, changeFrequency: 'monthly' },
+  { path: '/status', priority: 0.4, changeFrequency: 'daily' },
+  
+  // Legal pages - required but lower priority
   { path: '/privacy', priority: 0.3, changeFrequency: 'yearly' },
   { path: '/terms', priority: 0.3, changeFrequency: 'yearly' },
-  { path: '/careers', priority: 0.4, changeFrequency: 'monthly' },
-  { path: '/press', priority: 0.4, changeFrequency: 'monthly' },
-  { path: '/status', priority: 0.2, changeFrequency: 'weekly' },
 ];
 
 const INDEXABLE_ROBOTS: Metadata['robots'] = {

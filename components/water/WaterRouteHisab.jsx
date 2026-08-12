@@ -2297,199 +2297,376 @@ export function WaterRouteHisab({ businessId, category }) {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {view === 'daily' && (
             <>
-              <div className="relative inline-flex rounded-md shadow-sm">
+              {/* Mobile: Compact menu */}
+              <div className="flex lg:hidden w-full">
+                <div className="flex flex-wrap items-center gap-2 w-full">
+                  {/* Print Checklist Dropdown */}
+                  <div className="relative inline-flex rounded-md shadow-sm flex-1 min-w-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handlePrintDeliveryChecklist('print', '58mm')}
+                      disabled={bulkPrinting || loading || !rows.length}
+                      className="flex-1 rounded-r-none border-r-0 border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                      title="Print delivery checklist"
+                    >
+                      <FileText className="h-4 w-4 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Checklist</span>
+                    </Button>
+                    <select
+                      defaultValue=""
+                      disabled={bulkPrinting || loading || !rows.length}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'print-58') handlePrintDeliveryChecklist('print', '58mm');
+                        else if (val === 'print-80') handlePrintDeliveryChecklist('print', '80mm');
+                        else if (val === 'pdf-58') handlePrintDeliveryChecklist('pdf', '58mm');
+                        else if (val === 'pdf-80') handlePrintDeliveryChecklist('pdf', '80mm');
+                        else if (val === 'area-a4') handlePrintAreaList('A4');
+                        else if (val === 'area-a5') handlePrintAreaList('A5');
+                        else if (val === 'daily-print') handleBulkDailyBills('print');
+                        else if (val === 'daily-pdf') handleBulkDailyBills('pdf');
+                        e.target.value = '';
+                      }}
+                      className="h-9 rounded-r-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                    >
+                      <option value="" disabled>▼</option>
+                      <optgroup label="Checklist">
+                        <option value="print-58">🖨️ 58mm Thermal</option>
+                        <option value="print-80">🖨️ 80mm Wide</option>
+                        <option value="pdf-58">📄 PDF (58mm)</option>
+                        <option value="pdf-80">📄 PDF (80mm)</option>
+                      </optgroup>
+                      <optgroup label="Area List">
+                        <option value="area-a4">📋 A4 Area List</option>
+                        <option value="area-a5">📋 A5 Compact</option>
+                      </optgroup>
+                      <optgroup label="Daily Bills">
+                        <option value="daily-print">🖨️ Print All Daily</option>
+                        <option value="daily-pdf">📄 Download PDF</option>
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveDay}
+                    disabled={
+                      saving ||
+                      loading ||
+                      (offlineEnabled && !isOnline && !daySnapshotReady)
+                    }
+                    className="flex-1 min-w-0"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    <span className="ml-1.5 hidden sm:inline">{offlineEnabled && !isOnline ? 'Save offline' : 'Save'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Desktop: Full organized menu */}
+              <div className="hidden lg:flex lg:items-center lg:gap-2">
+                {/* Print group */}
+                <div className="flex items-center gap-2 border-r border-gray-200 pr-2">
+                  <div className="relative inline-flex rounded-md shadow-sm">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handlePrintDeliveryChecklist('print', '58mm')}
+                      disabled={bulkPrinting || loading || !rows.length}
+                      title="Print 58mm thermal route delivery checklist"
+                      className="border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 rounded-r-none border-r-0"
+                    >
+                      <FileText className="h-4 w-4 mr-1.5 text-sky-600" />
+                      Checklist
+                    </Button>
+                    <select
+                      defaultValue=""
+                      disabled={bulkPrinting || loading || !rows.length}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'print-58') handlePrintDeliveryChecklist('print', '58mm');
+                        else if (val === 'print-80') handlePrintDeliveryChecklist('print', '80mm');
+                        else if (val === 'pdf-58') handlePrintDeliveryChecklist('pdf', '58mm');
+                        else if (val === 'pdf-80') handlePrintDeliveryChecklist('pdf', '80mm');
+                        e.target.value = '';
+                      }}
+                      className="h-9 rounded-r-md border border-sky-200 bg-sky-50 px-1 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                    >
+                      <option value="" disabled>▼</option>
+                      <option value="print-58">🖨️ 58mm Thermal</option>
+                      <option value="print-80">🖨️ 80mm Wide</option>
+                      <option value="pdf-58">📄 PDF (58mm)</option>
+                      <option value="pdf-80">📄 PDF (80mm)</option>
+                    </select>
+                  </div>
+
+                  <div className="relative inline-flex rounded-md shadow-sm">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handlePrintAreaList('A4')}
+                      disabled={bulkPrinting || loading || !rows.length}
+                      title="Print full-page A4 Area List"
+                      className="border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 rounded-r-none border-r-0"
+                    >
+                      <FileText className="h-4 w-4 mr-1.5 text-blue-600" />
+                      Area List
+                    </Button>
+                    <select
+                      defaultValue=""
+                      disabled={bulkPrinting || loading || !rows.length}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'a4') handlePrintAreaList('A4');
+                        else if (val === 'a5') handlePrintAreaList('A5');
+                        e.target.value = '';
+                      }}
+                      className="h-9 rounded-r-md border border-blue-200 bg-blue-50 px-1 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="" disabled>▼</option>
+                      <option value="a4">📋 A4 Area List</option>
+                      <option value="a5">📋 A5 Compact</option>
+                    </select>
+                  </div>
+
+                  <div className="relative inline-flex rounded-md shadow-sm">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleBulkDailyBills('print')}
+                      disabled={bulkPrinting || loading || !rows.length}
+                      title="Print all daily bills"
+                      className="rounded-r-none border-r-0"
+                    >
+                      {bulkPrinting ? (
+                        <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      ) : (
+                        <Printer className="h-4 w-4 mr-1.5" />
+                      )}
+                      Daily Bills
+                    </Button>
+                    <select
+                      defaultValue=""
+                      disabled={bulkPrinting || loading || !rows.length}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'print') handleBulkDailyBills('print');
+                        else if (val === 'pdf') handleBulkDailyBills('pdf');
+                        e.target.value = '';
+                      }}
+                      className="h-9 rounded-r-md border border-gray-300 bg-white px-1 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-gray-500 cursor-pointer"
+                    >
+                      <option value="" disabled>▼</option>
+                      <option value="print">🖨️ Print All</option>
+                      <option value="pdf">📄 Download PDF</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Save action */}
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
-                  onClick={() => handlePrintDeliveryChecklist('print', '58mm')}
-                  disabled={bulkPrinting || loading || !rows.length}
-                  title="Print 58mm thermal route delivery checklist for riders with [ ] checkboxes"
-                  className="border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 rounded-r-none border-r-0"
+                  onClick={handleSaveDay}
+                  disabled={
+                    saving ||
+                    loading ||
+                    (offlineEnabled && !isOnline && !daySnapshotReady)
+                  }
                 >
-                  <FileText className="h-4 w-4 mr-1.5 text-sky-600" />
-                  Print Checklist
+                  {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                  {offlineEnabled && !isOnline ? 'Save offline' : 'Save day'}
                 </Button>
-                <select
-                  defaultValue=""
-                  disabled={bulkPrinting || loading || !rows.length}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'print-58') handlePrintDeliveryChecklist('print', '58mm');
-                    else if (val === 'print-80') handlePrintDeliveryChecklist('print', '80mm');
-                    else if (val === 'pdf-58') handlePrintDeliveryChecklist('pdf', '58mm');
-                    else if (val === 'pdf-80') handlePrintDeliveryChecklist('pdf', '80mm');
-                    e.target.value = '';
-                  }}
-                  className="h-9 rounded-r-md border border-sky-200 bg-sky-50 px-1 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
-                  title="Select 58mm, 80mm thermal size, or Download PDF"
-                >
-                  <option value="" disabled>▼</option>
-                  <option value="print-58">🖨️ Print 58mm Thermal</option>
-                  <option value="print-80">🖨️ Print 80mm Wide Thermal</option>
-                  <option value="pdf-58">📄 Download PDF (58mm)</option>
-                  <option value="pdf-80">📄 Download PDF (80mm)</option>
-                </select>
               </div>
-              {/* Area List — full A4 register sheet matching plant paper register format */}
-              <div className="relative inline-flex rounded-md shadow-sm">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handlePrintAreaList('A4')}
-                  disabled={bulkPrinting || loading || !rows.length}
-                  title="Print full-page A4 Area List — grouped by route/area with phone, TGT, DEL/REC/CASH columns, BAL and rider signature (matches plant register format)"
-                  className="border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 rounded-r-none border-r-0"
-                >
-                  <FileText className="h-4 w-4 mr-1.5 text-blue-600" />
-                  Area List
-                </Button>
-                <select
-                  defaultValue=""
-                  disabled={bulkPrinting || loading || !rows.length}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'a4') handlePrintAreaList('A4');
-                    else if (val === 'a5') handlePrintAreaList('A5');
-                    e.target.value = '';
-                  }}
-                  className="h-9 rounded-r-md border border-blue-200 bg-blue-50 px-1 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  title="Select paper size for Area List"
-                >
-                  <option value="" disabled>▼</option>
-                  <option value="a4">📋 A4 Area List</option>
-                  <option value="a5">📋 A5 Compact</option>
-                </select>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => handleBulkDailyBills('print')}
-                disabled={bulkPrinting || loading || !rows.length}
-                title="Print 58mm daily sale slips for all delivered customers"
-              >
-                {bulkPrinting ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Printer className="h-4 w-4 mr-1.5" />
-                )}
-                Print all daily
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => handleBulkDailyBills('pdf')}
-                disabled={bulkPrinting || loading || !rows.length}
-                title="Download / Save as PDF — all daily 58mm slips"
-              >
-                <Download className="h-4 w-4 mr-1.5" />
-                All daily bills
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveDay}
-                disabled={
-                  saving ||
-                  loading ||
-                  (offlineEnabled && !isOnline && !daySnapshotReady)
-                }
-              >
-                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
-                {offlineEnabled && !isOnline ? 'Save offline' : 'Save day'}
-              </Button>
             </>
           )}
           {view === 'bills' && (
             <>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => handleBulkPeriodBills('print')}
-                disabled={bulkPrinting || loading || !billRows.length || !isOnline}
-                title={`Print all ${billKind === 'week' ? 'weekly' : 'monthly'} 58mm bills`}
-              >
-                {bulkPrinting ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Printer className="h-4 w-4 mr-1.5" />
-                )}
-                Print all {billKind === 'week' ? 'weekly' : 'monthly'}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => handleBulkPeriodBills('pdf')}
-                disabled={bulkPrinting || loading || !billRows.length || !isOnline}
-                title={`Download all ${billKind === 'week' ? 'weekly' : 'monthly'} 58mm bills (Save as PDF)`}
-              >
-                <Download className="h-4 w-4 mr-1.5" />
-                All {billKind === 'week' ? 'weekly' : 'monthly'} bills
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => handlePrintA4BillSummary('print')}
-                disabled={bulkPrinting || loading || !billRows.length}
-                title="Print professional A4 all-customers bill summary report — one page with all customers in a compact table"
-                className="border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
-              >
-                {bulkPrinting ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4 mr-1.5" />
-                )}
-                A4 Summary
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleGenerateInvoices}
-                disabled={
-                  generating ||
-                  loading ||
-                  !isOnline ||
-                  billsFromCache ||
-                  !(liveBillKpis.unbilledCount > 0)
-                }
-                title={!isOnline ? 'Needs internet' : undefined}
-              >
-                {generating ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4 mr-1.5" />
-                )}
-                Generate {billKind === 'week' ? 'weekly' : 'monthly'} bills
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleBulkRemind}
-                disabled={
-                  bulkReminding ||
-                  loading ||
-                  !isOnline ||
-                  !(liveBillKpis.unpaidCount || 0)
-                }
-                title={!isOnline ? 'Needs internet' : undefined}
-              >
-                {bulkReminding ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Bell className="h-4 w-4 mr-1.5" />
-                )}
-                Remind unpaid
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={openInvoices}>
-                Open invoices
-              </Button>
+              {/* Mobile: Compact dropdown menu */}
+              <div className="flex lg:hidden w-full">
+                <div className="flex flex-wrap items-center gap-2 w-full">
+                  {/* Print Bills Dropdown */}
+                  <div className="relative inline-flex rounded-md shadow-sm flex-1 min-w-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleBulkPeriodBills('print')}
+                      disabled={bulkPrinting || loading || !billRows.length || !isOnline}
+                      className="flex-1 rounded-r-none border-r-0 border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                      title={`Print all ${billKind === 'week' ? 'weekly' : 'monthly'} bills`}
+                    >
+                      {bulkPrinting ? (
+                        <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      ) : (
+                        <Printer className="h-4 w-4 mr-1.5" />
+                      )}
+                      <span className="hidden sm:inline">Print all</span>
+                      <span className="sm:hidden">Print</span>
+                    </Button>
+                    <select
+                      defaultValue=""
+                      disabled={bulkPrinting || loading || !billRows.length || !isOnline}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'print') handleBulkPeriodBills('print');
+                        else if (val === 'pdf') handleBulkPeriodBills('pdf');
+                        else if (val === 'a4-summary') handlePrintA4BillSummary('print');
+                        e.target.value = '';
+                      }}
+                      className="h-9 rounded-r-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                    >
+                      <option value="" disabled>▼</option>
+                      <option value="print">🖨️ Print All Bills</option>
+                      <option value="pdf">📄 Download PDF</option>
+                      <option value="a4-summary">📋 A4 Summary</option>
+                    </select>
+                  </div>
+
+                  {/* Generate & Remind - Side by side on mobile */}
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleGenerateInvoices}
+                    disabled={
+                      generating ||
+                      loading ||
+                      !isOnline ||
+                      billsFromCache ||
+                      !(liveBillKpis.unbilledCount > 0)
+                    }
+                    className="flex-1 min-w-0"
+                    title={!isOnline ? 'Needs internet' : undefined}
+                  >
+                    {generating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
+                    <span className="ml-1.5 hidden sm:inline">Generate</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkRemind}
+                    disabled={
+                      bulkReminding ||
+                      loading ||
+                      !isOnline ||
+                      !(liveBillKpis.unpaidCount || 0)
+                    }
+                    className="flex-1 min-w-0"
+                    title={!isOnline ? 'Needs internet' : 'Remind all unpaid customers'}
+                  >
+                    {bulkReminding ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Bell className="h-4 w-4" />
+                    )}
+                    <span className="ml-1.5 hidden sm:inline">Remind</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Desktop: Organized button groups */}
+              <div className="hidden lg:flex lg:items-center lg:gap-2">
+                {/* Print options group */}
+                <div className="flex items-center gap-2 border-r border-gray-200 pr-2">
+                  <div className="relative inline-flex rounded-md shadow-sm">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleBulkPeriodBills('print')}
+                      disabled={bulkPrinting || loading || !billRows.length || !isOnline}
+                      title={`Print all ${billKind === 'week' ? 'weekly' : 'monthly'} 58mm bills`}
+                      className="rounded-r-none border-r-0 border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                    >
+                      {bulkPrinting ? (
+                        <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      ) : (
+                        <Printer className="h-4 w-4 mr-1.5" />
+                      )}
+                      Print all {billKind === 'week' ? 'weekly' : 'monthly'}
+                    </Button>
+                    <select
+                      defaultValue=""
+                      disabled={bulkPrinting || loading || !billRows.length || !isOnline}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'print') handleBulkPeriodBills('print');
+                        else if (val === 'pdf') handleBulkPeriodBills('pdf');
+                        else if (val === 'a4-summary') handlePrintA4BillSummary('print');
+                        e.target.value = '';
+                      }}
+                      className="h-9 rounded-r-md border border-sky-200 bg-sky-50 px-1 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                      title="Choose print format"
+                    >
+                      <option value="" disabled>▼</option>
+                      <option value="print">🖨️ Print Thermal Bills</option>
+                      <option value="pdf">📄 Download PDF</option>
+                      <option value="a4-summary">📋 A4 Summary Report</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Bill management group */}
+                <div className="flex items-center gap-2 border-r border-gray-200 pr-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleGenerateInvoices}
+                    disabled={
+                      generating ||
+                      loading ||
+                      !isOnline ||
+                      billsFromCache ||
+                      !(liveBillKpis.unbilledCount > 0)
+                    }
+                    title={!isOnline ? 'Needs internet' : undefined}
+                  >
+                    {generating ? (
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4 mr-1.5" />
+                    )}
+                    Generate {billKind === 'week' ? 'weekly' : 'monthly'} bills
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkRemind}
+                    disabled={
+                      bulkReminding ||
+                      loading ||
+                      !isOnline ||
+                      !(liveBillKpis.unpaidCount || 0)
+                    }
+                    title={!isOnline ? 'Needs internet' : 'Remind all unpaid customers via hub notifications, email, and WhatsApp'}
+                  >
+                    {bulkReminding ? (
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Bell className="h-4 w-4 mr-1.5" />
+                    )}
+                    Remind unpaid
+                  </Button>
+                </div>
+
+                {/* Navigation */}
+                <Button type="button" size="sm" variant="outline" onClick={openInvoices}>
+                  Open invoices
+                </Button>
+              </div>
             </>
           )}
           {view === 'expenses' && null /* Actions are in the page header toolbar — no duplicate here */}

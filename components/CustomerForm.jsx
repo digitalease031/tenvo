@@ -53,8 +53,17 @@ export function CustomerForm({
             ? initialData.domain_data
             : {};
         const defaultCity = initialData?.city || business?.city || 'Karachi';
-        const defaultArea = initialData?.market_location || domain.market_location || domain.marketlocation || 'Bahria Town Karachi (BTK)';
+        const defaultArea = initialData?.market_location || domain.market_location || domain.marketlocation || '';
         const autoAccountNo = domain.accountno || (isWaterHisabRelevant(category) ? generateWaterCustomerId() : '');
+
+        // For water domain, set sensible defaults for key operational fields only
+        // Do NOT set defaults for address fields (houseno, floorflat, proprietorname, openingbalancehint)
+        const waterDefaults = isWaterHisabRelevant(category) ? {
+            deliveryarea: defaultArea || 'Bahria Town Karachi (BTK)',
+            deliveryroute: 'Bahria Town Route',
+            productrate: 150,
+            deliverydays: 'Daily',
+        } : {};
 
         return {
             name: '',
@@ -65,29 +74,21 @@ export function CustomerForm({
             srn: '',
             address: '',
             city: defaultCity,
-            market_location: defaultArea,
+            market_location: defaultArea || (isWaterHisabRelevant(category) ? 'Bahria Town Karachi (BTK)' : ''),
             credit_limit: 0,
             opening_balance: 0,
             filer_status: 'none',
             domain_data: {
-                towncode: defaultArea,
-                deliveryroute: 'Bahria Town Route',
-                city: defaultCity,
                 accountno: autoAccountNo,
-                productrate: 150,
-                deliverydays: 'Daily',
+                ...waterDefaults,
                 ...domain,
             },
             ...initialData,
             city: defaultCity,
-            market_location: defaultArea,
+            market_location: defaultArea || (isWaterHisabRelevant(category) ? 'Bahria Town Karachi (BTK)' : ''),
             domain_data: {
-                towncode: defaultArea,
-                deliveryroute: 'Bahria Town Route',
-                city: defaultCity,
                 accountno: autoAccountNo,
-                productrate: 150,
-                deliverydays: 'Daily',
+                ...waterDefaults,
                 ...domain,
                 ...(initialData?.domain_data && typeof initialData.domain_data === 'object'
                     ? initialData.domain_data
@@ -509,7 +510,7 @@ export function CustomerForm({
                                         <DomainFieldRenderer
                                             key={field}
                                             field={key}
-                                            value={formData.domain_data?.[key] || formData.domain_data?.accountno || ''}
+                                            value={formData.domain_data?.[key] || ''}
                                             onChange={(val) => {
                                                 // Customer ID is system-generated — ignore edits.
                                                 if (key === 'accountno') return;

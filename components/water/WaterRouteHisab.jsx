@@ -184,7 +184,7 @@ export function WaterRouteHisab({ businessId, category }) {
   } = useWaterHisabOffline(businessId, { enabled: offlineEnabled });
 
   const [view, setView] = useState('daily');
-  const [billKind, setBillKind] = useState('week');
+  const [billKind, setBillKind] = useState('month');
   const [deliveryDate, setDeliveryDate] = useState(todayKey);
   const [weekPeriod, setWeekPeriod] = useState(currentWeek);
   const [monthPeriod, setMonthPeriod] = useState(currentMonth);
@@ -2517,7 +2517,6 @@ export function WaterRouteHisab({ businessId, category }) {
                         const val = e.target.value;
                         if (val === 'print') handleBulkPeriodBills('print');
                         else if (val === 'pdf') handleBulkPeriodBills('pdf');
-                        else if (val === 'a4-summary') handlePrintA4BillSummary('print');
                         e.target.value = '';
                       }}
                       className="h-9 rounded-r-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
@@ -2525,9 +2524,22 @@ export function WaterRouteHisab({ businessId, category }) {
                       <option value="" disabled>▼</option>
                       <option value="print">🖨️ Print All Bills</option>
                       <option value="pdf">📄 Download PDF</option>
-                      <option value="a4-summary">📋 A4 Summary</option>
                     </select>
                   </div>
+
+                  {/* Monthly Summary Report */}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handlePrintA4BillSummary('print')}
+                    disabled={bulkPrinting || loading || !billRows.length}
+                    className="flex-1 min-w-0 border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+                    title="Print comprehensive monthly summary report"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span className="ml-1.5 hidden sm:inline">Summary</span>
+                  </Button>
 
                   {/* Generate & Remind - Side by side on mobile */}
                   <Button
@@ -2604,7 +2616,6 @@ export function WaterRouteHisab({ businessId, category }) {
                         const val = e.target.value;
                         if (val === 'print') handleBulkPeriodBills('print');
                         else if (val === 'pdf') handleBulkPeriodBills('pdf');
-                        else if (val === 'a4-summary') handlePrintA4BillSummary('print');
                         e.target.value = '';
                       }}
                       className="h-9 rounded-r-md border border-sky-200 bg-sky-50 px-1 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
@@ -2613,9 +2624,25 @@ export function WaterRouteHisab({ businessId, category }) {
                       <option value="" disabled>▼</option>
                       <option value="print">🖨️ Print Thermal Bills</option>
                       <option value="pdf">📄 Download PDF</option>
-                      <option value="a4-summary">📋 A4 Summary Report</option>
                     </select>
                   </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handlePrintA4BillSummary('print')}
+                    disabled={bulkPrinting || loading || !billRows.length}
+                    title="Print comprehensive monthly summary report — one page with all customers in a compact table"
+                    className="border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+                  >
+                    {bulkPrinting ? (
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4 mr-1.5" />
+                    )}
+                    Monthly Summary Report
+                  </Button>
                 </div>
 
                 {/* Bill management group */}

@@ -65,7 +65,23 @@ const ROUTE_RIDER_SUGGESTIONS = [
     'Clifton Route', 'Gulshan Route', 'North Nazimabad Route',
 ];
 
-const DELIVERY_DAY_OPTIONS = ['Daily', 'Alternate Days', 'Mon-Wed-Fri', 'Tue-Thu-Sat', 'Weekly', 'On Demand'];
+const DELIVERY_DAY_OPTIONS = [
+    'Daily',
+    'Weekdays',           // Mon-Fri
+    'Mon-Wed-Fri',
+    'Tue-Thu-Sat',
+    'Sat-Sun',            // Weekend only
+    'Monday only',        // Individual days
+    'Tuesday only',
+    'Wednesday only',
+    'Thursday only',
+    'Friday only',
+    'Saturday only',
+    'Sunday only',
+    'Weekly',
+    'On Demand',
+    'Custom',             // For manual tracking
+];
 
 const ACCOUNT_TYPES = ['Home & Flat', 'Domestic', 'Corporate', 'Shop / Retailer', 'Mosque / School', 'Other'];
 

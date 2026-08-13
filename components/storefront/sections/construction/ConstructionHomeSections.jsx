@@ -201,6 +201,14 @@ export function ConstructionHomeSections({ business, settings }) {
   const [whyTab, setWhyTab] = useState('safety');
   const [serviceTab, setServiceTab] = useState('preconstruction');
   
+  // BOQ Calculator State
+  const [boqCalc, setBoqCalc] = useState({
+    modality: 'pharma',
+    coveredArea: 10000,
+    rebarGrade: 'Grade 60',
+    cementType: 'OPC 50kg',
+  });
+  
   // Contact / Quote Form State
   const [quoteForm, setQuoteForm] = useState({
     firstName: '',
@@ -682,7 +690,152 @@ export function ConstructionHomeSections({ business, settings }) {
         </div>
       </section>
 
-      {/* ── 8. GET IN TOUCH EXECUTIVE CONTACT & QUOTE FORM ─────────────────── */}
+      {/* ── 8. INTERACTIVE BOQ ESTIMATOR & MATERIAL COST CALCULATOR ─────────── */}
+      <section id="boq-estimator" className="py-16 bg-gray-900 text-white border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center mb-12">
+            <span className="text-xs font-bold text-red-400 uppercase tracking-widest">
+              Instant Preconstruction Intelligence
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold uppercase mt-1">
+              BOQ & Material Cost Estimator
+            </h2>
+            <p className="text-xs text-gray-300 max-w-xl mx-auto mt-2 font-light">
+              Estimate steel rebar, OPC cement bags, ready-mix concrete, and budget ranges based on PEC & MRS schedule benchmarks.
+            </p>
+            <div className="w-16 h-1 bg-[#a71930] mx-auto mt-3 rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-gray-800/80 rounded-2xl p-8 border border-gray-700 shadow-2xl">
+            
+            {/* Left Inputs */}
+            <div className="lg:col-span-6 space-y-5">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-300 mb-1.5">
+                  Project Modality / Type
+                </label>
+                <select
+                  value={boqCalc.modality}
+                  onChange={(e) => setBoqCalc({ ...boqCalc, modality: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-700 text-xs text-white focus:ring-2 focus:ring-[#a71930] outline-none"
+                >
+                  <option value="pharma">Life Sciences / Cleanroom cGMP (ISO 5/7)</option>
+                  <option value="commercial">Commercial Building & High-Rise Tower</option>
+                  <option value="civil">Highway, Bridge & Civil Infrastructure</option>
+                  <option value="residential">Residential & Affordable Housing Complex</option>
+                </select>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="text-xs font-bold uppercase text-gray-300">
+                    Total Covered Area (Sq. Ft)
+                  </label>
+                  <span className="text-xs font-extrabold text-red-400 tabular-nums">
+                    {boqCalc.coveredArea.toLocaleString()} Sq. Ft
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="2000"
+                  max="250000"
+                  step="1000"
+                  value={boqCalc.coveredArea}
+                  onChange={(e) => setBoqCalc({ ...boqCalc, coveredArea: parseInt(e.target.value, 10) || 5000 })}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#a71930]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-300 mb-1.5">
+                    Steel Grade Specification
+                  </label>
+                  <select
+                    value={boqCalc.rebarGrade}
+                    onChange={(e) => setBoqCalc({ ...boqCalc, rebarGrade: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-xs text-white outline-none"
+                  >
+                    <option value="Grade 60">ASTM A615 Grade 60 (Deformed)</option>
+                    <option value="Grade 40">ASTM A615 Grade 40</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-300 mb-1.5">
+                    Cement Specification
+                  </label>
+                  <select
+                    value={boqCalc.cementType}
+                    onChange={(e) => setBoqCalc({ ...boqCalc, cementType: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-xs text-white outline-none"
+                  >
+                    <option value="OPC 50kg">Ordinary Portland Cement (OPC)</option>
+                    <option value="SRC 50kg">Sulphate Resistant Cement (SRC)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Output Calculations Card */}
+            <div className="lg:col-span-6 bg-gray-900 rounded-xl p-6 border border-gray-700 space-y-4">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                Calculated Material & BOQ Budget Summary
+              </span>
+
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="p-3 rounded-lg bg-gray-800 border border-gray-700">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">Deformed Rebar Steel</p>
+                  <p className="text-lg font-extrabold text-red-400 tabular-nums">
+                    {(boqCalc.coveredArea * 0.0045).toFixed(1)} Tons
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-gray-800 border border-gray-700">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">OPC / SRC Cement</p>
+                  <p className="text-lg font-extrabold text-red-400 tabular-nums">
+                    {Math.round(boqCalc.coveredArea * 0.45).toLocaleString()} Bags
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-gray-800 border border-gray-700">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">Ready-Mix Concrete</p>
+                  <p className="text-lg font-extrabold text-red-400 tabular-nums">
+                    {Math.round(boqCalc.coveredArea * 0.035).toLocaleString()} Cu.M
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-gray-800 border border-gray-700">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">Estimated BOQ Budget</p>
+                  <p className="text-lg font-extrabold text-emerald-400 tabular-nums">
+                    PKR {(boqCalc.coveredArea * (boqCalc.modality === 'pharma' ? 6800 : boqCalc.modality === 'commercial' ? 4800 : 3900)).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <a
+                  href="#get-in-touch"
+                  onClick={() => {
+                    setQuoteForm((prev) => ({
+                      ...prev,
+                      message: `BOQ Estimate Request: ${boqCalc.coveredArea.toLocaleString()} Sq.Ft (${boqCalc.modality.toUpperCase()}), Rebar: ${(boqCalc.coveredArea * 0.0045).toFixed(1)} Tons, Cement: ${Math.round(boqCalc.coveredArea * 0.45)} Bags. Target budget: PKR ${(boqCalc.coveredArea * 6800).toLocaleString()}`,
+                    }));
+                  }}
+                  className="w-full py-3 rounded-lg bg-[#a71930] hover:bg-[#800000] text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <span>Request Official Proposal With These BOQ Specs</span>
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── 9. GET IN TOUCH EXECUTIVE CONTACT & QUOTE FORM ─────────────────── */}
       <section id="get-in-touch" className="py-16 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           

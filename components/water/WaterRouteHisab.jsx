@@ -2150,7 +2150,7 @@ export function WaterRouteHisab({ businessId, category }) {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+        <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-white p-0.5 whitespace-nowrap scrollbar-none">
           <button
             type="button"
             className={cn(
@@ -2961,7 +2961,8 @@ function ExpensesView({
               <BarChart2 className="h-4 w-4 text-rose-600" />
               <h3 className="text-sm font-semibold text-gray-900">Expense Breakdown by Category</h3>
             </div>
-            <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[500px]">
               <thead className="bg-gray-50 text-gray-600 border-b font-semibold">
                 <tr>
                   <th className="px-4 py-2.5">Category</th>
@@ -2992,7 +2993,8 @@ function ExpensesView({
                   <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-600">100.0%</td>
                 </tr>
               </tfoot>
-            </table>
+              </table>
+            </div>
           </div>
 
           {/* Itemized Expense Ledger */}
@@ -4698,7 +4700,8 @@ function RiderShiftsSheet({
 
       {/* Shifts Table */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-        <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs min-w-[750px]">
           <thead className="bg-gray-50 text-gray-600 border-b font-semibold">
             <tr>
               <th className="p-3">Rider / Van</th>
@@ -4888,6 +4891,7 @@ function RiderShiftsSheet({
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

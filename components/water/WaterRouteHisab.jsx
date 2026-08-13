@@ -65,6 +65,10 @@ import {
   WATER_HISAB_CHECKLIST_MODES,
 } from '@/lib/storefront/waterShopHisab';
 import {
+  WATER_DELIVERY_DAY_PRESETS,
+  waterDeliveryCadenceCoversDate,
+} from '@/lib/data/pakistanDeliveryAreas';
+import {
   printWaterDailySaleBill,
   printWaterDailySaleBulk,
   printWaterPeriodBill,
@@ -205,6 +209,7 @@ export function WaterRouteHisab({ businessId, category }) {
   const [dayKpis, setDayKpis] = useState(null);
   const [billKpis, setBillKpis] = useState(null);
   const [filter, setFilter] = useState('');
+  const [deliveryDayFilter, setDeliveryDayFilter] = useState('ALL');
   const [dayDirty, setDayDirty] = useState(false);
   const [daySnapshotReady, setDaySnapshotReady] = useState(true);
   const [billsFromCache, setBillsFromCache] = useState(false);
@@ -963,9 +968,42 @@ export function WaterRouteHisab({ businessId, category }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [dayDirty, view]);
 
+  const matchDeliveryDayFilter = useCallback((rowDeliveryDays, dayFilter, targetDate) => {
+    if (!dayFilter || dayFilter === 'ALL') return true;
+    const days = String(rowDeliveryDays || 'Daily').trim();
+    const lowerDays = days.toLowerCase();
+    const lowerFilter = dayFilter.trim().toLowerCase();
+
+    if (lowerFilter === 'due_today') {
+      const d = targetDate ? new Date(targetDate) : new Date();
+      return waterDeliveryCadenceCoversDate(days, d);
+    }
+
+    if (lowerDays === lowerFilter || lowerDays.replace(/\s+/g, '') === lowerFilter.replace(/\s+/g, '')) {
+      return true;
+    }
+
+    const dayNameMap = {
+      'monday only': 1, 'tuesday only': 2, 'wednesday only': 3,
+      'thursday only': 4, 'friday only': 5, 'saturday only': 6, 'sunday only': 0
+    };
+    if (dayNameMap[lowerFilter] !== undefined) {
+      const targetDayIndex = dayNameMap[lowerFilter];
+      const dummyDate = targetDate ? new Date(targetDate) : new Date();
+      const currentDay = dummyDate.getDay();
+      const diff = targetDayIndex - currentDay;
+      dummyDate.setDate(dummyDate.getDate() + diff);
+      return waterDeliveryCadenceCoversDate(days, dummyDate);
+    }
+
+    return false;
+  }, []);
+
   const visibleRows = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    let list = rows;
+    const targetDate = deliveryDate ? new Date(deliveryDate) : new Date();
+    let list = rows.filter((r) => matchDeliveryDayFilter(r.deliveryDays, deliveryDayFilter, targetDate));
+
     if (q) {
       list = list.filter(
         (r) =>
@@ -973,7 +1011,8 @@ export function WaterRouteHisab({ businessId, category }) {
           String(r.houseNo || '').toLowerCase().includes(q) ||
           String(r.routeLabel || '').toLowerCase().includes(q) ||
           String(r.accountNo || '').toLowerCase().includes(q) ||
-          String(r.townCode || '').toLowerCase().includes(q)
+          String(r.townCode || '').toLowerCase().includes(q) ||
+          String(r.deliveryDays || '').toLowerCase().includes(q)
       );
     }
     return [...list].sort((a, b) => {
@@ -983,19 +1022,24 @@ export function WaterRouteHisab({ businessId, category }) {
       if (houseCmp !== 0) return houseCmp;
       return String(a.customerName || '').localeCompare(String(b.customerName || ''));
     });
-  }, [rows, filter]);
+  }, [rows, filter, deliveryDayFilter, deliveryDate, matchDeliveryDayFilter]);
 
   const visibleBillRows = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return billRows;
-    return billRows.filter(
-      (r) =>
-        String(r.customerName || '').toLowerCase().includes(q) ||
-        String(r.houseNo || '').toLowerCase().includes(q) ||
-        String(r.accountNo || '').toLowerCase().includes(q) ||
-        String(r.townCode || '').toLowerCase().includes(q)
-    );
-  }, [billRows, filter]);
+    let list = billRows.filter((r) => matchDeliveryDayFilter(r.deliveryDays, deliveryDayFilter, new Date()));
+
+    if (q) {
+      list = list.filter(
+        (r) =>
+          String(r.customerName || '').toLowerCase().includes(q) ||
+          String(r.houseNo || '').toLowerCase().includes(q) ||
+          String(r.accountNo || '').toLowerCase().includes(q) ||
+          String(r.townCode || '').toLowerCase().includes(q) ||
+          String(r.deliveryDays || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [billRows, filter, deliveryDayFilter, matchDeliveryDayFilter]);
 
   const dayTotal = useMemo(() => {
     let amount = 0;
@@ -2252,6 +2296,41 @@ export function WaterRouteHisab({ businessId, category }) {
           className="h-9 max-w-xs"
         />
 
+        {/* Delivery Days Cadence Filter */}
+        <div className="relative flex items-center gap-1.5">
+          <select
+            value={deliveryDayFilter}
+            onChange={(e) => setDeliveryDayFilter(e.target.value)}
+            className={cn(
+              'h-9 rounded-md border px-2.5 py-1 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-colors',
+              deliveryDayFilter !== 'ALL'
+                ? 'border-sky-300 bg-sky-50 text-sky-800'
+                : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+            )}
+            title="Filter route by customer delivery days schedule"
+          >
+            <option value="ALL">📅 All Delivery Days</option>
+            <option value="DUE_TODAY">⚡ Scheduled for Date</option>
+            <optgroup label="Delivery Schedules">
+              {WATER_DELIVERY_DAY_PRESETS.map((preset) => (
+                <option key={preset} value={preset}>
+                  {preset}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+          {deliveryDayFilter !== 'ALL' && (
+            <button
+              type="button"
+              onClick={() => setDeliveryDayFilter('ALL')}
+              className="text-[11px] font-medium text-sky-600 hover:text-sky-800 underline cursor-pointer"
+              title="Reset delivery days filter to All"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
         {view === 'daily' ? (
           <div className="hidden flex-wrap items-center gap-3 lg:flex">
             {/* Size toggles - hidden on mobile for clean app experience */}
@@ -3314,6 +3393,11 @@ function DailySheet({
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-gray-900 truncate">
                     {row.customerName}
+                    {row.deliveryDays && row.deliveryDays !== 'Daily' ? (
+                      <span className="ml-1.5 inline-flex items-center rounded border border-sky-200 bg-sky-50 px-1 py-0.5 text-[9px] font-medium text-sky-700">
+                        {row.deliveryDays}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="mt-0.5 block text-[11px] text-gray-500 truncate">
                     {row.accountNo ? `ID ${row.accountNo} · ` : ''}
@@ -3627,6 +3711,11 @@ function DailySheet({
                   {row.customerName}
                   {row.townCode ? (
                     <span className="ml-1 text-[10px] font-normal text-gray-400">T{row.townCode}</span>
+                  ) : null}
+                  {row.deliveryDays && row.deliveryDays !== 'Daily' ? (
+                    <span className="ml-1.5 inline-flex items-center rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
+                      {row.deliveryDays}
+                    </span>
                   ) : null}
                 </td>
                 <td className="px-1.5 py-1">

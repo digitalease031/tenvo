@@ -2000,7 +2000,7 @@ export function WaterRouteHisab({ businessId, category }) {
   };
 
   return (
-    <div className={cn(HUB_MOBILE_ROOT, 'space-y-4')}>
+    <div className={cn(HUB_MOBILE_ROOT, 'space-y-3')}>
       <div className="lg:hidden">
         <MobileTabHeader
           title="Water Route"
@@ -2321,20 +2321,20 @@ export function WaterRouteHisab({ businessId, category }) {
             <>
               {/* Mobile & Tablet: Box-style retail dashboard layout */}
               <div className="flex lg:hidden w-full">
-                <div className="grid grid-cols-2 gap-3 w-full max-w-xl mx-auto">
+                <div className="grid grid-cols-2 gap-2.5 w-full px-1">
                   {/* Print Checklist Box */}
                   <button
                     type="button"
                     onClick={() => handlePrintDeliveryChecklist('print', '58mm')}
                     disabled={bulkPrinting || loading || !rows.length}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-sky-200 bg-sky-50 hover:bg-sky-100 hover:border-sky-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-sky-200 bg-sky-50 hover:bg-sky-100 hover:border-sky-300 active:scale-[0.97]",
                       (bulkPrinting || loading || !rows.length) && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    <FileText className="h-7 w-7 text-sky-600" />
-                    <span className="text-sm font-bold text-sky-900">Checklist</span>
+                    <FileText className="h-8 w-8 text-sky-600" />
+                    <span className="text-sm font-bold text-sky-900 leading-tight">Checklist</span>
                   </button>
 
                   {/* Area List Box */}
@@ -2343,13 +2343,13 @@ export function WaterRouteHisab({ businessId, category }) {
                     onClick={() => handlePrintAreaList('A4')}
                     disabled={bulkPrinting || loading || !rows.length}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 active:scale-[0.97]",
                       (bulkPrinting || loading || !rows.length) && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    <FileText className="h-7 w-7 text-blue-600" />
-                    <span className="text-sm font-bold text-blue-900">Area List</span>
+                    <FileText className="h-8 w-8 text-blue-600" />
+                    <span className="text-sm font-bold text-blue-900 leading-tight">Area List</span>
                   </button>
 
                   {/* Daily Bills Box */}
@@ -2358,17 +2358,17 @@ export function WaterRouteHisab({ businessId, category }) {
                     onClick={() => handleBulkDailyBills('print')}
                     disabled={bulkPrinting || loading || !rows.length}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 active:scale-[0.97]",
                       (bulkPrinting || loading || !rows.length) && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     {bulkPrinting ? (
-                      <Loader2 className="h-7 w-7 animate-spin text-purple-600" />
+                      <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
                     ) : (
-                      <Printer className="h-7 w-7 text-purple-600" />
+                      <Printer className="h-8 w-8 text-purple-600" />
                     )}
-                    <span className="text-sm font-bold text-purple-900">Daily Bills</span>
+                    <span className="text-sm font-bold text-purple-900 leading-tight">Daily Bills</span>
                   </button>
 
                   {/* Save Day Box */}
@@ -2381,17 +2381,17 @@ export function WaterRouteHisab({ businessId, category }) {
                       (offlineEnabled && !isOnline && !daySnapshotReady)
                     }
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 active:scale-[0.97]",
                       (saving || loading || (offlineEnabled && !isOnline && !daySnapshotReady)) && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     {saving ? (
-                      <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
                     ) : (
-                      <Save className="h-7 w-7 text-emerald-600" />
+                      <Save className="h-8 w-8 text-emerald-600" />
                     )}
-                    <span className="text-sm font-bold text-emerald-900">
+                    <span className="text-sm font-bold text-emerald-900 leading-tight">
                       {offlineEnabled && !isOnline ? 'Save Offline' : 'Save Day'}
                     </span>
                   </button>
@@ -2486,24 +2486,24 @@ export function WaterRouteHisab({ businessId, category }) {
             <>
               {/* Mobile & Tablet: Box-style retail dashboard layout */}
               <div className="flex lg:hidden w-full">
-                <div className="grid grid-cols-2 gap-3 w-full max-w-xl mx-auto">
+                <div className="grid grid-cols-2 gap-2.5 w-full px-1">
                   {/* Print Bills Box */}
                   <button
                     type="button"
                     onClick={() => handleBulkPeriodBills('print')}
                     disabled={bulkPrinting || loading || !billRows.length || !isOnline}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-sky-200 bg-sky-50 hover:bg-sky-100 hover:border-sky-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-sky-200 bg-sky-50 hover:bg-sky-100 hover:border-sky-300 active:scale-[0.97]",
                       (bulkPrinting || loading || !billRows.length || !isOnline) && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     {bulkPrinting ? (
-                      <Loader2 className="h-7 w-7 animate-spin text-sky-600" />
+                      <Loader2 className="h-8 w-8 animate-spin text-sky-600" />
                     ) : (
-                      <Printer className="h-7 w-7 text-sky-600" />
+                      <Printer className="h-8 w-8 text-sky-600" />
                     )}
-                    <span className="text-sm font-bold text-sky-900">Print Bills</span>
+                    <span className="text-sm font-bold text-sky-900 leading-tight">Print Bills</span>
                   </button>
 
                   {/* Download PDF Box */}
@@ -2512,13 +2512,13 @@ export function WaterRouteHisab({ businessId, category }) {
                     onClick={() => handleBulkPeriodBills('pdf')}
                     disabled={bulkPrinting || loading || !billRows.length || !isOnline}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 active:scale-[0.97]",
                       (bulkPrinting || loading || !billRows.length || !isOnline) && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    <Download className="h-7 w-7 text-blue-600" />
-                    <span className="text-sm font-bold text-blue-900">Download PDF</span>
+                    <Download className="h-8 w-8 text-blue-600" />
+                    <span className="text-sm font-bold text-blue-900 leading-tight">Download PDF</span>
                   </button>
 
                   {/* Monthly Summary Report Box */}
@@ -2527,13 +2527,13 @@ export function WaterRouteHisab({ businessId, category }) {
                     onClick={() => handlePrintA4BillSummary('print')}
                     disabled={bulkPrinting || loading || !billRows.length}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 active:scale-[0.97]",
                       (bulkPrinting || loading || !billRows.length) && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    <FileText className="h-7 w-7 text-indigo-600" />
-                    <span className="text-sm font-bold text-indigo-900">Monthly Summary</span>
+                    <FileText className="h-8 w-8 text-indigo-600" />
+                    <span className="text-sm font-bold text-indigo-900 leading-tight">Monthly Summary</span>
                   </button>
 
                   {/* Generate Bills Box */}
@@ -2548,17 +2548,17 @@ export function WaterRouteHisab({ businessId, category }) {
                       !(liveBillKpis.unbilledCount > 0)
                     }
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 text-center transition-all min-h-[100px]",
-                      "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95",
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all",
+                      "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 active:scale-[0.97]",
                       (generating || loading || !isOnline || billsFromCache || !(liveBillKpis.unbilledCount > 0)) && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     {generating ? (
-                      <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
                     ) : (
-                      <FileText className="h-7 w-7 text-emerald-600" />
+                      <FileText className="h-8 w-8 text-emerald-600" />
                     )}
-                    <span className="text-sm font-bold text-emerald-900">Generate Bills</span>
+                    <span className="text-sm font-bold text-emerald-900 leading-tight">Generate Bills</span>
                   </button>
                 </div>
               </div>

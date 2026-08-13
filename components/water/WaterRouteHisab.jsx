@@ -30,7 +30,7 @@ import { formatCurrency } from '@/lib/currency';
 import notify from '@/lib/utils/appToast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MobileTabHeader, MobileStatStrip } from '@/components/mobile/MobileTabHeader';
+import { MobileStatStrip } from '@/components/mobile/MobileTabHeader';
 import { HUB_MOBILE_ROOT } from '@/lib/utils/mobileLayout';
 import { navigateHubTab } from '@/lib/utils/hubTabNavigation';
 import {
@@ -2045,12 +2045,34 @@ export function WaterRouteHisab({ businessId, category }) {
 
   return (
     <div className={cn(HUB_MOBILE_ROOT, 'space-y-3')}>
+      {/* ── Mobile-only compact app header ── */}
       <div className="lg:hidden">
-        <MobileTabHeader
-          title="Water Route"
-          subtitle="Rider sheet by city, area, and delivery day"
-          icon={BookOpen}
-        />
+        {/* Row 1: Title + delivery-day filter */}
+        <div className="flex items-center justify-between gap-2 px-1 pt-0.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <BookOpen className="h-5 w-5 shrink-0 text-sky-600" />
+            <span className="font-bold text-base text-gray-900 truncate">Water Route</span>
+          </div>
+          <select
+            value={deliveryDayFilter}
+            onChange={(e) => setDeliveryDayFilter(e.target.value)}
+            className={cn(
+              'h-8 rounded-lg border px-2 py-0 text-[11px] font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer shrink-0 max-w-[148px]',
+              deliveryDayFilter !== 'ALL'
+                ? 'border-sky-300 bg-sky-50 text-sky-800'
+                : 'border-gray-300 bg-white text-gray-600'
+            )}
+            title="Filter route by delivery day schedule"
+          >
+            <option value="ALL">📅 All Days</option>
+            <option value="DUE_TODAY">⚡ Today Only</option>
+            <optgroup label="Schedules">
+              {WATER_DELIVERY_DAY_PRESETS.map((preset) => (
+                <option key={preset} value={preset}>{preset}</option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
       </div>
 
       <div className="hidden lg:flex lg:items-start lg:justify-between gap-3">
@@ -2149,8 +2171,9 @@ export function WaterRouteHisab({ businessId, category }) {
         }}
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-white p-0.5 whitespace-nowrap scrollbar-none">
+      {/* ── Tabs strip ── */}
+      <div className="flex items-center gap-2">
+        <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-white p-0.5 whitespace-nowrap scrollbar-none flex-1 min-w-0">
           <button
             type="button"
             className={cn(
@@ -2205,25 +2228,45 @@ export function WaterRouteHisab({ businessId, category }) {
             </span>
           </button>
         </div>
+        {/* Refresh on mobile, inline in tabs row */}
+        <button
+          type="button"
+          onClick={() => {
+            if (view === 'daily') loadDay();
+            else if (view === 'bills') loadBills();
+            else if (view === 'rider-shifts') loadRiderShifts();
+            else if (view === 'bottle-control') loadBottleIntelligence();
+            else if (view === 'expenses') loadExpenses();
+          }}
+          disabled={loading || riderLoading || bottleLoading || expenseLoading}
+          className="lg:hidden shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+          title="Refresh"
+        >
+          <RefreshCw className={cn('h-4 w-4', (loading || riderLoading || bottleLoading) && 'animate-spin')} />
+        </button>
+      </div>
 
-        {view === 'daily' && (
-          <label className="flex items-center gap-2 text-sm text-gray-600">
-            <CalendarDays className="h-4 w-4 shrink-0" />
+      {/* ── Date + Search filter row (always one row) ── */}
+      <div className="flex items-center gap-2">
+        {/* Date / Period picker */}
+        {(view === 'daily' || view === 'rider-shifts') && (
+          <label className="flex items-center gap-1.5 shrink-0">
+            <CalendarDays className="h-4 w-4 text-gray-400 shrink-0" />
             <Input
               type="date"
               value={deliveryDate}
               onChange={(e) => setDeliveryDate(e.target.value || todayKey())}
-              className="h-9 w-[10.5rem]"
+              className="h-8 w-[9rem] text-sm"
             />
           </label>
         )}
         {view === 'bills' && (
-          <>
+          <div className="flex items-center gap-1.5 shrink-0">
             <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
               <button
                 type="button"
                 className={cn(
-                  'rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors',
+                  'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors',
                   billKind === 'week' ? 'bg-sky-100 text-sky-800' : 'text-gray-600 hover:bg-gray-50'
                 )}
                 onClick={() => setBillKind('week')}
@@ -2233,7 +2276,7 @@ export function WaterRouteHisab({ businessId, category }) {
               <button
                 type="button"
                 className={cn(
-                  'rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors',
+                  'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors',
                   billKind === 'month' ? 'bg-sky-100 text-sky-800' : 'text-gray-600 hover:bg-gray-50'
                 )}
                 onClick={() => setBillKind('month')}
@@ -2246,28 +2289,17 @@ export function WaterRouteHisab({ businessId, category }) {
                 type="week"
                 value={weekPeriod}
                 onChange={(e) => setWeekPeriod(e.target.value || currentWeek())}
-                className="h-9 w-[11rem]"
+                className="h-8 w-[9.5rem] text-sm"
               />
             ) : (
               <Input
                 type="month"
                 value={monthPeriod}
                 onChange={(e) => setMonthPeriod(e.target.value || currentMonth())}
-                className="h-9 w-[10.5rem]"
+                className="h-8 w-[9rem] text-sm"
               />
             )}
-          </>
-        )}
-        {view === 'rider-shifts' && (
-          <label className="flex items-center gap-2 text-sm text-gray-600">
-            <CalendarDays className="h-4 w-4 shrink-0" />
-            <Input
-              type="date"
-              value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value || todayKey())}
-              className="h-9 w-[10.5rem]"
-            />
-          </label>
+          </div>
         )}
         {view === 'expenses' && (
           <select
@@ -2278,7 +2310,7 @@ export function WaterRouteHisab({ businessId, category }) {
               setExpenseData(null);
               setTimeout(() => loadExpenses(pkey), 0);
             }}
-            className="h-9 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+            className="h-8 rounded-lg border border-gray-300 bg-white px-2 py-0 text-xs font-semibold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer shrink-0"
           >
             <option value="daily">Today</option>
             <option value="weekly">This Week</option>
@@ -2288,15 +2320,27 @@ export function WaterRouteHisab({ businessId, category }) {
             <option value="yearly">This Year</option>
           </select>
         )}
-
+        {/* Search filter — takes remaining width */}
         <Input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter house, ID, or customer"
-          className="h-9 max-w-xs"
+          className="h-8 flex-1 min-w-0 text-sm"
         />
+        {/* Delivery-day reset badge on desktop */}
+        {deliveryDayFilter !== 'ALL' && (
+          <button
+            type="button"
+            onClick={() => setDeliveryDayFilter('ALL')}
+            className="hidden lg:inline-flex items-center text-[11px] font-medium text-sky-600 hover:text-sky-800 underline cursor-pointer shrink-0"
+          >
+            Reset day
+          </button>
+        )}
+      </div>
 
-        {/* Delivery Days Cadence Filter */}
+      {/* ── Desktop-only delivery day filter + size toggles row ── */}
+      <div className="hidden lg:flex flex-wrap items-center gap-2">
         <div className="relative flex items-center gap-1.5">
           <select
             value={deliveryDayFilter}
@@ -2313,9 +2357,7 @@ export function WaterRouteHisab({ businessId, category }) {
             <option value="DUE_TODAY">⚡ Scheduled for Date</option>
             <optgroup label="Delivery Schedules">
               {WATER_DELIVERY_DAY_PRESETS.map((preset) => (
-                <option key={preset} value={preset}>
-                  {preset}
-                </option>
+                <option key={preset} value={preset}>{preset}</option>
               ))}
             </optgroup>
           </select>
@@ -2324,13 +2366,11 @@ export function WaterRouteHisab({ businessId, category }) {
               type="button"
               onClick={() => setDeliveryDayFilter('ALL')}
               className="text-[11px] font-medium text-sky-600 hover:text-sky-800 underline cursor-pointer"
-              title="Reset delivery days filter to All"
             >
               Reset
             </button>
           )}
         </div>
-
         {view === 'daily' ? (
           <div className="hidden flex-wrap items-center gap-3 lg:flex">
             {/* Size toggles - hidden on mobile for clean app experience */}
@@ -2394,11 +2434,55 @@ export function WaterRouteHisab({ businessId, category }) {
             </div>
           </div>
         ) : null}
+      </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+      {/* ── Mobile: two-column layout — left=action boxes, right=nothing (boxes ARE the actions) ── */}
+      <div className="lg:hidden">
+        {/* Mobile: Log Expense + Export Report row */}
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('open-modal', { detail: { modalId: 'expense' } }));
+              }
+            }}
+            className="flex items-center gap-1.5 h-8 flex-1 justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 active:scale-[0.97] transition-all"
+          >
+            <Receipt className="h-3.5 w-3.5" />
+            Log Expense
+          </button>
+          <div className="relative flex-1">
+            <select
+              defaultValue=""
+              disabled={exportingExpensePdf}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) { handleExportExpenseReportPdf(val); e.target.value = ''; }
+              }}
+              className="h-8 w-full rounded-lg border border-gray-200 bg-white px-2 py-0 text-[11px] font-semibold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+            >
+              <option value="" disabled>📥 Export Report...</option>
+              <option value="daily">📅 Daily</option>
+              <option value="weekly">🗓️ Weekly</option>
+              <option value="monthly">📅 Monthly</option>
+              <option value="last-3-months">📊 Last 3 Months</option>
+              <option value="yearly">🗓️ Yearly</option>
+            </select>
+            {exportingExpensePdf && (
+              <div className="absolute right-2 top-2 pointer-events-none">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-600" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Action boxes (mobile: 2×2 grid full width; desktop: centered horizontal) ── */}
+      <div className="ml-auto lg:flex lg:flex-wrap lg:items-center lg:gap-2">
           {view === 'daily' && (
             <>
-              {/* Mobile & Tablet: Box-style retail dashboard layout */}
+              {/* Mobile: 2×2 action box grid */}
               <div className="flex lg:hidden w-full">
                 <div className="grid grid-cols-2 gap-2.5 w-full px-1">
                   {/* Print Checklist Box */}
@@ -2563,9 +2647,9 @@ export function WaterRouteHisab({ businessId, category }) {
           )}
           {view === 'bills' && (
             <>
-              {/* Mobile & Tablet: Box-style retail dashboard layout */}
+              {/* Mobile: 2×2 action box grid */}
               <div className="flex lg:hidden w-full">
-                <div className="grid grid-cols-2 gap-2.5 w-full px-1">
+                <div className="grid grid-cols-2 gap-2.5 w-full">
                   {/* Print Bills Box */}
                   <button
                     type="button"
@@ -2728,7 +2812,6 @@ export function WaterRouteHisab({ businessId, category }) {
           )}
           {view === 'expenses' && null /* Actions are in the page header toolbar — no duplicate here */}
         </div>
-      </div>
 
       <MobileStatStrip items={view === 'daily' ? dayStatItems : view === 'rider-shifts' ? riderStatItems : view === 'bottle-control' ? bottleStatItems : view === 'expenses' ? expenseStatItems : billStatItems} layout="scroll" />
       <HisabKpiStrip items={view === 'daily' ? dayStatItems : view === 'rider-shifts' ? riderStatItems : view === 'bottle-control' ? bottleStatItems : view === 'expenses' ? expenseStatItems : billStatItems} />

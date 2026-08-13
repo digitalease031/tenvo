@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import dynamic from 'next/dynamic';
 
@@ -58,6 +58,9 @@ const FitnessHomeSections = dynamicSection(() =>
 const FashionHomeSections = dynamicSection(() =>
   import('./fashion/FashionHomeSections').then((m) => ({ default: m.FashionHomeSections }))
 );
+const ConstructionHomeSections = dynamicSection(() =>
+  import('./construction/ConstructionHomeSections').then((m) => ({ default: m.ConstructionHomeSections }))
+);
 
 /**
  * Code-split elevated vertical homepage sections (only the active vertical chunk loads).
@@ -90,6 +93,9 @@ export function LazyVerticalHomeSections({ variant, ...props }) {
       return <FitnessHomeSections {...props} />;
     case 'fashion':
       return <FashionHomeSections {...props} />;
+    case 'construction-contractor':
+    case 'construction':
+      return <ConstructionHomeSections {...props} />;
     default:
       return null;
   }

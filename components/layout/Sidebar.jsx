@@ -34,6 +34,10 @@ import {
   isWaterDeliveryHubNavAllowed,
   mergeWaterDeliveryLeanNavSettings,
 } from '@/lib/config/waterDeliveryHubNav';
+import {
+  isConstructionHubNavAllowed,
+  mergeConstructionLeanNavSettings,
+} from '@/lib/config/constructionHubNav';
 import { prefetchHubTabChunk } from '@/lib/utils/hubTabNavigation';
 import { useHubTab } from '@/lib/context/HubTabContext';
 import toast from 'react-hot-toast';
@@ -321,6 +325,9 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
     if (!isWaterDeliveryHubNavAllowed(item.key, category)) {
       return { visible: false, locked: false, requiredPlan: null };
     }
+    if (!isConstructionHubNavAllowed(item.key, category)) {
+      return { visible: false, locked: false, requiredPlan: null };
+    }
 
     // Domain knowledge conditions (manufacturing, multiLocation, etc.)
     if (item.conditionKey === 'manufacturing' && !domainKnowledge?.manufacturingEnabled) {
@@ -338,7 +345,10 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
 
     // RBAC + Subscription check via the permissions system
     const navSettings = mergeWaterDeliveryLeanNavSettings(
-      mergeMilkShopLeanNavSettings(business?.settings, category),
+      mergeConstructionLeanNavSettings(
+        mergeMilkShopLeanNavSettings(business?.settings, category),
+        category
+      ),
       category
     );
     return getNavItemAccess(item.key, effectiveRole, planTier, navSettings, business?.platformFeatureOverrides, moduleAccess);

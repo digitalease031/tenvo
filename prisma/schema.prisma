@@ -298,6 +298,15 @@ model businesses {
   milk_delivery_lines          milk_delivery_lines[]
   water_delivery_stops         water_delivery_stops[]
   water_delivery_lines         water_delivery_lines[]
+  construction_projects        construction_projects[]
+  bill_of_quantities_items     bill_of_quantities_items[]
+  interim_payment_certificates interim_payment_certificates[]
+  machinery_logs               machinery_logs[]
+  subcontractor_work_orders    subcontractor_work_orders[]
+  construction_daily_reports   construction_daily_reports[]
+  construction_safety_logs     construction_safety_logs[]
+  construction_quality_tests   construction_quality_tests[]
+  construction_site_inspections construction_site_inspections[]
   affiliates                   affiliates?                    @relation(fields: [affiliate_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   referrals                    referrals[]
   custom_domains               business_custom_domains[]
@@ -975,6 +984,7 @@ model vendors {
   purchases           purchases[]
   expenses            expenses[]
   purchase_returns    purchase_returns[] // C16
+  subcontractor_work_orders subcontractor_work_orders[]
   businesses          businesses         @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([domain_data], map: "idx_vendors_domain_data", type: Gin)
@@ -2970,4 +2980,445 @@ model water_delivery_lines {
 
   @@unique([stop_id, product_id], map: "water_delivery_lines_stop_product_key")
   @@index([business_id, product_id], map: "idx_water_delivery_lines_business_product")
+}
+
+// ============================================================================
+// Construction Domain Models
+// Added: 2026-08-13
+// Domain: construction-contractor
+// Package: construction-management
+// ============================================================================
+
+/// Construction project registry with PEC/PPRA compliance tracking
+model construction_projects {
+  id                     String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id            String                         @db.Uuid
+  code                   String                         @db.VarChar(50)
+  name                   String
+  client_name            String
+  client_contact         String?                        @db.VarChar(100)
+  contractor_category    String                         @default("C-1") @db.VarChar(20)
+  contract_value         Decimal                        @default(0) @db.Decimal(15, 2)
+  commencement_date      DateTime                       @db.Date
+  completion_date        DateTime                       @db.Date
+  province_code          String                         @default("PK-PB") @db.VarChar(10)
+  is_government_project  Boolean                        @default(false)
+  pec_project_no         String?                        @db.VarChar(100)
+  ppra_reference         String?                        @db.VarChar(100)
+  employer_dept          String?
+  
+  // Financial tracking
+  mobilization_adv_pct   Decimal                        @default(10.0) @db.Decimal(5, 2)
+  retention_pct          Decimal                        @default(5.0) @db.Decimal(5, 2)
+  cumulative_certified   Decimal                        @default(0) @db.Decimal(15, 2)
+  cumulative_paid        Decimal                        @default(0) @db.Decimal(15, 2)
+  retention_held         Decimal                        @default(0) @db.Decimal(15, 2)
+  mobilization_recovered Decimal                        @default(0) @db.Decimal(15, 2)
+  
+  // Status & workflow
+  status                 String                         @default("ACTIVE") @db.VarChar(20)
+  completion_pct         Decimal                        @default(0) @db.Decimal(5, 2)
+  
+  // Notes & metadata
+  notes                  String?
+  domain_data            Json?                          @default("{}")
+  
+  // Timestamps
+  created_at             DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                       @default(now()) @updatedAt @db.Timestamptz(6)
+  created_by             String?
+  
+  // Relations
+  businesses             businesses                     @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  boq_items              bill_of_quantities_items[]
+  ipcs                   interim_payment_certificates[]
+  machinery_logs         machinery_logs[]
+  subcontractor_orders   subcontractor_work_orders[]
+  daily_reports          construction_daily_reports[]
+  safety_logs            construction_safety_logs[]
+  quality_tests          construction_quality_tests[]
+  site_inspections       construction_site_inspections[]
+  
+  @@unique([business_id, code], map: "unique_construction_project_code")
+  @@index([business_id], map: "idx_construction_projects_business")
+  @@index([business_id, status], map: "idx_construction_projects_status")
+  @@index([business_id, commencement_date, completion_date], map: "idx_construction_projects_dates")
+  @@index([domain_data], map: "idx_construction_projects_domain_data", type: Gin)
+}
+
+/// BOQ line items with MRS/CSR schedule codes and composite rate analysis
+model bill_of_quantities_items {
+  id                   String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id          String                 @db.Uuid
+  project_id           String                 @db.Uuid
+  item_no              String                 @db.VarChar(50)
+  description          String
+  unit                 String                 @db.VarChar(20)
+  
+  // Estimated quantities
+  estimated_qty        Decimal                @default(0) @db.Decimal(15, 3)
+  estimated_rate       Decimal                @default(0) @db.Decimal(12, 2)
+  
+  // Actual quantities
+  actual_qty           Decimal                @default(0) @db.Decimal(15, 3)
+  actual_rate          Decimal?               @db.Decimal(12, 2)
+  
+  // Schedule of Rates reference
+  schedule_code        String?                @db.VarChar(50)
+  sor_reference        String?                @db.VarChar(100)
+  
+  // Composite rate breakdown
+  material_cost_ratio  Decimal                @default(0.600) @db.Decimal(5, 3)
+  labor_cost_ratio     Decimal                @default(0.250) @db.Decimal(5, 3)
+  machinery_cost_ratio Decimal                @default(0.100) @db.Decimal(5, 3)
+  overhead_ratio       Decimal                @default(0.050) @db.Decimal(5, 3)
+  
+  // Location & phase
+  location_station     String?
+  work_phase           String?                @db.VarChar(100)
+  
+  // Metadata
+  specification_grade  String?
+  notes                String?
+  domain_data          Json?                  @default("{}")
+  
+  // Timestamps
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  // Relations
+  businesses           businesses             @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  project              construction_projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  
+  @@unique([project_id, item_no], map: "unique_boq_item_no")
+  @@index([business_id], map: "idx_boq_items_business")
+  @@index([project_id], map: "idx_boq_items_project")
+  @@index([project_id, item_no], map: "idx_boq_items_project_item_no")
+  @@index([domain_data], map: "idx_boq_items_domain_data", type: Gin)
+}
+
+/// IPC running bills with mobilization advance recovery, retention, and tax deductions
+model interim_payment_certificates {
+  id                        String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id               String                 @db.Uuid
+  project_id                String                 @db.Uuid
+  ipc_number                Int
+  ipc_code                  String?                @db.VarChar(20)
+  
+  // Period
+  period_starting           DateTime?              @db.Date
+  period_ending             DateTime               @db.Date
+  
+  // Gross certified amount
+  gross_certified_amount    Decimal                @default(0) @db.Decimal(15, 2)
+  this_ipc_gross            Decimal                @default(0) @db.Decimal(15, 2)
+  
+  // Adjustments
+  escalation_amount         Decimal                @default(0) @db.Decimal(15, 2)
+  secured_advance           Decimal                @default(0) @db.Decimal(15, 2)
+  
+  // Deductions
+  retention_deduction       Decimal                @default(0) @db.Decimal(15, 2)
+  mobilization_recovery     Decimal                @default(0) @db.Decimal(15, 2)
+  
+  // Tax deductions
+  net_before_tax            Decimal                @default(0) @db.Decimal(15, 2)
+  wht_rate                  Decimal                @default(7.5) @db.Decimal(5, 2)
+  wht_deduction             Decimal                @default(0) @db.Decimal(15, 2)
+  provincial_tax_rate       Decimal                @default(5.0) @db.Decimal(5, 2)
+  provincial_tax_label      String?                @db.VarChar(50)
+  provincial_tax_deduction  Decimal                @default(0) @db.Decimal(15, 2)
+  
+  // Net payable
+  net_payable               Decimal                @default(0) @db.Decimal(15, 2)
+  
+  // Status workflow
+  status                    String                 @default("SUBMITTED") @db.VarChar(20)
+  submitted_at              DateTime               @default(now()) @db.Timestamptz(6)
+  verified_at               DateTime?              @db.Timestamptz(6)
+  verified_by               String?
+  approved_at               DateTime?              @db.Timestamptz(6)
+  approved_by               String?
+  disbursed_at              DateTime?              @db.Timestamptz(6)
+  disbursement_reference    String?                @db.VarChar(100)
+  
+  // Notes
+  notes                     String?
+  engineer_remarks          String?
+  contractor_remarks        String?
+  domain_data               Json?                  @default("{}")
+  
+  // Timestamps
+  created_at                DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  created_by                String?
+  
+  // Relations
+  businesses                businesses             @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  project                   construction_projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  
+  @@unique([project_id, ipc_number], map: "unique_ipc_number")
+  @@index([business_id], map: "idx_ipcs_business")
+  @@index([project_id], map: "idx_ipcs_project")
+  @@index([project_id, ipc_number], map: "idx_ipcs_project_number")
+  @@index([business_id, status], map: "idx_ipcs_status")
+  @@index([business_id, period_ending(sort: Desc)], map: "idx_ipcs_period_ending")
+  @@index([domain_data], map: "idx_ipcs_domain_data", type: Gin)
+}
+
+/// Heavy equipment daily logbook with hour-meter, fuel, and output tracking
+model machinery_logs {
+  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id           String                  @db.Uuid
+  project_id            String?                 @db.Uuid
+  
+  // Equipment identification
+  machinery_code        String                  @db.VarChar(50)
+  machinery_name        String
+  equipment_type        String?                 @db.VarChar(100)
+  
+  // Operator
+  operator_name         String
+  operator_id           String?                 @db.VarChar(100)
+  
+  // Hour meter readings
+  start_hours           Decimal                 @db.Decimal(10, 2)
+  end_hours             Decimal                 @db.Decimal(10, 2)
+  
+  // Fuel tracking
+  fuel_litres           Decimal                 @default(0) @db.Decimal(10, 2)
+  
+  // Output tracking
+  output_qty            Decimal                 @default(0) @db.Decimal(15, 3)
+  output_unit           String?                 @db.VarChar(20)
+  
+  // Location & work description
+  location_station      String?
+  work_description      String?
+  boq_item_ref          String?                 @db.VarChar(50)
+  
+  // Date
+  log_date              DateTime                @default(dbgenerated("CURRENT_DATE")) @db.Date
+  shift                 String?                 @db.VarChar(20)
+  
+  // Maintenance flags
+  maintenance_required  Boolean                 @default(false)
+  maintenance_notes     String?
+  
+  // Metadata
+  notes                 String?
+  domain_data           Json?                   @default("{}")
+  
+  // Timestamps
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  created_by            String?
+  
+  // Relations
+  businesses            businesses              @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  project               construction_projects?  @relation(fields: [project_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  
+  @@index([business_id], map: "idx_machinery_logs_business")
+  @@index([project_id], map: "idx_machinery_logs_project")
+  @@index([business_id, log_date(sort: Desc)], map: "idx_machinery_logs_business_date")
+  @@index([project_id, log_date(sort: Desc)], map: "idx_machinery_logs_project_date")
+  @@index([business_id, machinery_code, log_date(sort: Desc)], map: "idx_machinery_logs_machinery_code")
+  @@index([domain_data], map: "idx_machinery_logs_domain_data", type: Gin)
+}
+
+/// Subcontractor work orders with retainage and DLP tracking
+model subcontractor_work_orders {
+  id                     String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id            String                  @db.Uuid
+  project_id             String                  @db.Uuid
+  vendor_id              String?                 @db.Uuid
+  
+  // Work order identification
+  work_order_no          String                  @db.VarChar(50)
+  work_order_date        DateTime                @default(dbgenerated("CURRENT_DATE")) @db.Date
+  
+  // Subcontractor details
+  subcontractor_name     String
+  subcontractor_category String?                 @db.VarChar(50)
+  pec_license_no         String?                 @db.VarChar(100)
+  specialization_code    String?                 @db.VarChar(50)
+  
+  // Financial
+  work_order_value       Decimal                 @default(0) @db.Decimal(15, 2)
+  retainage_pct          Decimal                 @default(10.0) @db.Decimal(5, 2)
+  
+  // Tracking
+  amount_certified       Decimal                 @default(0) @db.Decimal(15, 2)
+  retainage_deducted     Decimal                 @default(0) @db.Decimal(15, 2)
+  amount_released        Decimal                 @default(0) @db.Decimal(15, 2)
+  net_paid               Decimal                 @default(0) @db.Decimal(15, 2)
+  completion_pct         Decimal                 @default(0) @db.Decimal(5, 2)
+  
+  // DLP (Defects Liability Period)
+  dlp_status             String                  @default("IN_PROGRESS") @db.VarChar(20)
+  dlp_months             Int                     @default(12)
+  dlp_start_date         DateTime?               @db.Date
+  dlp_end_date           DateTime?               @db.Date
+  
+  // Status
+  status                 String                  @default("ACTIVE") @db.VarChar(20)
+  
+  // Notes
+  scope_of_work          String?
+  notes                  String?
+  domain_data            Json?                   @default("{}")
+  
+  // Timestamps
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  created_by             String?
+  
+  // Relations
+  businesses             businesses              @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  project                construction_projects   @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vendor                 vendors?                @relation(fields: [vendor_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  
+  @@unique([business_id, work_order_no], map: "unique_work_order_no")
+  @@index([business_id], map: "idx_subcontractor_wo_business")
+  @@index([project_id], map: "idx_subcontractor_wo_project")
+  @@index([vendor_id], map: "idx_subcontractor_wo_vendor")
+  @@index([business_id, status], map: "idx_subcontractor_wo_status")
+  @@index([domain_data], map: "idx_subcontractor_wo_domain_data", type: Gin)
+}
+
+// ============================================================================
+// Construction Site Operations Models (Phase 2)
+// Added: 2026-08-13
+// Daily work reports, safety logs, quality testing, site inspections
+// ============================================================================
+
+/// Daily work reports for construction projects
+model construction_daily_reports {
+  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id         String                  @db.Uuid
+  project_id          String                  @db.Uuid
+  
+  // Report details
+  report_date         DateTime                @db.Date
+  weather_conditions  String?                 @db.VarChar(255)
+  manpower_on_site    Int?
+  work_description    String
+  equipment_deployed  String?
+  materials_consumed  String?
+  progress_pct        Decimal?                @db.Decimal(5, 2)
+  issues_encountered  String?
+  remarks             String?
+  reported_by         String?                 @db.VarChar(255)
+  
+  // Metadata
+  domain_data         Json?                   @default("{}")
+  created_at          DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  // Relations
+  businesses          businesses              @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  construction_projects construction_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  
+  @@unique([project_id, report_date], map: "unique_daily_report_date")
+  @@index([business_id], map: "idx_daily_report_business")
+  @@index([project_id], map: "idx_daily_report_project")
+  @@index([business_id, report_date], map: "idx_daily_report_date")
+  @@index([domain_data], map: "idx_daily_report_domain_data", type: Gin)
+}
+
+/// Safety incident logs and HSE tracking
+model construction_safety_logs {
+  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id         String                  @db.Uuid
+  project_id          String                  @db.Uuid
+  
+  // Incident details
+  log_date            DateTime                @db.Date
+  incident_type       String                  @db.VarChar(50) // NEAR_MISS, INJURY, EQUIPMENT_FAILURE, SAFETY_VIOLATION, INSPECTION, OTHER
+  severity            String                  @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  description         String
+  location_station    String?                 @db.VarChar(255)
+  corrective_action   String?
+  responsible_person  String?                 @db.VarChar(255)
+  status              String                  @default("OPEN") @db.VarChar(20) // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  logged_by           String?                 @db.VarChar(255)
+  
+  // Metadata
+  domain_data         Json?                   @default("{}")
+  created_at          DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  // Relations
+  businesses          businesses              @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  construction_projects construction_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  
+  @@index([business_id], map: "idx_safety_log_business")
+  @@index([project_id], map: "idx_safety_log_project")
+  @@index([business_id, severity, status], map: "idx_safety_log_severity_status")
+  @@index([business_id, log_date], map: "idx_safety_log_date")
+  @@index([domain_data], map: "idx_safety_log_domain_data", type: Gin)
+}
+
+/// Quality testing and material test results
+model construction_quality_tests {
+  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id         String                  @db.Uuid
+  project_id          String                  @db.Uuid
+  
+  // Test details
+  test_date           DateTime                @db.Date
+  test_type           String                  @db.VarChar(255) // Concrete Cube Test, Soil Compaction, Rebar Tensile
+  test_standard       String?                 @db.VarChar(100) // ASTM C39, AASHTO T99, etc.
+  sample_location     String?                 @db.VarChar(255)
+  test_results        String
+  pass_fail_status    String                  @db.VarChar(20) // PASS, FAIL, PENDING, CONDITIONAL
+  tested_by           String?                 @db.VarChar(255)
+  remarks             String?
+  
+  // Metadata
+  domain_data         Json?                   @default("{}")
+  created_at          DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  // Relations
+  businesses          businesses              @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  construction_projects construction_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  
+  @@index([business_id], map: "idx_quality_test_business")
+  @@index([project_id], map: "idx_quality_test_project")
+  @@index([business_id, pass_fail_status], map: "idx_quality_test_status")
+  @@index([business_id, test_date], map: "idx_quality_test_date")
+  @@index([domain_data], map: "idx_quality_test_domain_data", type: Gin)
+}
+
+/// Site inspections and compliance audits
+model construction_site_inspections {
+  id                   String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id          String                  @db.Uuid
+  project_id           String                  @db.Uuid
+  
+  // Inspection details
+  inspection_date      DateTime                @db.Date
+  inspection_type      String                  @db.VarChar(50) // PROGRESS, QUALITY, SAFETY, CLIENT, ENGINEER, FINAL
+  inspector_name       String                  @db.VarChar(255)
+  findings             String
+  recommendations      String?
+  compliance_status    String                  @db.VarChar(30) // COMPLIANT, NON_COMPLIANT, CONDITIONAL
+  follow_up_required   Boolean                 @default(false)
+  next_inspection_date DateTime?               @db.Date
+  
+  // Metadata
+  domain_data          Json?                   @default("{}")
+  created_at           DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  // Relations
+  businesses           businesses              @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  construction_projects construction_projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  
+  @@index([business_id], map: "idx_site_inspection_business")
+  @@index([project_id], map: "idx_site_inspection_project")
+  @@index([business_id, compliance_status], map: "idx_site_inspection_compliance")
+  @@index([business_id, inspection_date], map: "idx_site_inspection_date")
+  @@index([domain_data], map: "idx_site_inspection_domain_data", type: Gin)
 }

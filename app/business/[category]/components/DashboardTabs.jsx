@@ -10,6 +10,7 @@ import { Package } from 'lucide-react';
 import { lazyHubTab } from '@/lib/utils/lazyHubTab';
 import { isPosRelevant, isHospitality, isCampaignRelevant, isMembershipRelevant } from '@/lib/config/domains';
 import { isMilkHisabRelevant } from '@/lib/storefront/milkShopHisab';
+import { resolveDomainKey } from '@/lib/config/domainKeyAliases';
 import { isWaterHisabRelevant, isRouteHisabRelevant } from '@/lib/storefront/waterShopHisab';
 import { resolvePosVariant } from '@/lib/config/posDomains';
 import { useResolvedBusinessId } from '@/lib/hooks/useResolvedBusinessId';
@@ -63,6 +64,7 @@ const StorefrontTabShell = lazyHubTab(() => import('@/components/storefront/mobi
 const TabGuard = lazyHubTab(() => import('@/components/guards/TabGuard').then(mod => mod.TabGuard));
 const ResourceLimitBanner = lazyHubTab(() => import('@/components/ui/ResourceLimitBanner').then(mod => mod.ResourceLimitBanner));
 const NotificationBell = lazyHubTab(() => import('@/components/notifications/NotificationBell').then(mod => mod.NotificationBell));
+const ConstructionHub = lazyHubTab(() => import('@/components/construction/ConstructionHub').then(mod => mod.ConstructionHub));
 
 /** Tabs that stay mounted after first visit (SWR keep-alive — no remount refetch storms). */
 const KEEP_ALIVE_TABS = new Set([
@@ -88,6 +90,15 @@ const KEEP_ALIVE_TABS = new Set([
     'gst',
     'restaurant',
     'inquiries',
+    // Construction domain — keep project state alive between sub-tab switches
+    'projects',
+    'boq',
+    'ipc',
+    'machinery',
+    'subcontractors',
+    'site-ops',
+    'site-materials',
+    'procurement',
 ]);
 
 export function DashboardTabs({
@@ -145,6 +156,7 @@ export function DashboardTabs({
     const milkHisabRelevant = isMilkHisabRelevant(category);
     const waterHisabRelevant = isWaterHisabRelevant(category);
     const routeHisabRelevant = isRouteHisabRelevant(category);
+    const constructionDomain = !!category && resolveDomainKey?.(category) === 'construction-contractor';
 
     // Visit-based forceMount: first open loads once; leave/return keeps state (no tab-switch storms).
     // Inactive panels stay mounted but must be CSS-hidden — see TabsContent data-[state=inactive]:hidden.
@@ -352,6 +364,82 @@ export function DashboardTabs({
 
     return (
         <>
+                {/* ── Construction Domain Hub ─────────────────────────────────────────────
+                    When category is construction-contractor (or any alias), render the
+                    ConstructionHub which manages its own internal tabs (Projects, BOQ, IPC,
+                    Machinery, Site Ops, Finance, Reports). The generic dashboard tab still
+                    shows the DomainDashboard KPIs. All other retail tabs are hidden via
+                    isConstructionHubNavAllowed in the Sidebar.
+                ─────────────────────────────────────────────────────────────────────── */}
+                {constructionDomain && (
+                    <>
+                        <TabsContent value="projects" className="data-[state=inactive]:hidden outline-none h-[calc(100vh-180px)]">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="boq" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="ipc" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="site-materials" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="machinery" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="subcontractors" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="site-ops" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="procurement" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                    </>
+                )}
+
                 <TabsContent value="dashboard" forceMount={shouldForceMount('dashboard')} className="data-[state=inactive]:hidden space-y-6 outline-none">
                     {wrapTab(
                         <DomainDashboard

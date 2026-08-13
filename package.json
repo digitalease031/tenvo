@@ -121,7 +121,9 @@
     "verify:showroom-seed": "bun scripts/verify-showroom-seed.mjs",
     "data-lab:verify": "npx tsx scripts/data-lab/verify-demo-wiring.mjs",
     "data-lab:ensure-demos": "npx tsx scripts/data-lab/ensure-demo-storefronts.mjs --refresh-catalog",
-    "data-lab:reset": "node scripts/data-lab/purge-business-data.mjs --confirm PURGE_ALL_BUSINESS_DATA && npx tsx scripts/data-lab/seed-master-demo.mjs && npx tsx scripts/data-lab/verify-demo-wiring.mjs"
+    "data-lab:reset": "node scripts/data-lab/purge-business-data.mjs --confirm PURGE_ALL_BUSINESS_DATA && npx tsx scripts/data-lab/seed-master-demo.mjs && npx tsx scripts/data-lab/verify-demo-wiring.mjs",
+    "copyright:add-headers": "node scripts/add-copyright-headers.mjs",
+    "copyright:verify": "node scripts/verify-copyright-protection.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.80",

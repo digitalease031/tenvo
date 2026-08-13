@@ -1,0 +1,123 @@
+COPYRIGHT NOTICE
+
+Copyright © 2026 Mindscape Analytics LLC. All Rights Reserved.
+Parent Company of TENVO — https://www.mindscapeanalytics.com
+
+================================================================================
+
+PROPRIETARY AND CONFIDENTIAL
+
+This software application, including all source code, documentation, designs, 
+algorithms, database schemas, user interfaces, business logic, domain knowledge,
+and related intellectual property (the "Software") is the exclusive property of:
+
+  MINDSCAPE ANALYTICS LLC
+  https://www.mindscapeanalytics.com
+  Parent company of the TENVO product family
+
+================================================================================
+
+INTELLECTUAL PROPERTY RIGHTS
+
+All rights, title, and interest in and to the Software, including but not 
+limited to:
+
+  • Source code and compiled code
+  • Database schemas and data models
+  • Business logic and algorithms
+  • User interface designs and implementations
+  • Domain-specific knowledge systems
+  • API designs and implementations
+  • Documentation and technical specifications
+  • Trade secrets and proprietary methods
+  • Trademarks, service marks, and branding
+
+are owned exclusively by Mindscape Analytics LLC and are protected by:
+
+  • United States copyright laws
+  • International copyright treaties
+  • Trade secret laws
+  • Patent laws (where applicable)
+  • Other applicable intellectual property laws
+
+================================================================================
+
+NO LICENSE GRANTED
+
+This repository is made available for authorized access only. NO license,
+express or implied, is granted to any person or entity to:
+
+  • Copy, reproduce, or distribute the Software
+  • Create derivative works based on the Software
+  • Reverse engineer, decompile, or disassemble the Software
+  • Extract or reuse any portion of the code, designs, or algorithms
+  • Use the Software for any commercial or non-commercial purpose
+
+without prior written authorization from Mindscape Analytics LLC.
+
+================================================================================
+
+AUTHORIZED USE ONLY
+
+Access to this repository is restricted to:
+
+  1. Authorized employees of Mindscape Analytics LLC
+  2. Contractors under valid written agreements
+  3. Partners with executed licensing agreements
+  4. Other parties expressly authorized in writing
+
+Any unauthorized access, use, or disclosure may result in:
+
+  • Civil liability for damages
+  • Criminal prosecution
+  • Immediate termination of access
+  • Legal action for injunctive relief
+
+================================================================================
+
+CONFIDENTIALITY
+
+All information contained in this repository is confidential and proprietary.
+Recipients must:
+
+  • Maintain strict confidentiality
+  • Not disclose to any third parties
+  • Use only for authorized purposes
+  • Return or destroy upon request
+
+================================================================================
+
+ENFORCEMENT
+
+Mindscape Analytics LLC actively protects its intellectual property rights and
+will pursue all available legal remedies against unauthorized use, including:
+
+  • Cease and desist actions
+  • Injunctive relief
+  • Monetary damages
+  • Criminal prosecution
+  • DMCA takedown notices
+
+================================================================================
+
+CONTACT
+
+For licensing inquiries, permissions, or to report unauthorized use:
+
+  Mindscape Analytics LLC
+  Website: https://www.mindscapeanalytics.com
+  
+For security issues: See SECURITY.md
+
+================================================================================
+
+NOTICE TO GITHUB USERS
+
+Although this repository may be accessible on GitHub, this does NOT constitute
+an open source release or grant any license. The presence on GitHub is for 
+authorized development purposes only. All intellectual property rights are 
+expressly reserved.
+
+================================================================================
+
+Last Updated: January 2026

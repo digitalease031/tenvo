@@ -1,17 +1,124 @@
-TENVO — Proprietary Notice
-==========================
+LEGAL NOTICE
+
+================================================================================
+TENVO — Enterprise Commerce Platform
+================================================================================
 
 Copyright © 2026 Mindscape Analytics LLC
-Parent company of TENVO
+All Rights Reserved
+
+Website: https://www.mindscapeanalytics.com
+Product: TENVO
+
+================================================================================
+PROPRIETARY SOFTWARE
+================================================================================
+
+This software and all associated materials are the exclusive property of
+Mindscape Analytics LLC. This is NOT open source software.
+
+NO LICENSE IS GRANTED for any use, copying, modification, distribution, or
+other exploitation of this software without express written permission.
+
+================================================================================
+PROTECTED INTELLECTUAL PROPERTY
+================================================================================
+
+This repository contains proprietary and confidential information including:
+
+  • Proprietary source code and algorithms
+  • Database schemas and data models
+  • Business logic and domain knowledge
+  • User interface designs
+  • API architectures
+  • Technical documentation
+  • Trade secrets
+  • Confidential business information
+
+All such materials are protected by:
+
+  • Copyright laws (U.S. and International)
+  • Trade secret laws
+  • Patent laws (where applicable)
+  • Contractual obligations
+  • Other intellectual property protections
+
+================================================================================
+RESTRICTIONS
+================================================================================
+
+You MAY NOT:
+
+  ✗ Use this software without authorization
+  ✗ Copy, reproduce, or distribute any part
+  ✗ Create derivative works
+  ✗ Reverse engineer or decompile
+  ✗ Extract algorithms or business logic
+  ✗ Disclose to third parties
+  ✗ Use for commercial purposes
+  ✗ Remove or modify copyright notices
+
+================================================================================
+AUTHORIZED ACCESS ONLY
+================================================================================
+
+Access to this repository is restricted to:
+
+  • Employees of Mindscape Analytics LLC
+  • Authorized contractors under NDA
+  • Partners with written agreements
+  • Other expressly authorized parties
+
+Unauthorized access or use may result in:
+
+  • Civil litigation
+  • Criminal prosecution
+  • Damages claims
+  • Injunctive relief
+  • DMCA takedown actions
+
+================================================================================
+THIRD-PARTY COMPONENTS
+================================================================================
+
+This software may include third-party open source components, each subject to
+its own license terms. Such licenses apply only to those specific components
+and do NOT extend to this proprietary software as a whole.
+
+See package.json and individual component licenses for details.
+
+================================================================================
+NO WARRANTY
+================================================================================
+
+This software is provided "AS IS" without warranty of any kind, express or
+implied. Mindscape Analytics LLC disclaims all warranties including but not
+limited to merchantability, fitness for a particular purpose, and
+non-infringement.
+
+================================================================================
+ENFORCEMENT
+================================================================================
+
+Mindscape Analytics LLC actively monitors and enforces its intellectual
+property rights. We will pursue all available legal remedies against
+unauthorized use, copying, or distribution of our proprietary software.
+
+If you encounter unauthorized copies or use of this software, please report to:
 https://www.mindscapeanalytics.com
 
-All rights reserved.
+================================================================================
+QUESTIONS OR LICENSING
+================================================================================
 
-"TENVO" and related product names, logos, and branding are proprietary to
-Mindscape Analytics LLC. Unauthorized use is prohibited.
+For licensing inquiries, partnership opportunities, or questions about
+authorized use:
 
-This repository may be visible in version control for authorized development
-and deployment purposes. Visibility in git does not grant any license to use,
-copy, or distribute the Software. See LICENSE in the repository root.
+  Mindscape Analytics LLC
+  https://www.mindscapeanalytics.com
 
-Contact: https://www.mindscapeanalytics.com
+================================================================================
+
+This notice must be retained in all authorized copies and may not be removed.
+
+Last Updated: January 2026

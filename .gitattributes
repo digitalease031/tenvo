@@ -1,0 +1,58 @@
+# Git Attributes for TENVO
+# Copyright © 2026 Mindscape Analytics LLC. All Rights Reserved.
+
+# Declare that this repository contains proprietary code
+* linguist-vendored=false
+* -linguist-documentation
+* -linguist-generated
+
+# Mark all code as proprietary (not open source)
+*.js linguist-language=JavaScript
+*.jsx linguist-language=JavaScript
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+
+# Prevent GitHub from suggesting licenses
+LICENSE linguist-documentation=false
+COPYRIGHT linguist-documentation=false
+NOTICE linguist-documentation=false
+
+# Line ending normalization
+* text=auto eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.ttf binary
+*.otf binary
+
+# Export-ignore (files to exclude from git archive)
+.gitignore export-ignore
+.gitattributes export-ignore
+.github/ export-ignore
+.vscode/ export-ignore
+.cursor/ export-ignore
+node_modules/ export-ignore
+.next/ export-ignore
+out/ export-ignore
+coverage/ export-ignore
+*.log export-ignore

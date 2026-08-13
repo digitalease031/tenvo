@@ -54,10 +54,13 @@ next-env.d.ts
 .cursor/hooks/state/
 
 # Proprietary — do not publish root/docs README that expose product architecture or setup playbooks
+# Hide all README files from public GitHub to prevent exposure of project details
 /README.md
 README_DASHBOARD_CHANGES.md
 docs/README.md
 docs/README_*.md
+INTERNAL_README.md
+TECHNICAL_README.md
 
 # maintenance & diagnostics
 /_maintenance/

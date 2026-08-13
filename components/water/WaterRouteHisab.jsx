@@ -2253,8 +2253,8 @@ export function WaterRouteHisab({ businessId, category }) {
         />
 
         {view === 'daily' ? (
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Size toggles */}
+          <div className="hidden flex-wrap items-center gap-3 lg:flex">
+            {/* Size toggles - hidden on mobile for clean app experience */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Sizes</span>
               {WATER_HISAB_SIZE_GROUPS.map((g) => {

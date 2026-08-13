@@ -23,37 +23,64 @@ import {
   Users,
   HardHat,
   Truck,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react';
 import { notify } from '@/lib/utils/notify';
 import { resolveStoreContact } from '@/lib/storefront/storeContact';
+
+// Curated high-resolution web construction & cleanroom images
+const WEB_IMAGES = {
+  hero: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=1920&q=85&auto=format&fit=crop',
+  heroAlt1: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=85&auto=format&fit=crop',
+  heroAlt2: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=1920&q=85&auto=format&fit=crop',
+  osd: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=82&auto=format&fit=crop',
+  biologics: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&q=82&auto=format&fit=crop',
+  cgt: 'https://images.unsplash.com/photo-1579154204601-01588f351e24?w=800&q=82&auto=format&fit=crop',
+  commercial: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=82&auto=format&fit=crop',
+  infrastructure: 'https://images.unsplash.com/photo-1590486803833-1c5dc8ddd4c8?w=800&q=82&auto=format&fit=crop',
+  industrial: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=82&auto=format&fit=crop',
+  projectPharma: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&q=82&auto=format&fit=crop',
+  projectLab: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=800&q=82&auto=format&fit=crop',
+  projectHousing: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=82&auto=format&fit=crop',
+  projectRmc: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&q=82&auto=format&fit=crop',
+  servicePrecon: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=800&q=82&auto=format&fit=crop',
+  serviceVdc: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=82&auto=format&fit=crop',
+  serviceQuality: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&q=82&auto=format&fit=crop',
+  serviceLean: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=800&q=82&auto=format&fit=crop',
+  serviceControls: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=82&auto=format&fit=crop',
+  serviceSafety: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&q=82&auto=format&fit=crop',
+};
 
 // Construction Domain Seed Projects
 const FEATURED_PROJECTS = [
   {
     id: 'prj-1',
-    title: 'Confidential Pharmaceutical & cGMP Facility',
+    title: 'Confidential Pharmaceutical & cGMP Cleanroom Facility',
     category: 'Life Sciences & Pharma',
     location: 'Lahore Industrial Estate',
-    image: '/tenvo-img/construction/construction-service.jpg',
+    image: WEB_IMAGES.projectPharma,
+    fallbackImage: '/tenvo-img/construction/construction-service.jpg',
     specs: '250,000 Sq Ft · Cleanroom ISO 5 · Fast-Track EPC',
     badge: 'Turnkey EPC',
   },
   {
     id: 'prj-2',
-    title: 'Biologics & Cell & Gene Therapy R&D Lab',
+    title: 'Biologics & Cell & Gene Therapy R&D Lab Complex',
     category: 'R&D & High-Tech Cleanrooms',
     location: 'Islamabad Tech Zone',
-    image: '/tenvo-img/construction/service2.jpg',
+    image: WEB_IMAGES.projectLab,
+    fallbackImage: '/tenvo-img/construction/service2.jpg',
     specs: '120,000 Sq Ft · 3D VDC Coordinate · HVAC HEPA 99.97%',
     badge: 'VDC Coordinated',
   },
   {
     id: 'prj-3',
-    title: 'Affordable Housing & Urban Infrastructure Complex',
+    title: 'Affordable Housing & Urban Tower Infrastructure',
     category: 'Commercial & High-Rise',
     location: 'Karachi Central District',
-    image: '/tenvo-img/construction/affordable.jpg',
+    image: WEB_IMAGES.projectHousing,
+    fallbackImage: '/tenvo-img/construction/affordable.jpg',
     specs: '450 Units · Grade 60 Rebar · PEC Category C-A',
     badge: 'PEC Approved',
   },
@@ -62,7 +89,8 @@ const FEATURED_PROJECTS = [
     title: 'Central Concrete Batching & Heavy Equipment Hub',
     category: 'Civil & Heavy Infrastructure',
     location: 'Motorway M-2 Interchange',
-    image: '/tenvo-img/construction/construction-1.jpg',
+    image: WEB_IMAGES.projectRmc,
+    fallbackImage: '/tenvo-img/construction/construction-1.jpg',
     specs: '5,000 Cu.M / Day · RMC C25/C30 · Fleet Management',
     badge: 'Infrastructure',
   },
@@ -72,22 +100,22 @@ const DIVERSE_MODALITIES = [
   {
     title: 'Oral Solid Dosage (OSD)',
     subtitle: 'High-speed tablet & capsule manufacturing suites compliant with US-FDA & PSQCA.',
-    image: '/tenvo-img/construction/construction-service.jpg',
+    image: WEB_IMAGES.osd,
   },
   {
     title: 'Biologics & Biopharmaceuticals',
     subtitle: 'Aseptic liquid filling lines, bioreactor cleanrooms, and cold-chain logistics.',
-    image: '/tenvo-img/construction/service2.jpg',
+    image: WEB_IMAGES.biologics,
   },
   {
     title: 'Cell & Gene Therapy (CGT)',
     subtitle: 'Ultra-clean ISO 5 airflow suites, negative-pressure containment, and biosafety labs.',
-    image: '/tenvo-img/construction/construction-1.jpg',
+    image: WEB_IMAGES.cgt,
   },
   {
     title: 'Commercial & High-Rise Towers',
     subtitle: 'Multi-story earthquake-resistant RCC structures with post-tensioned slab technology.',
-    image: '/tenvo-img/construction/affordable.jpg',
+    image: WEB_IMAGES.commercial,
   },
 ];
 
@@ -102,7 +130,7 @@ const INHOUSE_SERVICES = [
       'Value engineering saving up to 12% in structural steel and concrete',
       'Long-lead material procurement tracking & vendor vetting',
     ],
-    image: '/tenvo-img/construction/service2.jpg',
+    image: WEB_IMAGES.servicePrecon,
   },
   {
     id: 'vdc',
@@ -114,7 +142,7 @@ const INHOUSE_SERVICES = [
       '4D construction sequencing and site logistics simulation',
       '5D cost integration linked directly to BOQ line items',
     ],
-    image: '/tenvo-img/construction/service2.jpg',
+    image: WEB_IMAGES.serviceVdc,
   },
   {
     id: 'quality',
@@ -126,7 +154,7 @@ const INHOUSE_SERVICES = [
       'Daily site QA/QC logbook and non-conformance tracking',
       'Cleanroom particle count certification & HEPA air balance',
     ],
-    image: '/tenvo-img/construction/construction-service.jpg',
+    image: WEB_IMAGES.serviceQuality,
   },
   {
     id: 'lean',
@@ -138,7 +166,7 @@ const INHOUSE_SERVICES = [
       'Modular pre-fabrication for off-site MEP skid assembly',
       'Zero-waste material handling and recycled aggregate utilization',
     ],
-    image: '/tenvo-img/construction/construction-1.jpg',
+    image: WEB_IMAGES.serviceLean,
   },
   {
     id: 'controls',
@@ -150,7 +178,7 @@ const INHOUSE_SERVICES = [
       'PECA / FIDIC contract escalation under cement, steel, & fuel indices',
       'Subcontractor retainage ledger & payment approvals',
     ],
-    image: '/tenvo-img/construction/affordable.jpg',
+    image: WEB_IMAGES.serviceControls,
   },
   {
     id: 'safety',
@@ -162,7 +190,7 @@ const INHOUSE_SERVICES = [
       'Daily toolbox talks & high-risk activity permits (hot work, scaffolding)',
       'Digital gate pass control for material inward & outward dispatch',
     ],
-    image: '/tenvo-img/construction/construction-service.jpg',
+    image: WEB_IMAGES.serviceSafety,
   },
 ];
 
@@ -197,7 +225,6 @@ export function ConstructionHomeSections({ business, settings }) {
 
     setIsSubmitting(true);
     try {
-      // Simulate executive quote submission / store connection save
       await new Promise((r) => setTimeout(r, 600));
       notify.compactSave('Thank you! Our VP Market Leader & Engineering team will contact you shortly.', true);
       setQuoteForm({
@@ -221,23 +248,23 @@ export function ConstructionHomeSections({ business, settings }) {
     <div className="w-full bg-white text-gray-900 font-sans">
       
       {/* ── 1. HERO HEADER BANNER ────────────────────────────────────────────── */}
-      <section className="relative min-h-[560px] lg:min-h-[640px] flex items-center justify-center bg-gray-950 overflow-hidden">
+      <section className="relative min-h-[580px] lg:min-h-[660px] flex items-center justify-center bg-gray-950 overflow-hidden">
         <Image
-          src="/tenvo-img/construction/construction-1.jpg"
+          src={WEB_IMAGES.hero}
           alt="Consigli Construction Life Sciences & Civil Engineering"
           fill
           priority
-          className="object-cover object-center opacity-40 mix-blend-luminosity"
+          className="object-cover object-center opacity-45 mix-blend-luminosity"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent" />
         
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center text-white">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#a71930] text-xs font-semibold uppercase tracking-wider mb-6 shadow-md">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#a71930] text-xs font-bold uppercase tracking-wider mb-6 shadow-lg border border-red-400/30">
             <Building2 className="w-4 h-4 text-white" />
             Consigli At A Glance
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight uppercase leading-tight mb-4 max-w-4xl mx-auto">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight uppercase leading-tight mb-4 max-w-4xl mx-auto drop-shadow-md">
             LIFE SCIENCES & CIVIL CONSTRUCTION
           </h1>
 
@@ -273,32 +300,32 @@ export function ConstructionHomeSections({ business, settings }) {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 text-center">
-            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100">
+            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100 shadow-sm">
               <div className="text-3xl lg:text-4xl font-extrabold text-[#a71930] tabular-nums mb-1">15</div>
               <p className="text-xs font-semibold text-gray-700 uppercase">Cleanrooms ISO Certified</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100">
+            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100 shadow-sm">
               <div className="text-3xl lg:text-4xl font-extrabold text-[#a71930] tabular-nums mb-1">500+</div>
               <p className="text-xs font-semibold text-gray-700 uppercase">Completed In-House Ops</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100">
+            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100 shadow-sm">
               <div className="text-3xl lg:text-4xl font-extrabold text-[#a71930] tabular-nums mb-1">2,000+</div>
               <p className="text-xs font-semibold text-gray-700 uppercase">Completed Pharma Projects</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100">
+            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100 shadow-sm">
               <div className="text-3xl lg:text-4xl font-extrabold text-[#a71930] tabular-nums mb-1">25M+</div>
               <p className="text-xs font-semibold text-gray-700 uppercase">Sq Ft cGMP / Structural</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100">
+            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100 shadow-sm">
               <div className="text-3xl lg:text-4xl font-extrabold text-[#a71930] tabular-nums mb-1">$12B+</div>
               <p className="text-xs font-semibold text-gray-700 uppercase">Construction Value 5Y</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100">
+            <div className="p-4 rounded-xl bg-gray-50/80 border border-gray-100 shadow-sm">
               <div className="text-3xl lg:text-4xl font-extrabold text-[#a71930] tabular-nums mb-1">#2</div>
               <p className="text-xs font-semibold text-gray-700 uppercase">cGMP Contractor Firm</p>
             </div>
@@ -337,7 +364,7 @@ export function ConstructionHomeSections({ business, settings }) {
 
             <div className="relative h-64 lg:h-72 rounded-xl overflow-hidden shadow-2xl border border-white/20">
               <Image
-                src="/tenvo-img/construction/construction-service.jpg"
+                src={WEB_IMAGES.projectPharma}
                 alt="Consigli Construction Service Facility"
                 fill
                 className="object-cover object-center"

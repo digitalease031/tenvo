@@ -94,10 +94,38 @@ export function MobileTabHeader({
 }
 
 /**
- * @param {{ items?: MobileStatItem[], layout?: 'scroll' | 'grid' }} props
+ * @param {{ items?: MobileStatItem[], layout?: 'scroll' | 'grid' | 'grid3' }} props
  */
 export function MobileStatStrip({ items = [], layout = 'grid' }) {
   if (!items.length) return null;
+
+  if (layout === 'grid3') {
+    return (
+      <div className="grid grid-cols-3 gap-1.5 lg:hidden">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className={cn(
+              'rounded-xl border bg-white px-2 py-1.5 shadow-sm min-w-0',
+              item.alert ? 'border-red-100' : 'border-gray-100'
+            )}
+          >
+            <p className={cn('text-[9px] font-bold uppercase tracking-tight truncate', item.labelTone || 'text-gray-400')}>
+              {item.label}
+            </p>
+            <p className={cn('mt-0.5 text-xs font-bold tabular-nums leading-tight truncate', item.valueTone || 'text-gray-900')}>
+              {item.value}
+            </p>
+            {item.hint && (
+              <p className={cn('mt-0.5 truncate text-[9px] font-medium', item.hintTone || 'text-gray-400')}>
+                {item.hint}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (layout === 'grid') {
     return (

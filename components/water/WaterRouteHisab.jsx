@@ -2813,7 +2813,7 @@ export function WaterRouteHisab({ businessId, category }) {
           {view === 'expenses' && null /* Actions are in the page header toolbar — no duplicate here */}
         </div>
 
-      <MobileStatStrip items={view === 'daily' ? dayStatItems : view === 'rider-shifts' ? riderStatItems : view === 'bottle-control' ? bottleStatItems : view === 'expenses' ? expenseStatItems : billStatItems} layout="scroll" />
+      <MobileStatStrip items={view === 'daily' ? dayStatItems : view === 'rider-shifts' ? riderStatItems : view === 'bottle-control' ? bottleStatItems : view === 'expenses' ? expenseStatItems : billStatItems} layout="grid3" />
       <HisabKpiStrip items={view === 'daily' ? dayStatItems : view === 'rider-shifts' ? riderStatItems : view === 'bottle-control' ? bottleStatItems : view === 'expenses' ? expenseStatItems : billStatItems} />
 
       <WaterHisabOfflineBanner

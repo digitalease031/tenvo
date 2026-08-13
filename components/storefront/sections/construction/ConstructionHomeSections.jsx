@@ -26,8 +26,8 @@ import {
   FileText,
   Sparkles
 } from 'lucide-react';
-import { notify } from '@/lib/utils/notify';
-import { resolveStoreContact } from '@/lib/storefront/storeContact';
+import notify from '@/lib/utils/appToast';
+import { resolveStoreContact } from '@/lib/storefront/businessContact';
 
 // Curated high-resolution web construction & cleanroom images
 const WEB_IMAGES = {
@@ -195,7 +195,7 @@ const INHOUSE_SERVICES = [
 ];
 
 export function ConstructionHomeSections({ business, settings }) {
-  const contact = resolveStoreContact(business, settings);
+  const contact = resolveStoreContact({ business, settings });
   
   // Interactive tab states
   const [whyTab, setWhyTab] = useState('safety');

@@ -106,8 +106,10 @@ export function ConstructionHub({ constructionOps, isOpsLoading }) {
   const [fleetSummary, setFleetSummary] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
 
-  // Active tab — default to overview
-  const currentTabId = activeTab || 'overview';
+  // Active tab — default to overview. Map generic 'dashboard' → 'overview' for construction.
+  const CONSTRUCTION_TAB_IDS = new Set(CONSTRUCTION_HUB_TABS.map((t) => t.id));
+  const rawTab = activeTab || 'overview';
+  const currentTabId = CONSTRUCTION_TAB_IDS.has(rawTab) ? rawTab : 'overview';
 
   // Filter tabs by plan access
   const availableTabs = useMemo(() =>

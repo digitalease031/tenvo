@@ -441,7 +441,12 @@ export function DashboardTabs({
                 )}
 
                 <TabsContent value="dashboard" forceMount={shouldForceMount('dashboard')} className="data-[state=inactive]:hidden space-y-6 outline-none">
-                    {wrapTab(
+                    {constructionDomain ? wrapTab(
+                        <ConstructionHub
+                            constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                            isOpsLoading={!isDataLoaded}
+                        />
+                    ) : wrapTab(
                         <DomainDashboard
                             businessId={activeBusinessId}
                             category={category}

@@ -48,6 +48,7 @@ import { QUICK_ACTION_IDS } from '@/lib/config/quickActions';
 import { normalizeDashboardTab, resolveDashboardTab, resolveFinanceViewForTab } from '@/lib/config/tabs';
 import { prefetchHubTabChunk } from '@/lib/utils/hubTabNavigation';
 import { TRIAL_CONFIG } from '@/lib/config/platform';
+import { isConstructionDomain } from '@/lib/config/constructionHubNav';
 
 const ActionModals = dynamic(
   () => import('./components/ActionModals').then((m) => ({ default: m.ActionModals })),
@@ -119,6 +120,19 @@ function BusinessDashboardContent() {
   /** Shell HubTabProvider is the paint SOT; URL is shareable sync. */
   const { activeTab: shellActiveTab, goToTab } = useHubTab();
   const activeTab = shellActiveTab || resolvedUrlTab;
+
+  // Construction domain: redirect bare /business/[domain] (no ?tab=) → projects tab.
+  // Fires once when category is resolved and no explicit tab was in the URL.
+  useEffect(() => {
+    if (!category || !business?.id) return;
+    if (!isConstructionDomain(category)) return;
+    // Only redirect when user landed with no tab or the default 'dashboard' tab.
+    const rawTabParam = searchParams.get('tab');
+    if (!rawTabParam || rawTabParam === 'dashboard') {
+      goToTab('projects', { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, business?.id]);
 
   useEffect(() => {
     if (activeTab) prefetchHubTabChunk(activeTab);

@@ -13,7 +13,8 @@ import {
   Scale, RefreshCcw, BookOpen, ScrollText, FileCheck,
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen,
   RotateCcw, ArrowLeftRight, Calendar, Shield, BadgeCheck,
-  ExternalLink, Store, Inbox
+  ExternalLink, Store, Inbox,
+  HardHat, Wrench, Calculator, DollarSign, Layers, Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -36,6 +37,7 @@ import {
 } from '@/lib/config/waterDeliveryHubNav';
 import {
   isConstructionHubNavAllowed,
+  isConstructionDomain,
   mergeConstructionLeanNavSettings,
 } from '@/lib/config/constructionHubNav';
 import { prefetchHubTabChunk } from '@/lib/utils/hubTabNavigation';
@@ -217,6 +219,60 @@ const EASY_NAV_SECTIONS = [
 
 // Legacy reference kept for backward compat (some code may reference it)
 const NAV_SECTIONS = ADVANCED_NAV_SECTIONS;
+
+// ── Construction Domain Nav ───────────────────────────────────────────────────
+// Replaces generic sections entirely for construction-contractor.
+// Maps directly to the ConstructionHub's 11 internal tabs.
+const CONSTRUCTION_NAV_SECTIONS = [
+  {
+    label: 'OVERVIEW',
+    items: [
+      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, alwaysShow: true },
+    ],
+  },
+  {
+    label: 'PROJECTS',
+    items: [
+      { key: 'projects',      label: 'Projects',        icon: Building2,    alwaysShow: true },
+      { key: 'boq',           label: 'BOQ',             icon: Calculator,   alwaysShow: true },
+      { key: 'ipc',           label: 'IPC / Running Bills', icon: FileText, alwaysShow: true },
+      { key: 'procurement',   label: 'Procurement',     icon: Truck,        alwaysShow: true },
+    ],
+  },
+  {
+    label: 'SITE OPERATIONS',
+    items: [
+      { key: 'site-materials', label: 'Site Materials', icon: Layers,       alwaysShow: true },
+      { key: 'machinery',      label: 'Machinery',      icon: Cpu,          alwaysShow: true },
+      { key: 'subcontractors', label: 'Subcontractors', icon: Users,        alwaysShow: true },
+      { key: 'site-ops',       label: 'Site Ops',       icon: HardHat,      alwaysShow: true },
+    ],
+  },
+  {
+    label: 'FINANCE',
+    items: [
+      { key: 'invoices', label: 'Invoices',    icon: FileText,  alwaysShow: true },
+      { key: 'finance',  label: 'Finance Hub', icon: Landmark,  alwaysShow: true },
+      { key: 'payments', label: 'Payments',    icon: CreditCard, alwaysShow: true },
+      { key: 'vendors',  label: 'Vendors',     icon: Building2,  alwaysShow: true },
+      { key: 'gst',      label: 'Tax / WHT',   icon: BadgeDollarSign, alwaysShow: true },
+    ],
+  },
+  {
+    label: 'INTELLIGENCE',
+    items: [
+      { key: 'reports', label: 'Reports & AI', icon: BarChart3, alwaysShow: true },
+      { key: 'audit',   label: 'Audit Trail',  icon: ScrollText },
+    ],
+  },
+  {
+    label: 'SYSTEM',
+    items: [
+      { key: 'settings',       label: 'Settings',       icon: Settings },
+      { key: 'platform-admin', label: 'Platform Admin', icon: Shield, platformOnly: true },
+    ],
+  },
+];
 
 export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarCollapsed }) {
   const { user } = useAuth();
@@ -426,7 +482,7 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
                 />
               ))}
             </div>
-          ) : (isEasyMode ? EASY_NAV_SECTIONS : ADVANCED_NAV_SECTIONS).map((section) => {
+          ) : (isConstructionDomain(category) ? CONSTRUCTION_NAV_SECTIONS : (isEasyMode ? EASY_NAV_SECTIONS : ADVANCED_NAV_SECTIONS)).map((section) => {
             // Filter items for this section based on RBAC + subscription + domain
             const processedItems = section.items.map(item => ({
               ...item,

@@ -26,7 +26,7 @@ import {
   createSiteInspectionAction,
   getSiteInspectionsAction,
 } from '@/lib/actions/construction/siteOperations';
-import { notify } from '@/lib/utils/notify';
+import notify from '@/lib/utils/appToast';
 
 // ── Sub-tab Config ────────────────────────────────────────────────────────────
 

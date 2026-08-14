@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useBusiness } from '@/lib/context/BusinessContext';
 import { calculateIPCPreviewAction, recordIPCAction, updateIPCStatusAction } from '@/lib/actions/construction/ipc';
-import { notify } from '@/lib/utils/notify';
+import notify from '@/lib/utils/appToast';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

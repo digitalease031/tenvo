@@ -21,7 +21,7 @@ import {
   deleteMachineryLogAction,
 } from '@/lib/actions/construction/machinery';
 import { analyzeEquipmentProductivity } from '@/lib/construction/constructionIntelligence';
-import { notify } from '@/lib/utils/notify';
+import notify from '@/lib/utils/appToast';
 
 // ── Common Equipment Types ────────────────────────────────────────────────────
 

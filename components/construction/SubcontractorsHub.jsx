@@ -19,7 +19,7 @@ import {
   releaseSubcontractorRetainageAction,
   updateSubcontractorWorkOrderStatusAction,
 } from '@/lib/actions/construction/subcontractor';
-import { notify } from '@/lib/utils/notify';
+import notify from '@/lib/utils/appToast';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

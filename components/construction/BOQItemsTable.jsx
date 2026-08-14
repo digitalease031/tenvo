@@ -19,7 +19,7 @@ import {
   deleteBOQItemAction,
   analyzeBOQVarianceAction,
 } from '@/lib/actions/construction/boq';
-import { notify } from '@/lib/utils/notify';
+import notify from '@/lib/utils/appToast';
 import { PK_CONSTRUCTION_MATERIAL_RATES_2026 } from '@/lib/construction/constructionIntelligence';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ import {
   updateProjectAction,
   deleteProjectAction,
 } from '@/lib/actions/construction/projects';
-import { notify } from '@/lib/utils/notify';
+import notify from '@/lib/utils/appToast';
 import { formatDistanceToNow } from 'date-fns';
 
 // ── Status Config ─────────────────────────────────────────────────────────────

@@ -22,6 +22,8 @@ import { IPCTimeline } from './IPCCalculator';
 import { MachineryLogbook } from './MachineryLogbook';
 import { SiteOperationsHub } from './SiteOperationsHub';
 import { SubcontractorsHub } from './SubcontractorsHub';
+import { MaterialRateDashboard } from './MaterialRateDashboard';
+import { TaxComplianceDashboard } from './TaxComplianceDashboard';
 import { getProjectsAction, getProjectDetailAction } from '@/lib/actions/construction/projects';
 import { getBOQItemsAction } from '@/lib/actions/construction/boq';
 import { getIPCsAction } from '@/lib/actions/construction/ipc';
@@ -32,18 +34,20 @@ import { CONSTRUCTION_HUB_TABS } from '@/lib/config/constructionHubNav';
 // ── Tab Icon Map ──────────────────────────────────────────────────────────────
 
 const TAB_ICONS = {
-  overview:        LayoutDashboard,
-  projects:        Building2,
-  boq:             Calculator,
-  ipc:             Receipt,
+  overview:         LayoutDashboard,
+  projects:         Building2,
+  boq:              Calculator,
+  ipc:              Receipt,
   'site-materials': Package,
-  machinery:       Truck,
-  subcontractors:  Users,
-  'site-ops':      HardHat,
-  finance:         Banknote,
-  procurement:     ShoppingCart,
-  reports:         BarChart3,
-  settings:        Settings,
+  machinery:        Truck,
+  subcontractors:   Users,
+  'site-ops':       HardHat,
+  'material-rates': Package,
+  'tax-compliance': Receipt,
+  finance:          Banknote,
+  procurement:      ShoppingCart,
+  reports:          BarChart3,
+  settings:         Settings,
 };
 
 // ── Tab Nav Item ──────────────────────────────────────────────────────────────
@@ -274,6 +278,12 @@ export function ConstructionHub({ constructionOps, isOpsLoading }) {
             />
           </div>
         );
+
+      case 'material-rates':
+        return <MaterialRateDashboard />;
+
+      case 'tax-compliance':
+        return <TaxComplianceDashboard />;
 
       default: {
         const tab = availableTabs.find((t) => t.id === currentTabId);

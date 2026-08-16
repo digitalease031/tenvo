@@ -99,6 +99,8 @@ const KEEP_ALIVE_TABS = new Set([
     'site-ops',
     'site-materials',
     'procurement',
+    'material-rates',
+    'tax-compliance',
 ]);
 
 export function DashboardTabs({
@@ -430,6 +432,46 @@ export function DashboardTabs({
                             )}
                         </TabsContent>
                         <TabsContent value="procurement" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="material-rates" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="tax-compliance" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="reports" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="finance" className="data-[state=inactive]:hidden outline-none">
+                            {wrapTab(
+                                <ConstructionHub 
+                                    constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
+                                    isOpsLoading={!isDataLoaded}
+                                />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="settings" className="data-[state=inactive]:hidden outline-none">
                             {wrapTab(
                                 <ConstructionHub 
                                     constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
@@ -818,82 +860,86 @@ export function DashboardTabs({
                 )}
 
                 {/* Legacy accounting/expenses/credit-notes/fiscal/exchange-rates tabs alias → finance via tabs.js */}
-                <TabsContent value="finance" forceMount={shouldForceMount('finance')} className="data-[state=inactive]:hidden space-y-6 outline-none">
-                    {wrapTab(
-                        <TabGuard tabKey="finance" role={role} planTier={planTier} featureName="Finance" onUpgrade={() => handleTabChange('settings')}>
-                            <FinanceHub
-                                businessId={activeBusinessId}
-                                businessCategory={category}
-                                initialTab={financeInitialTab || undefined}
-                                onInitialTabConsumed={onFinanceInitialTabConsumed}
-                            />
-                        </TabGuard>
-                    )}
-                </TabsContent>
+                {!constructionDomain && (
+                    <TabsContent value="finance" forceMount={shouldForceMount('finance')} className="data-[state=inactive]:hidden space-y-6 outline-none">
+                        {wrapTab(
+                            <TabGuard tabKey="finance" role={role} planTier={planTier} featureName="Finance" onUpgrade={() => handleTabChange('settings')}>
+                                <FinanceHub
+                                    businessId={activeBusinessId}
+                                    businessCategory={category}
+                                    initialTab={financeInitialTab || undefined}
+                                    onInitialTabConsumed={onFinanceInitialTabConsumed}
+                                />
+                            </TabGuard>
+                        )}
+                    </TabsContent>
+                )}
 
-                <TabsContent value="reports" forceMount={shouldForceMount('reports')} className="data-[state=inactive]:hidden space-y-4 outline-none">
-                    {wrapTab(
-                        <TabGuard tabKey="reports" role={role} planTier={planTier} featureName="Analytics & AI" onUpgrade={() => handleTabChange('settings')}>
-                            <div className="min-w-0 space-y-4 overflow-x-hidden">
-                                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                                    <h2 className="hidden shrink-0 text-sm font-semibold tracking-tight text-gray-900 sm:block">
-                                        Reports
-                                    </h2>
-                                    <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-gray-100 p-1 scrollbar-none snap-x snap-mandatory">
-                                        {[
-                                            { key: 'analytics', label: 'Analytics', short: 'Analytics' },
-                                            { key: 'forecast', label: 'Demand Forecast', short: 'Forecast' },
-                                            { key: 'ai', label: 'AI Insights', short: 'AI' },
-                                            { key: 'builder', label: 'Report Builder', short: 'Builder' },
-                                        ].map(v => (
-                                            <button
-                                                key={v.key}
-                                                type="button"
-                                                onClick={() => setReportsView(v.key)}
-                                                className={`shrink-0 snap-start rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all sm:px-3 sm:text-xs ${reportsView === v.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                            >
-                                                <span className="sm:hidden">{v.short}</span>
-                                                <span className="hidden sm:inline">{v.label}</span>
-                                            </button>
-                                        ))}
+                {!constructionDomain && (
+                    <TabsContent value="reports" forceMount={shouldForceMount('reports')} className="data-[state=inactive]:hidden space-y-4 outline-none">
+                        {wrapTab(
+                            <TabGuard tabKey="reports" role={role} planTier={planTier} featureName="Analytics & AI" onUpgrade={() => handleTabChange('settings')}>
+                                <div className="min-w-0 space-y-4 overflow-x-hidden">
+                                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                                        <h2 className="hidden shrink-0 text-sm font-semibold tracking-tight text-gray-900 sm:block">
+                                            Reports
+                                        </h2>
+                                        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-gray-100 p-1 scrollbar-none snap-x snap-mandatory">
+                                            {[
+                                                { key: 'analytics', label: 'Analytics', short: 'Analytics' },
+                                                { key: 'forecast', label: 'Demand Forecast', short: 'Forecast' },
+                                                { key: 'ai', label: 'AI Insights', short: 'AI' },
+                                                { key: 'builder', label: 'Report Builder', short: 'Builder' },
+                                            ].map(v => (
+                                                <button
+                                                    key={v.key}
+                                                    type="button"
+                                                    onClick={() => setReportsView(v.key)}
+                                                    className={`shrink-0 snap-start rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all sm:px-3 sm:text-xs ${reportsView === v.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                                >
+                                                    <span className="sm:hidden">{v.short}</span>
+                                                    <span className="hidden sm:inline">{v.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
+                                    {shouldShowReportsView('analytics') ? (
+                                        <div
+                                            className={reportsView === 'analytics' ? 'space-y-4' : 'hidden'}
+                                            aria-hidden={reportsView !== 'analytics'}
+                                        >
+                                            <AdvancedAnalytics businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
+                                        </div>
+                                    ) : null}
+                                    {shouldShowReportsView('forecast') ? (
+                                        <div
+                                            className={reportsView === 'forecast' ? 'space-y-4' : 'hidden'}
+                                            aria-hidden={reportsView !== 'forecast'}
+                                        >
+                                            <DemandForecast businessId={activeBusinessId} category={category} products={products} invoices={invoices} domainKnowledge={domainKnowledge} dateRange={dateRange} />
+                                        </div>
+                                    ) : null}
+                                    {shouldShowReportsView('ai') ? (
+                                        <div
+                                            className={reportsView === 'ai' ? 'space-y-4' : 'hidden'}
+                                            aria-hidden={reportsView !== 'ai'}
+                                        >
+                                            <AIInsightsPanel businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
+                                        </div>
+                                    ) : null}
+                                    {shouldShowReportsView('builder') ? (
+                                        <div
+                                            className={reportsView === 'builder' ? 'space-y-4' : 'hidden'}
+                                            aria-hidden={reportsView !== 'builder'}
+                                        >
+                                            <ReportBuilder businessId={activeBusinessId} currency={currency} dateRange={dateRange} />
+                                        </div>
+                                    ) : null}
                                 </div>
-                                {shouldShowReportsView('analytics') ? (
-                                    <div
-                                        className={reportsView === 'analytics' ? 'space-y-4' : 'hidden'}
-                                        aria-hidden={reportsView !== 'analytics'}
-                                    >
-                                        <AdvancedAnalytics businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
-                                    </div>
-                                ) : null}
-                                {shouldShowReportsView('forecast') ? (
-                                    <div
-                                        className={reportsView === 'forecast' ? 'space-y-4' : 'hidden'}
-                                        aria-hidden={reportsView !== 'forecast'}
-                                    >
-                                        <DemandForecast businessId={activeBusinessId} category={category} products={products} invoices={invoices} domainKnowledge={domainKnowledge} dateRange={dateRange} />
-                                    </div>
-                                ) : null}
-                                {shouldShowReportsView('ai') ? (
-                                    <div
-                                        className={reportsView === 'ai' ? 'space-y-4' : 'hidden'}
-                                        aria-hidden={reportsView !== 'ai'}
-                                    >
-                                        <AIInsightsPanel businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
-                                    </div>
-                                ) : null}
-                                {shouldShowReportsView('builder') ? (
-                                    <div
-                                        className={reportsView === 'builder' ? 'space-y-4' : 'hidden'}
-                                        aria-hidden={reportsView !== 'builder'}
-                                    >
-                                        <ReportBuilder businessId={activeBusinessId} currency={currency} dateRange={dateRange} />
-                                    </div>
-                                ) : null}
-                            </div>
-                        </TabGuard>
-                    )}
-                </TabsContent>
+                            </TabGuard>
+                        )}
+                    </TabsContent>
+                )}
 
                 <TabsContent value="campaigns" forceMount={shouldForceMount('campaigns')} className="data-[state=inactive]:hidden space-y-6 outline-none">
                     {wrapTab(
@@ -1316,13 +1362,15 @@ export function DashboardTabs({
                     )}
                 </TabsContent>
 
-                <TabsContent value="settings" forceMount={shouldForceMount('settings')} className="data-[state=inactive]:hidden space-y-6 outline-none">
-                    {wrapTab(
-                        <TabGuard tabKey="settings" role={role} planTier={planTier} featureName="Settings" onUpgrade={() => handleTabChange('settings')}>
-                            <SettingsManager category={category} />
-                        </TabGuard>
-                    )}
-                </TabsContent>
+                {!constructionDomain && (
+                    <TabsContent value="settings" forceMount={shouldForceMount('settings')} className="data-[state=inactive]:hidden space-y-6 outline-none">
+                        {wrapTab(
+                            <TabGuard tabKey="settings" role={role} planTier={planTier} featureName="Settings" onUpgrade={() => handleTabChange('settings')}>
+                                <SettingsManager category={category} />
+                            </TabGuard>
+                        )}
+                    </TabsContent>
+                )}
 
                 {/* --- Store Settings Tab --- */}
                 <TabsContent value="store-settings" forceMount={shouldForceMount('store-settings')} className="data-[state=inactive]:hidden space-y-6 outline-none">

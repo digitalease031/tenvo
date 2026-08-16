@@ -108,20 +108,36 @@ function LogFormModal({ projectId, onClose, onSuccess }) {
     });
   }, [form.hours_worked, form.fuel_consumed_litres, form.output_qty, form.output_unit, form.equipment_type]);
 
+  const { business } = useBusiness();
+  const businessId = business?.id;
+
   const handleSubmit = () => {
     if (!form.hours_worked || !form.fuel_consumed_litres) {
       notify.error('Hours worked and fuel consumed are required');
       return;
     }
+    if (!businessId) {
+      notify.error('Business ID missing');
+      return;
+    }
     startTransition(async () => {
-      const res = await logMachineryOperationAction({
+      const startHrs = form.start_hour_meter ? parseFloat(form.start_hour_meter) : 0;
+      const hoursWorked = parseFloat(form.hours_worked) || 8;
+      const endHrs = form.end_hour_meter ? parseFloat(form.end_hour_meter) : startHrs + hoursWorked;
+
+      const res = await logMachineryOperationAction(businessId, {
         project_id: projectId,
         ...form,
-        hours_worked: parseFloat(form.hours_worked),
-        fuel_consumed_litres: parseFloat(form.fuel_consumed_litres),
+        machinery_code: form.equipment_id ? form.equipment_id.trim() : `EQ-${Date.now().toString().slice(-4)}`,
+        machinery_name: form.equipment_type || 'Excavator (CAT 320)',
+        equipment_type: form.equipment_type || 'Excavator (CAT 320)',
+        operator_name: form.operator_name ? form.operator_name.trim() : 'Site Operator',
+        start_hours: startHrs,
+        end_hours: Math.max(endHrs, startHrs),
+        hours_worked: hoursWorked,
+        fuel_litres: parseFloat(form.fuel_consumed_litres) || 0,
+        fuel_consumed_litres: parseFloat(form.fuel_consumed_litres) || 0,
         output_qty: parseFloat(form.output_qty) || 0,
-        start_hour_meter: form.start_hour_meter ? parseFloat(form.start_hour_meter) : undefined,
-        end_hour_meter: form.end_hour_meter ? parseFloat(form.end_hour_meter) : undefined,
         rental_rate_per_hour: form.rental_rate_per_hour ? parseFloat(form.rental_rate_per_hour) : undefined,
       });
       if (res?.success) {
@@ -386,9 +402,10 @@ export function MachineryLogbook({ projectId, logs = [], fleetSummary = [], onRe
   }), [logs]);
 
   const handleDelete = (log) => {
+    if (!business?.id) return;
     if (!window.confirm('Delete this log entry?')) return;
     startTransition(async () => {
-      const res = await deleteMachineryLogAction(log.id);
+      const res = await deleteMachineryLogAction(business.id, log.id);
       if (res?.success) { notify.compactSave('Log deleted'); onRefresh?.(); }
       else notify.error(res?.error || 'Failed to delete');
     });

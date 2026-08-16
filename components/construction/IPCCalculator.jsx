@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBusiness } from '@/lib/context/BusinessContext';
-import { calculateIPCPreviewAction, recordIPCAction, updateIPCStatusAction } from '@/lib/actions/construction/ipc';
+import { recordIPCAction, updateIPCStatusAction } from '@/lib/actions/construction/ipc';
+import { computeIPCRunningBill } from '@/lib/construction/constructionIntelligence';
 import notify from '@/lib/utils/appToast';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -76,48 +77,37 @@ function CalcRow({ label, value, currency, indent = false, bold = false, highlig
 function IPCCalcForm({ project, onSave, onClose }) {
   const { business } = useBusiness();
   const currency = business?.settings?.financials?.currency || 'PKR';
-  const [isPending, startTransition] = useTransition();
-  const [isCalcPending, startCalc] = useTransition();
-
-  const [form, setForm] = useState({
-    ipc_number: (project?._count?.ipcs || 0) + 1,
-    period_ending: '',
-    gross_certified_amount: '',
-    escalation_amount: '0',
-    secured_advance: '0',
-    is_company_contractor: true,
-    has_wht_exemption: false,
-    engineer_remarks: '',
-    contractor_remarks: '',
-  });
-  const [calc, setCalc] = useState(null);
-
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
-
-  // Auto-calculate on input change
-  useEffect(() => {
+  // Instant client-side calculation preview
+  const calc = useMemo(() => {
     const gross = parseFloat(form.gross_certified_amount);
-    if (!gross || !project) return;
-    startCalc(async () => {
-      const res = await calculateIPCPreviewAction(project.id, {
-        gross_certified_amount: gross,
-        escalation_amount: parseFloat(form.escalation_amount) || 0,
-        secured_advance: parseFloat(form.secured_advance) || 0,
-        is_company_contractor: form.is_company_contractor,
-        has_wht_exemption: form.has_wht_exemption,
-      });
-      if (res?.success) setCalc(res.calculation);
+    if (!gross || !project) return null;
+    return computeIPCRunningBill({
+      grossCertifiedAmount: gross,
+      cumulativePreviousIPCs: Number(project.cumulative_certified || 0),
+      contractValue: Number(project.contract_value || 0),
+      mobilizationAdvancePct: Number(project.mobilization_adv_pct || 10),
+      mobilizationRecovered: Number(project.mobilization_recovered || 0),
+      retentionPct: Number(project.retention_pct || 5),
+      retentionReleased: 0,
+      isCompanyContractor: form.is_company_contractor,
+      provinceCode: project.province_code || 'PK-PB',
+      hasWhtExemption: form.has_wht_exemption,
+      escalationAmount: parseFloat(form.escalation_amount) || 0,
+      securedAdvance: parseFloat(form.secured_advance) || 0,
     });
-  }, [form.gross_certified_amount, form.escalation_amount, form.secured_advance,
-      form.is_company_contractor, form.has_wht_exemption, project]);
+  }, [form.gross_certified_amount, form.escalation_amount, form.secured_advance, form.is_company_contractor, form.has_wht_exemption, project]);
 
   const handleSave = () => {
     if (!form.period_ending || !form.gross_certified_amount) {
       notify.error('Please fill in required fields');
       return;
     }
+    if (!businessId) {
+      notify.error('Business ID missing');
+      return;
+    }
     startTransition(async () => {
-      const res = await recordIPCAction({
+      const res = await recordIPCAction(businessId, {
         project_id: project.id,
         ...form,
         ipc_number: parseInt(form.ipc_number),
@@ -294,8 +284,9 @@ export function IPCTimeline({ project, ipcs = [], onRefresh }) {
   const [isPending, startTransition] = useTransition();
 
   const handleStatusUpdate = (ipc, nextStatus) => {
+    if (!business?.id) return;
     startTransition(async () => {
-      const res = await updateIPCStatusAction(ipc.id, nextStatus);
+      const res = await updateIPCStatusAction(business.id, ipc.id, nextStatus);
       if (res?.success) {
         notify.compactSave(`IPC #${ipc.ipc_number} marked ${nextStatus.toLowerCase()}`);
         onRefresh?.();

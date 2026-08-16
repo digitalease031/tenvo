@@ -297,9 +297,25 @@ export function MaterialRateDashboard() {
   // Filter materials
   const filteredMaterials = useMemo(() => {
     return allMaterials.filter((material) => {
-      const matchesSearch = material.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      const matchesSearch = !searchQuery ||
+        material.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         material.data.category?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || material.data.category === selectedCategory;
+
+      const cat = (material.data.category || '').toLowerCase();
+      let matchesCategory = selectedCategory === 'all';
+      if (!matchesCategory) {
+        if (selectedCategory === 'steel') matchesCategory = cat === 'steel';
+        else if (selectedCategory === 'cement') matchesCategory = cat === 'cement';
+        else if (selectedCategory === 'concrete') matchesCategory = cat === 'concrete' || cat === 'service';
+        else if (selectedCategory === 'bitumen') matchesCategory = cat === 'bitumen' || cat === 'asphalt';
+        else if (selectedCategory === 'aggregate') matchesCategory = cat === 'aggregate';
+        else if (selectedCategory === 'sand') matchesCategory = cat === 'sand';
+        else if (selectedCategory === 'masonry') matchesCategory = cat === 'masonry';
+        else if (selectedCategory === 'machinery') matchesCategory = cat === 'machinery';
+        else if (selectedCategory === 'labor') matchesCategory = cat === 'labor' || cat === 'professional';
+        else if (selectedCategory === 'fuel') matchesCategory = cat === 'fuel' || cat === 'energy';
+        else matchesCategory = cat === selectedCategory;
+      }
       return matchesSearch && matchesCategory;
     });
   }, [allMaterials, searchQuery, selectedCategory]);

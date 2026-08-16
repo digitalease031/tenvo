@@ -15,7 +15,7 @@ import { useBusiness } from '@/lib/context/BusinessContext';
 // ── Tax Calculator Widget ────────────────────────────────────────────────────
 
 function TaxCalculatorWidget({ currency }) {
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState('50000000');
   const [isFiler, setIsFiler] = useState(true);
   const [province, setProvince] = useState('PK-PB');
 

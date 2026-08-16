@@ -20,7 +20,11 @@ import {
   analyzeBOQVarianceAction,
 } from '@/lib/actions/construction/boq';
 import notify from '@/lib/utils/appToast';
-import { PK_CONSTRUCTION_MATERIAL_RATES_2026 } from '@/lib/construction/constructionIntelligence';
+import {
+  PK_CONSTRUCTION_MATERIAL_RATES_2026,
+  CONSTRUCTION_SOR_REFERENCES,
+  BOQ_ITEM_PRESETS,
+} from '@/lib/construction/constructionIntelligence';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -98,8 +102,15 @@ function BOQFormModal({ item = null, projectId, onClose, onSuccess }) {
 
   const estimatedTotal = (parseFloat(form.estimated_qty) || 0) * (parseFloat(form.estimated_rate) || 0);
 
+  const { business } = useBusiness();
+  const businessId = business?.id;
+
   const handleSubmit = (e) => {
     e?.preventDefault();
+    if (!businessId) {
+      notify.error('Business ID missing');
+      return;
+    }
     startTransition(async () => {
       const payload = {
         project_id: projectId,
@@ -113,7 +124,7 @@ function BOQFormModal({ item = null, projectId, onClose, onSuccess }) {
         machinery_cost_ratio: parseFloat(form.machinery_cost_ratio) || 0.1,
         overhead_ratio: parseFloat(form.overhead_ratio) || 0.05,
       };
-      const action = item ? updateBOQItemAction(item.id, payload) : addBOQItemAction(payload);
+      const action = item ? updateBOQItemAction(businessId, item.id, payload) : addBOQItemAction(businessId, payload);
       const res = await action;
       if (res?.success) {
         notify.compactSave(item ? 'BOQ item updated' : 'BOQ item added');
@@ -210,10 +221,19 @@ function BOQFormModal({ item = null, projectId, onClose, onSuccess }) {
                 placeholder="MRS-PUNJAB-14.2" />
             </div>
             <div>
-              <label className={lbl}>SOR Reference</label>
-              <input className={inp} value={form.sor_reference}
+              <label className={lbl}>SOR Reference Schedule</label>
+              <select
+                className={inp}
+                value={form.sor_reference}
                 onChange={(e) => set('sor_reference', e.target.value)}
-                placeholder="Punjab MRS 2026 Item 14" />
+              >
+                <option value="">— Select Schedule of Rates —</option>
+                {CONSTRUCTION_SOR_REFERENCES.map((sor) => (
+                  <option key={sor.code} value={sor.code}>
+                    {sor.label} ({sor.issuer})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -284,9 +304,10 @@ export function BOQItemsTable({ projectId, boqItems = [], onRefresh }) {
     : '0.0';
 
   const handleDelete = (item) => {
+    if (!business?.id) return;
     if (!window.confirm(`Delete BOQ item "${item.item_no} — ${item.description}"?`)) return;
     startTransition(async () => {
-      const res = await deleteBOQItemAction(item.id);
+      const res = await deleteBOQItemAction(business.id, item.id);
       if (res?.success) {
         notify.compactSave('BOQ item deleted');
         onRefresh?.();
@@ -297,8 +318,9 @@ export function BOQItemsTable({ projectId, boqItems = [], onRefresh }) {
   };
 
   const handleAnalyze = () => {
+    if (!business?.id) return;
     startTransition(async () => {
-      const res = await analyzeBOQVarianceAction(projectId);
+      const res = await analyzeBOQVarianceAction(business.id, projectId);
       if (res?.success) {
         setVariance(res.analysis);
         setShowVariance(true);
@@ -320,11 +342,24 @@ export function BOQItemsTable({ projectId, boqItems = [], onRefresh }) {
         </div>
         <div className="flex items-center gap-2">
           {boqItems.length > 0 && (
-            <button onClick={handleAnalyze} disabled={isPending}
-              className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
-              <TrendingUp className="h-3.5 w-3.5" />
-              Variance Analysis
-            </button>
+            <>
+              <button onClick={handleAnalyze} disabled={isPending}
+                className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Variance Analysis
+              </button>
+              <button
+                onClick={() => {
+                  import('@/lib/pdf/constructionReportPdfManager').then(({ exportBOQEstimatePdf }) => {
+                    exportBOQEstimatePdf({ boqItems, project: { code: projectId, name: 'BOQ Estimation Schedule' }, business });
+                  });
+                }}
+                className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export BOQ PDF
+              </button>
+            </>
           )}
           <button onClick={() => setShowAdd(true)}
             className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 shadow-sm">
@@ -360,10 +395,42 @@ export function BOQItemsTable({ projectId, boqItems = [], onRefresh }) {
           <Calculator className="h-10 w-10 text-gray-300 mb-3" />
           <p className="text-sm font-semibold text-gray-500">No BOQ items yet</p>
           <p className="mt-1 text-xs text-gray-400">Add line items with MRS/CSR rates to start tracking costs</p>
-          <button onClick={() => setShowAdd(true)}
-            className="mt-4 flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-            <Plus className="h-4 w-4" /> Add First Item
-          </button>
+          <div className="mt-4 flex items-center gap-3">
+            <button onClick={() => setShowAdd(true)}
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              <Plus className="h-4 w-4" /> Add Line Item
+            </button>
+            <button
+              onClick={async () => {
+                if (!businessId || !projectId) return;
+                notify.compactSave('Pre-loading standard Pakistani BOQ items...');
+                for (const cat of BOQ_ITEM_PRESETS || []) {
+                  for (const preset of cat.items || []) {
+                    await addBOQItemAction(businessId, {
+                      project_id: projectId,
+                      item_no: preset.schedule_code,
+                      description: preset.description,
+                      unit: preset.unit,
+                      estimated_qty: 100,
+                      estimated_rate: preset.estimatedRate,
+                      schedule_code: preset.schedule_code,
+                      sor_reference: preset.sor_reference,
+                      material_cost_ratio: parseFloat(preset.material_cost_ratio),
+                      labor_cost_ratio: parseFloat(preset.labor_cost_ratio),
+                      machinery_cost_ratio: parseFloat(preset.machinery_cost_ratio),
+                      overhead_ratio: parseFloat(preset.overhead_ratio),
+                      work_phase: preset.work_phase,
+                    });
+                  }
+                }
+                onRefresh?.();
+                notify.compactSave('Pre-loaded 20+ standard BOQ work items successfully');
+              }}
+              className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+            >
+              <Calculator className="h-4 w-4" /> Pre-load Standard BOQ
+            </button>
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200">

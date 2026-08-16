@@ -107,6 +107,7 @@ const ADVANCED_NAV_SECTIONS = [
     label: 'FINANCE',
     items: [
       { key: 'finance', label: 'Finance Hub', icon: Landmark, alwaysShow: true },
+      { key: 'personal-finance', label: 'Personal Finance', icon: ShieldCheck, alwaysShow: true },
       { key: 'payments', label: 'Payments', icon: CreditCard, alwaysShow: true },
       { key: 'gst', label: 'Tax / GST', icon: BadgeDollarSign, alwaysShow: true },
     ]
@@ -189,6 +190,7 @@ const EASY_NAV_SECTIONS = [
     label: 'MONEY',
     items: [
       { key: 'finance', label: 'Finance Hub', icon: Landmark, alwaysShow: true },
+      { key: 'personal-finance', label: 'Personal Finance', icon: ShieldCheck, alwaysShow: true },
       { key: 'payments', label: 'Payments', icon: CreditCard, alwaysShow: true },
       { key: 'gst', label: 'Tax / GST', icon: BadgeDollarSign, alwaysShow: true },
     ]
@@ -222,54 +224,41 @@ const NAV_SECTIONS = ADVANCED_NAV_SECTIONS;
 
 // ── Construction Domain Nav ───────────────────────────────────────────────────
 // Replaces generic sections entirely for construction-contractor.
-// Maps directly to the ConstructionHub's 11 internal tabs.
+// Maps directly to the ConstructionHub's internal tabs without duplicates.
 const CONSTRUCTION_NAV_SECTIONS = [
   {
-    label: 'OVERVIEW',
+    label: 'OVERVIEW & INTELLIGENCE',
     items: [
-      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, alwaysShow: true },
+      { key: 'dashboard',      label: 'Dashboard',             icon: LayoutDashboard, alwaysShow: true },
+      { key: 'material-rates', label: 'Material Rates (2026)', icon: Package,         alwaysShow: true },
+      { key: 'tax-compliance', label: 'Tax Compliance (FBR/WHT)', icon: Receipt,      alwaysShow: true },
     ],
   },
   {
-    label: 'PROJECTS',
+    label: 'PROJECT MANAGEMENT',
     items: [
-      { key: 'projects',      label: 'Projects',        icon: Building2,    alwaysShow: true },
-      { key: 'boq',           label: 'BOQ',             icon: Calculator,   alwaysShow: true },
-      { key: 'ipc',           label: 'IPC / Running Bills', icon: FileText, alwaysShow: true },
-      { key: 'procurement',   label: 'Procurement',     icon: Truck,        alwaysShow: true },
+      { key: 'projects', label: 'Projects',         icon: Building2,  alwaysShow: true },
+      { key: 'boq',      label: 'BOQ & Estimation', icon: Calculator, alwaysShow: true },
+      { key: 'ipc',      label: 'IPC & Billing',    icon: FileText,   alwaysShow: true },
     ],
   },
   {
-    label: 'SITE OPERATIONS',
+    label: 'SITE & FIELD OPERATIONS',
     items: [
-      { key: 'site-materials', label: 'Site Materials', icon: Layers,       alwaysShow: true },
-      { key: 'machinery',      label: 'Machinery',      icon: Cpu,          alwaysShow: true },
-      { key: 'subcontractors', label: 'Subcontractors', icon: Users,        alwaysShow: true },
-      { key: 'site-ops',       label: 'Site Ops',       icon: HardHat,      alwaysShow: true },
+      { key: 'site-materials', label: 'Site Materials',   icon: Layers,  alwaysShow: true },
+      { key: 'machinery',      label: 'Plant & Machinery',icon: Cpu,     alwaysShow: true },
+      { key: 'subcontractors', label: 'Subcontractors',   icon: Users,   alwaysShow: true },
+      { key: 'site-ops',       label: 'Site Operations',  icon: HardHat, alwaysShow: true },
     ],
   },
   {
-    label: 'FINANCE',
+    label: 'FINANCE & COMPLIANCE',
     items: [
-      { key: 'invoices', label: 'Invoices',    icon: FileText,  alwaysShow: true },
-      { key: 'finance',  label: 'Finance Hub', icon: Landmark,  alwaysShow: true },
-      { key: 'payments', label: 'Payments',    icon: CreditCard, alwaysShow: true },
-      { key: 'vendors',  label: 'Vendors',     icon: Building2,  alwaysShow: true },
-      { key: 'gst',      label: 'Tax / WHT',   icon: BadgeDollarSign, alwaysShow: true },
-    ],
-  },
-  {
-    label: 'INTELLIGENCE',
-    items: [
-      { key: 'reports', label: 'Reports & AI', icon: BarChart3, alwaysShow: true },
-      { key: 'audit',   label: 'Audit Trail',  icon: ScrollText },
-    ],
-  },
-  {
-    label: 'SYSTEM',
-    items: [
-      { key: 'settings',       label: 'Settings',       icon: Settings },
-      { key: 'platform-admin', label: 'Platform Admin', icon: Shield, platformOnly: true },
+      { key: 'finance',        label: 'Finance',        icon: Landmark,  alwaysShow: true },
+      { key: 'procurement',   label: 'Procurement',   icon: Truck,     alwaysShow: true },
+      { key: 'reports',        label: 'Reports',        icon: BarChart3, alwaysShow: true },
+      { key: 'settings',       label: 'Settings',       icon: Settings,  alwaysShow: true },
+      { key: 'platform-admin', label: 'Platform Admin', icon: Shield,    platformOnly: true },
     ],
   },
 ];
@@ -289,6 +278,11 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
   // Use actual business category for logic, but handle for base URLs
   const category = business?.category || handleFromUrl;
   const baseUrl = `/business/${handleFromUrl}`;
+
+  // Construction domain uses its dedicated layout-embedded ConstructionHub sidebar — hide outer main sidebar
+  if (isConstructionDomain(category)) {
+    return null;
+  }
 
   const domainKnowledge = getDomainKnowledgeForBusiness(category, business);
   const posRelevant = isPosRelevantDomain(category, domainKnowledge);

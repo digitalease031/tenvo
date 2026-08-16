@@ -35,6 +35,7 @@ import { formatDisplayDate } from '@/lib/utils/formatDisplayDate';
 import { accountingAPI } from '@/lib/api/accounting';
 import { resolveFinanceHubNavigation } from '@/lib/config/tabs';
 import { navigateHubTab } from '@/lib/utils/hubTabNavigation';
+import { PersonalFinanceManager } from '@/components/finance/PersonalFinanceManager';
 
 // --- Sub-Tab Definitions -----------------------------------------------------
 
@@ -46,6 +47,7 @@ const FINANCE_TABS = [
     { key: 'general-ledger', label: 'General Ledger', shortLabel: 'Ledger', icon: BookOpen, permission: 'finance.view_gl', feature: 'basic_accounting', group: 'Books' },
     { key: 'reconciliation', label: 'Bank Reconciliation', shortLabel: 'Bank Rec', icon: Landmark, permission: 'finance.view_gl', feature: 'basic_accounting', group: 'Books' },
     { key: 'expenses', label: 'Expenses', shortLabel: 'Expenses', icon: Receipt, permission: 'finance.manage_expenses', feature: 'expense_tracking', group: 'Cash' },
+    { key: 'personal-finance', label: 'Personal Finance', shortLabel: 'Personal', icon: Landmark, permission: 'finance.view_reports', feature: null, group: 'Cash' },
     { key: 'credit-notes', label: 'Credit Notes', shortLabel: 'Credits', icon: RefreshCcw, permission: 'finance.credit_notes', feature: 'credit_notes', group: 'Cash' },
     { key: 'fiscal', label: 'Fiscal Periods', shortLabel: 'Fiscal', icon: CalendarRange, permission: 'finance.close_period', feature: 'fiscal_periods', group: 'Close' },
     { key: 'exchange', label: 'Exchange Rates', shortLabel: 'FX Rates', icon: Globe, permission: 'finance.exchange_rates', feature: 'exchange_rates', group: 'Close' },
@@ -876,6 +878,8 @@ export default function FinanceHub({ businessId, initialTab, businessCategory = 
                         accounts={accounts}
                     />
                 );
+            case 'personal-finance':
+                return <PersonalFinanceManager businessId={effectiveBusinessId} currency={effectiveCurrency} />;
             case 'credit-notes':
                 return <CreditNotesPanel businessId={effectiveBusinessId} creditNotes={creditNotes} currency={effectiveCurrency} onRefresh={() => loadData({ force: true })} />;
             case 'fiscal':

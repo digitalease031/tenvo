@@ -65,13 +65,20 @@ function WorkOrderFormModal({ projectId, onClose, onSuccess }) {
   });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+  const { business } = useBusiness();
+  const businessId = business?.id;
+
   const handleSubmit = () => {
     if (!form.work_order_no || !form.subcontractor_name || !form.work_order_value || !form.scope_of_work) {
       notify.error('Please fill required fields');
       return;
     }
+    if (!businessId) {
+      notify.error('Business ID missing');
+      return;
+    }
     startTransition(async () => {
-      const res = await createSubcontractorWorkOrderAction({
+      const res = await createSubcontractorWorkOrderAction(businessId, {
         project_id: projectId,
         ...form,
         work_order_value: parseFloat(form.work_order_value),
@@ -160,10 +167,14 @@ function CertifyModal({ workOrder, currency, onClose, onSuccess }) {
   const thisRetainage = amount ? parseFloat(amount) * (Number(workOrder.retainage_pct) / 100) : 0;
   const netPayable = amount ? parseFloat(amount) - thisRetainage : 0;
 
+  const { business } = useBusiness();
+  const businessId = business?.id;
+
   const handleSubmit = () => {
     if (!amount || parseFloat(amount) <= 0) { notify.error('Enter amount to certify'); return; }
+    if (!businessId) { notify.error('Business ID missing'); return; }
     startTransition(async () => {
-      const res = await certifySubcontractorWorkAction(workOrder.id, {
+      const res = await certifySubcontractorWorkAction(businessId, workOrder.id, {
         amount_to_certify: parseFloat(amount),
         payment_reference: ref,
       });
@@ -364,8 +375,9 @@ export function SubcontractorsHub({ projectId, workOrders = [], onRefresh }) {
   }), [workOrders]);
 
   const handleStatusChange = (wo, status) => {
+    if (!business?.id) return;
     startTransition(async () => {
-      const res = await updateSubcontractorWorkOrderStatusAction(wo.id, status);
+      const res = await updateSubcontractorWorkOrderStatusAction(business.id, wo.id, status);
       if (res?.success) { notify.compactSave(`Work order ${status.toLowerCase()}`); onRefresh?.(); }
       else notify.error(res?.error || 'Status update failed');
     });
@@ -376,8 +388,9 @@ export function SubcontractorsHub({ projectId, workOrders = [], onRefresh }) {
       notify.error('Enter release amount');
       return;
     }
+    if (!business?.id) return;
     startTransition(async () => {
-      const res = await releaseSubcontractorRetainageAction(releaseWO.id, parseFloat(releaseAmount));
+      const res = await releaseSubcontractorRetainageAction(business.id, releaseWO.id, parseFloat(releaseAmount));
       if (res?.success) { notify.compactSave('Retainage released'); setReleaseWO(null); setReleaseAmount(''); onRefresh?.(); }
       else notify.error(res?.error || 'Release failed');
     });

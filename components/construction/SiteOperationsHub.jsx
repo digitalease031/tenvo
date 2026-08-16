@@ -97,10 +97,14 @@ function DailyReportForm({ projectId, onClose, onSuccess }) {
   });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+  const { business } = useBusiness();
+  const businessId = business?.id;
+
   const handleSubmit = () => {
     if (!form.work_description) { notify.error('Work description is required'); return; }
+    if (!businessId) { notify.error('Business ID missing'); return; }
     startTransition(async () => {
-      const res = await createDailyWorkReportAction({
+      const res = await createDailyWorkReportAction(businessId, {
         project_id: projectId,
         ...form,
         manpower_on_site: form.manpower_on_site ? parseInt(form.manpower_on_site) : undefined,
@@ -169,10 +173,14 @@ function SafetyLogForm({ projectId, onClose, onSuccess }) {
   });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+  const { business } = useBusiness();
+  const businessId = business?.id;
+
   const handleSubmit = () => {
     if (!form.description) { notify.error('Description is required'); return; }
+    if (!businessId) { notify.error('Business ID missing'); return; }
     startTransition(async () => {
-      const res = await createSafetyLogAction({ project_id: projectId, ...form });
+      const res = await createSafetyLogAction(businessId, { project_id: projectId, ...form });
       if (res?.success) { notify.compactSave('Safety log recorded'); onSuccess?.(); onClose(); }
       else notify.error(res?.error || 'Failed to save');
     });
@@ -253,10 +261,14 @@ function QualityTestForm({ projectId, onClose, onSuccess }) {
   });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+  const { business: testBusiness } = useBusiness();
+  const testBusinessId = testBusiness?.id;
+
   const handleSubmit = () => {
     if (!form.test_results) { notify.error('Test results are required'); return; }
+    if (!testBusinessId) { notify.error('Business ID missing'); return; }
     startTransition(async () => {
-      const res = await createQualityTestAction({ project_id: projectId, ...form });
+      const res = await createQualityTestAction(testBusinessId, { project_id: projectId, ...form });
       if (res?.success) { notify.compactSave('Quality test recorded'); onSuccess?.(); onClose(); }
       else notify.error(res?.error || 'Failed to save');
     });
@@ -331,13 +343,16 @@ export function SiteOperationsHub({
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  const { business } = useBusiness();
+
   const criticalSafety = safetyLogs.filter(l => ['HIGH','CRITICAL'].includes(l.severity) && ['OPEN','IN_PROGRESS'].includes(l.status));
   const failedTests = qualityTests.filter(t => t.pass_fail_status === 'FAIL');
   const nonCompliant = inspections.filter(i => i.compliance_status === 'NON_COMPLIANT');
 
   const handleStatusUpdate = (logId, status) => {
+    if (!business?.id) return;
     startTransition(async () => {
-      const res = await updateSafetyLogStatusAction(logId, status);
+      const res = await updateSafetyLogStatusAction(business.id, logId, status);
       if (res?.success) { notify.compactSave('Status updated'); onRefresh?.(); }
     });
   };

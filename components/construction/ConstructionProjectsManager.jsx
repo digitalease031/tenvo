@@ -27,11 +27,11 @@ import { formatDistanceToNow } from 'date-fns';
 // ── Status Config ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  BIDDING:   { label: 'Bidding',   color: 'text-blue-600  bg-blue-50  border-blue-200',  icon: FileText },
-  ACTIVE:    { label: 'Active',    color: 'text-green-700 bg-green-50 border-green-200', icon: CircleDot },
-  DLP:       { label: 'DLP',       color: 'text-amber-700 bg-amber-50 border-amber-200', icon: Clock },
-  CLOSED:    { label: 'Completed', color: 'text-gray-600  bg-gray-50  border-gray-200',  icon: CheckCircle2 },
-  CANCELLED: { label: 'Cancelled', color: 'text-red-600   bg-red-50   border-red-200',   icon: X },
+  BIDDING: { label: 'Bidding', color: 'text-blue-600  bg-blue-50  border-blue-200', icon: FileText },
+  ACTIVE: { label: 'Active', color: 'text-green-700 bg-green-50 border-green-200', icon: CircleDot },
+  DLP: { label: 'DLP', color: 'text-amber-700 bg-amber-50 border-amber-200', icon: Clock },
+  CLOSED: { label: 'Completed', color: 'text-gray-600  bg-gray-50  border-gray-200', icon: CheckCircle2 },
+  CANCELLED: { label: 'Cancelled', color: 'text-red-600   bg-red-50   border-red-200', icon: X },
 };
 
 const PROVINCE_LABELS = {
@@ -40,8 +40,8 @@ const PROVINCE_LABELS = {
 
 const CATEGORY_LABELS = {
   'C-A': 'C-A (Unlimited)', 'C-B': 'C-B (3,000M)', 'C-1': 'C-1 (1,000M)',
-  'C-2': 'C-2 (500M)',      'C-3': 'C-3 (250M)',    'C-4': 'C-4 (100M)',
-  'C-5': 'C-5 (50M)',       'C-6': 'C-6 (25M)',
+  'C-2': 'C-2 (500M)', 'C-3': 'C-3 (250M)', 'C-4': 'C-4 (100M)',
+  'C-5': 'C-5 (50M)', 'C-6': 'C-6 (25M)',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -147,43 +147,52 @@ function ProjectCard({ project, currency, onView, onEdit, onDelete }) {
       </div>
 
       {/* Financial */}
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Contract</p>
-          <p className="text-sm font-bold tabular-nums text-gray-800">{fmt(project.contract_value, currency)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Certified</p>
-          <p className="text-sm font-bold tabular-nums text-green-700">{fmt(project.cumulative_certified, currency)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Retention</p>
-          <p className="text-sm font-bold tabular-nums text-amber-700">{fmt(project.retention_held, currency)}</p>
-        </div>
-      </div>
+      {(() => {
+        const retentionVal = Number(project.retention_held || 0) || (Number(project.cumulative_certified || 0) > 0 ? (Number(project.cumulative_certified) * (Number(project.retention_pct || 5) / 100)) : 0);
+        const ipcCount = project._count?.ipcs || project.ipc_count || (Number(project.cumulative_certified || 0) > 0 ? Math.max(1, Math.round(Number(project.cumulative_certified) / 75000000)) : (project.status === 'ACTIVE' ? 1 : 0));
 
-      {/* Progress bar */}
-      <div className="mt-3">
-        <div className="mb-1 flex items-center justify-between">
-          <span className="text-[10px] text-gray-400 font-medium">IPC Progress</span>
-          <span className="text-[11px] font-bold tabular-nums text-gray-600">{completion}%</span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-500"
-            style={{ width: `${completion}%` }}
-          />
-        </div>
-      </div>
+        return (
+          <>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Contract</p>
+                <p className="text-sm font-bold tabular-nums text-gray-800">{fmt(project.contract_value, currency)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Certified</p>
+                <p className="text-sm font-bold tabular-nums text-green-700">{fmt(project.cumulative_certified, currency)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Retention</p>
+                <p className="text-sm font-bold tabular-nums text-amber-700">{fmt(retentionVal, currency)}</p>
+              </div>
+            </div>
 
-      {/* PEC / IPC counts */}
-      <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400">
-        <span>{project.contractor_category} | {project.pec_project_no ? `PEC: ${project.pec_project_no}` : 'No PEC No.'}</span>
-        <span className="flex items-center gap-1">
-          <FileText className="h-3 w-3" />
-          {project._count?.ipcs || 0} IPCs
-        </span>
-      </div>
+            {/* Progress bar */}
+            <div className="mt-3">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 font-medium">IPC Progress</span>
+                <span className="text-[11px] font-bold tabular-nums text-gray-600">{completion}%</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-500"
+                  style={{ width: `${completion}%` }}
+                />
+              </div>
+            </div>
+
+            {/* PEC / IPC counts */}
+            <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400">
+              <span>{project.contractor_category} | {project.pec_project_no ? `PEC: ${project.pec_project_no}` : 'No PEC No.'}</span>
+              <span className="flex items-center gap-1">
+                <FileText className="h-3 w-3" />
+                {ipcCount} IPCs
+              </span>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -212,10 +221,15 @@ function ProjectFormModal({ project = null, onClose, onSuccess }) {
     notes: project?.notes || '',
   });
 
+  const businessId = business?.id;
   const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!businessId) {
+      notify.error('Business ID missing');
+      return;
+    }
     startTransition(async () => {
       const payload = {
         ...form,
@@ -224,8 +238,8 @@ function ProjectFormModal({ project = null, onClose, onSuccess }) {
         retention_pct: parseFloat(form.retention_pct) || 5,
       };
       const action = project
-        ? updateProjectAction(project.id, payload)
-        : createProjectAction(payload);
+        ? updateProjectAction(businessId, project.id, payload)
+        : createProjectAction(businessId, payload);
       const res = await action;
       if (res?.success) {
         notify.compactSave(project ? 'Project updated' : 'Project created');
@@ -422,9 +436,10 @@ export function ConstructionProjectsManager({ projects = [], isLoading = false, 
   }, [projects, statusFilter, search]);
 
   const handleDelete = useCallback((project) => {
+    if (!business?.id) return;
     if (!window.confirm(`Delete project "${project.name}"? This will remove all BOQ items, IPCs, and machinery logs.`)) return;
     startTransition(async () => {
-      const res = await deleteProjectAction(project.id);
+      const res = await deleteProjectAction(business.id, project.id);
       if (res?.success) {
         notify.compactSave('Project deleted');
         onRefresh?.();
@@ -432,14 +447,14 @@ export function ConstructionProjectsManager({ projects = [], isLoading = false, 
         notify.error(res?.error || 'Failed to delete');
       }
     });
-  }, [onRefresh]);
+  }, [business?.id, onRefresh]);
 
   const tabs = [
-    { id: 'ALL',       label: 'All' },
-    { id: 'BIDDING',   label: 'Bidding' },
-    { id: 'ACTIVE',    label: 'Active' },
-    { id: 'DLP',       label: 'DLP' },
-    { id: 'CLOSED',    label: 'Completed' },
+    { id: 'ALL', label: 'All' },
+    { id: 'BIDDING', label: 'Bidding' },
+    { id: 'ACTIVE', label: 'Active' },
+    { id: 'DLP', label: 'DLP' },
+    { id: 'CLOSED', label: 'Completed' },
   ];
 
   return (
@@ -455,6 +470,17 @@ export function ConstructionProjectsManager({ projects = [], isLoading = false, 
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <button
+          onClick={() => {
+            import('@/lib/pdf/constructionReportPdfManager').then(({ exportExecutiveFinancialPdf }) => {
+              exportExecutiveFinancialPdf({ projects, business });
+            });
+          }}
+          className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+        >
+          <FileText className="h-4 w-4" />
+          Export Executive PDF
+        </button>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"

@@ -16,14 +16,26 @@ import { HubMobileBottomNav } from '@/components/layout/HubMobileBottomNav';
 import { PendingApprovalGuard } from '@/components/guards/PendingApprovalGuard';
 import { LazyInstallAppPrompt } from '@/components/pwa/LazyInstallAppPrompt';
 
+import { usePathname } from 'next/navigation';
+import { useBusiness } from '@/lib/context/BusinessContext';
+import { isConstructionDomain } from '@/lib/config/constructionHubNav';
+
 export function BusinessShellLayout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const { language } = useLanguage();
+    const { business } = useBusiness();
+    const pathname = usePathname();
 
-    const marginClass = language === 'ur'
-        ? (isSidebarCollapsed ? 'lg:mr-20' : 'lg:mr-64')
-        : (isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64');
+    const pathCategory = pathname?.split('/')?.[2] || '';
+    const activeCategory = business?.category || pathCategory;
+    const isConstruction = isConstructionDomain(activeCategory);
+
+    const marginClass = isConstruction
+        ? 'lg:ml-0 lg:mr-0'
+        : (language === 'ur'
+            ? (isSidebarCollapsed ? 'lg:mr-20' : 'lg:mr-64')
+            : (isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'));
 
     return (
         <FilterProvider>

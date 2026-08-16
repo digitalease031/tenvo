@@ -279,6 +279,26 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
   const category = business?.category || handleFromUrl;
   const baseUrl = `/business/${handleFromUrl}`;
 
+  // ── All hooks must be declared unconditionally before any early returns ──
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({});
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
+
+  // Keyboard shortcut Ctrl+B
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        setIsSidebarCollapsed(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Construction domain uses its dedicated layout-embedded ConstructionHub sidebar — hide outer main sidebar
   if (isConstructionDomain(category)) {
     return null;
@@ -292,11 +312,6 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
   const milkHisabRelevant = isMilkHisabRelevant(category);
   const waterHisabRelevant = isWaterHisabRelevant(category);
   const routeHisabRelevant = isRouteHisabRelevant(category);
-  const [hasHydrated, setHasHydrated] = useState(false);
-
-  useEffect(() => {
-    setHasHydrated(true);
-  }, []);
 
   // Keep access gating deterministic between SSR and first client render.
   const safeIsPlatformOwner = hasHydrated ? isPlatformOwner : false;
@@ -317,20 +332,6 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
     !navReady
       ? 'Loading…'
       : (effectiveRole || 'User').charAt(0).toUpperCase() + (effectiveRole || 'User').slice(1);
-
-  const [collapsedSections, setCollapsedSections] = useState({});
-
-  // Keyboard shortcut Ctrl+B
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-        e.preventDefault();
-        setIsSidebarCollapsed(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   const toggleSection = (label) => {
     if (isSidebarCollapsed) {

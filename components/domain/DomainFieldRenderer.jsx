@@ -271,6 +271,36 @@ function DomainSelect({ field, category, value, onChange, error, contextValues =
     }
   };
 
+  // allowCustom: render a datalist input instead of rigid Select so owners can type custom values
+  const knowledge2 = getDomainKnowledge(category);
+  const fieldCfg2 =
+    knowledge2?.fieldConfig?.[field] ||
+    knowledge2?.fieldConfig?.[key] ||
+    knowledge2?.fieldConfig?.[resolveDomainFieldKey(field, category)] ||
+    null;
+  if (fieldCfg2?.allowCustom) {
+    const datalistId = `dl-custom-${key}-${category}`;
+    return (
+      <div className="relative">
+        <Input
+          list={datalistId}
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Select or type custom value..."
+          className={cn(
+            "h-11 rounded-xl border-gray-100 bg-gray-50/30 focus:bg-white transition-all pl-3 text-sm",
+            error ? "border-red-500 bg-red-50" : "hover:border-indigo-100 focus:border-indigo-400"
+          )}
+        />
+        <datalist id={datalistId}>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </datalist>
+      </div>
+    );
+  }
+
   return (
     <Select value={value || ''} onValueChange={handleChange}>
       <SelectTrigger className={`h-11 rounded-xl border-gray-100 bg-gray-50/30 focus:bg-white transition-all ${error ? "border-red-500 bg-red-50 focus:ring-red-500" : ""}`}>

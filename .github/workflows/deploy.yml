@@ -1,0 +1,46 @@
+name: Startup CI/CD Deploy to AWS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bun-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Validate Prisma Schema
+        run: bunx prisma validate
+
+      - name: Run Unit Tests
+        run: bunx vitest run --reporter=dot
+
+      - name: Deploy via SSH to AWS Server
+        if: github.ref == 'refs/heads/main' && secrets.AWS_SERVER_IP != ''
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/tenvo-main
+            git pull origin main
+            docker build -t tenvo-app:latest .
+            npx prisma migrate deploy
+            docker stop tenvo || true
+            docker rm tenvo || true
+            docker run -d \
+              --name tenvo \
+              --restart always \
+              -p 3000:3000 \
+              --env-file .env.production \
+              tenvo-app:latest
+            docker image prune -f

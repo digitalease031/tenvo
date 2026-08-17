@@ -28,6 +28,7 @@ import { ResponsiveManagerHeader } from '@/components/mobile/HubSectionHeader';
  */
 export function BatchManager({
     product,
+    category,
     businessId,
     warehouseId,
     warehouses = [],
@@ -35,6 +36,14 @@ export function BatchManager({
     onClose
 }) {
     const { business, currency: businessCurrency, regionalPack } = useBusiness();
+    const resolvedCategory = category || product?.category || business?.industry_type || '';
+    const isTextile = resolvedCategory === 'textile-wholesale' || resolvedCategory === 'textile';
+    const batchTitle = isTextile ? 'Roll & Thaan Management' : 'Batch Management';
+    const batchNumLabel = isTextile ? 'Roll / Thaan No' : 'Batch Number';
+    const totalBatchesLabel = isTextile ? 'Total Rolls' : 'Total Batches';
+    const addBatchLabel = isTextile ? 'Add Roll / Thaan' : 'Add Batch';
+    const stockQtyLabel = isTextile ? 'Meters Remaining' : 'Available Stock';
+
     const currency = resolveDisplayCurrency(
         { currency: businessCurrency || business?.currency },
         regionalPack
@@ -187,12 +196,12 @@ export function BatchManager({
     return (
         <div className="space-y-6">
             <ResponsiveManagerHeader
-                title="Batch Management"
+                title={batchTitle}
                 subtitle={product?.name || 'No product selected'}
                 actions={[
                     {
                         id: 'add-batch',
-                        label: 'Add Batch',
+                        label: addBatchLabel,
                         icon: Plus,
                         className: 'bg-wine hover:bg-wine/90 text-white',
                         disabled: !product?.id,
@@ -206,13 +215,13 @@ export function BatchManager({
                 <Card>
                     <CardContent className="pt-6">
                         <div className="text-2xl font-bold text-gray-900">{batches.length}</div>
-                        <p className="text-sm text-gray-600">Total Batches</p>
+                        <p className="text-sm text-gray-600">{totalBatchesLabel}</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="pt-6">
                         <div className="text-2xl font-bold text-gray-900">{totalStock.toFixed(2)}</div>
-                        <p className="text-sm text-gray-600">Available Stock</p>
+                        <p className="text-sm text-gray-600">{stockQtyLabel}</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -349,34 +358,34 @@ export function BatchManager({
             <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
                 <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] sm:w-full max-h-[min(92vh,900px)] flex flex-col gap-0 overflow-hidden p-0">
                     <DialogHeader className="shrink-0 px-6 pt-6 pb-2">
-                        <DialogTitle>Add New Batch</DialogTitle>
+                        <DialogTitle>{addBatchLabel}</DialogTitle>
                         <DialogDescription>
-                            Register a new production or purchase batch with its own expiry date and cost.
+                            {isTextile ? 'Register a new fabric roll/thaan with its length in meters and cost.' : 'Register a new production or purchase batch with its own expiry date and cost.'}
                         </DialogDescription>
                     </DialogHeader>
 
                     <form onSubmit={handleSubmit} className="space-y-4 px-6 pb-6 overflow-y-auto min-h-0 flex-1">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <Label htmlFor="batchNumber">Batch Number *</Label>
+                                <Label htmlFor="batchNumber">{batchNumLabel} *</Label>
                                 <Input
                                     id="batchNumber"
                                     value={formData.batchNumber}
                                     onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                                    placeholder="BATCH-2024-001"
+                                    placeholder={isTextile ? "e.g. RL-101" : "BATCH-2024-001"}
                                     required
                                 />
                             </div>
 
                             <div>
-                                <Label htmlFor="quantity">Quantity *</Label>
+                                <Label htmlFor="quantity">{isTextile ? "Meters (Length) *" : "Quantity *"}</Label>
                                 <Input
                                     id="quantity"
                                     type="number"
                                     step="0.01"
                                     value={formData.quantity}
                                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                                    placeholder="100"
+                                    placeholder={isTextile ? "40" : "100"}
                                     required
                                 />
                             </div>

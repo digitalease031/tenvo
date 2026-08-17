@@ -8,6 +8,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { getDomainInvoiceColumns, getDomainUnits } from '@/lib/utils/domainHelpers';
+import { resolveTextileLineQty } from '@/lib/utils/invoiceHelpers';
 import { MOBILE_INPUT_CLASS, MOBILE_GRID_FIELDS } from '@/lib/utils/formMobileStyles';
 import { BarcodeScanTrigger } from '@/components/inventory/BarcodeScanTrigger';
 
@@ -101,6 +102,16 @@ export function InvoiceMobileLineItems({
                 <span className="text-sm font-bold tabular-nums text-emerald-700">
                   {formatCurrency(item.amount || taxable + taxValue, currency)}
                 </span>
+                {(() => {
+                  const isTextile = category === 'textile-wholesale' || category === 'textile';
+                  if (isTextile) {
+                    const conv = resolveTextileLineQty(item);
+                    if (conv.conversionNote) {
+                      return <span className="text-[10px] font-semibold text-indigo-500">{conv.conversionNote}</span>;
+                    }
+                  }
+                  return null;
+                })()}
                 {removeItem && (
                   <Button
                     type="button"

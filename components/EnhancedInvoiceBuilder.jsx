@@ -13,6 +13,7 @@ import { PakistaniTaxCalculator } from '@/components/tax/PakistaniTaxCalculator'
 import { calculatePakistaniTax, generateFBRInvoice, formatNTN, getTaxCategoryForDomain } from '@/lib/tax/pakistaniTax';
 import { getDomainKnowledge } from '@/lib/domainKnowledge';
 import { getDomainDefaults, getDomainUnits, getDomainUnits as getUnits, getDomainProductFields, getDomainInvoiceColumns } from '@/lib/utils/domainHelpers';
+import { resolveTextileLineQty, autoFillTextileLineOnUnitChange } from '@/lib/utils/invoiceHelpers';
 import { getDomainConfig } from '@/lib/config/domains';
 import { getDomainColors } from '@/lib/domainColors';
 import { formatCurrency } from '@/lib/utils/formatting';
@@ -371,6 +372,11 @@ export function EnhancedInvoiceBuilder({
                 updated.article_no = product.domain_data.articleno || product.domain_data.article_no || '';
                 updated.design_no = product.domain_data.designno || product.domain_data.design_no || '';
                 updated.fabric_type = product.domain_data.fabrictype || product.domain_data.fabric_type || '';
+                updated.color_shade = product.domain_data.colorshade || product.domain_data.color_shade || product.domain_data.color || '';
+                // Pre-populate thaan_length from product domain_data so conversion works immediately
+                if (!updated.thaan_length) {
+                  updated.thaan_length = Number(product.domain_data.thaanlength || product.domain_data.thaan_length || 0) || '';
+                }
               }
             }
           }
@@ -401,6 +407,25 @@ export function EnhancedInvoiceBuilder({
             const taxableAmount = baseAmount - discountAmount;
             const taxAmount = (taxableAmount * tax) / 100;
             updated.amount = taxableAmount + taxAmount;
+          }
+
+          // Auto-fill fabric unit conversions for textile domains
+          const isTextileDomain = category === 'textile-wholesale' || category === 'textile';
+          if (isTextileDomain && field === 'unit') {
+            const matchedProduct = products.find(p => p.id === item.productId);
+            const textilePatches = autoFillTextileLineOnUnitChange(item, matchedProduct, normalizedValue);
+            Object.assign(updated, textilePatches);
+          }
+
+          // Auto-recalculate amount when thaan_length changes (thaan billing)
+          if (isTextileDomain && field === 'thaan_length') {
+            if (String(item.unit || '').toLowerCase() === 'thaan') {
+              const newThaanLen = Number(normalizedValue) || 0;
+              if (newThaanLen > 0 && item._per_meter_rate) {
+                updated.rate = Math.round(item._per_meter_rate * newThaanLen * 100) / 100;
+              }
+              updated.thaan_length = newThaanLen;
+            }
           }
 
           return updated;
@@ -1650,6 +1675,14 @@ export function EnhancedInvoiceBuilder({
                                 const discountValue = (base * discountPct) / 100;
                                 const taxable = base - discountValue;
                                 const taxValue = (taxable * taxPct) / 100;
+                                // Textile: show meter conversion note
+                                const isTextileDomain = category === 'textile-wholesale' || category === 'textile';
+                                if (isTextileDomain) {
+                                  const conv = resolveTextileLineQty(item);
+                                  if (conv.conversionNote) {
+                                    return <span className="text-indigo-500 font-medium">{conv.conversionNote}</span>;
+                                  }
+                                }
                                 return showTaxUi
                                   ? `${formatCurrency(taxable, currency)} + ${formatCurrency(taxValue, currency)} tax`
                                   : formatCurrency(taxable, currency);

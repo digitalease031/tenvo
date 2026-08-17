@@ -475,6 +475,23 @@ export function MilkRouteHisab({ businessId, category }) {
     );
   };
 
+  const updateBreadType = (customerId, productId, breadType) => {
+    setDayDirty(true);
+    const pid = String(productId);
+    setRows((prev) =>
+      prev.map((r) => {
+        if (String(r.customerId) !== String(customerId)) return r;
+        return {
+          ...r,
+          breadTypes: {
+            ...(r.breadTypes || {}),
+            [pid]: breadType,
+          },
+        };
+      })
+    );
+  };
+
   const updateRowField = (customerId, field, value) => {
     setDayDirty(true);
     setRows((prev) =>
@@ -495,6 +512,7 @@ export function MilkRouteHisab({ businessId, category }) {
         routeLabel: r.routeLabel,
         notes: r.notes,
         qtyByProduct,
+        breadTypes: r.breadTypes || {},
       };
     });
 
@@ -1248,6 +1266,7 @@ export function MilkRouteHisab({ businessId, category }) {
           rows={visibleRows}
           currency={currency}
           onQty={updateQty}
+          onBreadType={updateBreadType}
           onField={updateRowField}
           readOnly={offlineEnabled && !isOnline && !daySnapshotReady}
         />

@@ -32,6 +32,8 @@ import { ExpertActionPanel } from '@/components/domain/ExpertActionPanel';
 import { submitInvoiceForApprovalAction, getApprovalHistoryAction, schedulePaymentRemindersAction } from '@/lib/actions/standard/invoice-approval';
 import { MOBILE_OVERLAY, MOBILE_OVERLAY_CARD, MOBILE_FORM_FOOTER, MOBILE_GRID_FIELDS } from '@/lib/utils/formMobileStyles';
 import { InvoiceMobileLineItems } from '@/components/invoice/mobile/InvoiceMobileLineItems';
+import { DomainMultiRowLineItems } from '@/components/invoice/DomainMultiRowLineItems';
+import { VehicleAgreementSection, isAutomotiveDomain } from '@/components/invoice/VehicleAgreementSection';
 import { findProductByScanCode } from '@/lib/utils/productScanLookup';
 import { lookupProductByScanCodeAction } from '@/lib/actions/standard/inventory/lookup';
 import { BarcodeScanTrigger } from '@/components/inventory/BarcodeScanTrigger';
@@ -166,6 +168,7 @@ export function EnhancedInvoiceBuilder({
       terms: '',
       ewayBill: '',
       placeOfSupply: '',
+      vehicleAgreement: initialData?.taxDetails?.vehicleAgreement || initialData?.tax_details?.vehicleAgreement || {},
     };
 
     if (initialData) {
@@ -275,6 +278,22 @@ export function EnhancedInvoiceBuilder({
     if (!invoice.customer?.id) return null;
     return customers.find(c => c.id === invoice.customer.id);
   }, [invoice.customer?.id, customers]);
+
+  const customerDiscountStats = useMemo(() => {
+    if (!selectedCustomerData) return null;
+    const historyTotal = Number(
+      selectedCustomerData.domain_data?.discounts_availed ||
+      selectedCustomerData.domain_data?.total_discounts ||
+      selectedCustomerData.discounts_availed ||
+      0
+    );
+    const preferredPct = Number(
+      selectedCustomerData.domain_data?.preferred_discount ||
+      selectedCustomerData.domain_data?.discount_rate ||
+      (historyTotal > 0 ? 10 : 5)
+    );
+    return { historyTotal, preferredPct };
+  }, [selectedCustomerData]);
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -995,10 +1014,19 @@ export function EnhancedInvoiceBuilder({
 
       const taxTotal = Number(totals.totalTax || totals.tax_total || 0);
 
+      const updatedCustomerDomainData = {
+        ...(selectedCustomerData?.domain_data || {}),
+        discounts_availed: Number(selectedCustomerData?.domain_data?.discounts_availed || 0) + Number(totals.discount || 0),
+        cnic: invoice.vehicleAgreement?.buyerCnic || selectedCustomerData?.cnic || selectedCustomerData?.domain_data?.cnic || '',
+      };
+
       // Generate FBR-compliant invoice for Pakistani domains
       let finalInvoice = {
         ...invoice,
         category,
+        vehicleAgreement: invoice.vehicleAgreement || {},
+        vehicle_meta: invoice.vehicleAgreement || {},
+        customer_domain_data_patch: updatedCustomerDomainData,
         payment_method: invoice.paymentMethod || invoice.payment_method || (isPakistaniDomain ? 'cod' : 'cash'),
         paymentMethod: invoice.paymentMethod || invoice.payment_method || (isPakistaniDomain ? 'cod' : 'cash'),
         invoiceType: invoice.invoiceType || 'retail',
@@ -1006,6 +1034,7 @@ export function EnhancedInvoiceBuilder({
           ...(invoice.taxDetails || {}),
           ...(invoice.tax_details || {}),
           invoice_type: invoice.invoiceType || 'retail',
+          vehicleAgreement: invoice.vehicleAgreement || {},
         },
         items: normalizedItems,
         totals: {
@@ -1021,12 +1050,20 @@ export function EnhancedInvoiceBuilder({
 
       if (isPakistaniDomain) {
         finalInvoice = generateFBRInvoice({
-          ...invoice,
+          ...finalInvoice,
           items: normalizedItems.map(item => ({
             ...item,
             domain: category,
           })),
         }, invoice.customer.province || 'punjab');
+        // Re-ensure vehicleAgreement is attached after FBR transform
+        finalInvoice.vehicleAgreement = invoice.vehicleAgreement || {};
+        finalInvoice.vehicle_meta = invoice.vehicleAgreement || {};
+        finalInvoice.customer_domain_data_patch = updatedCustomerDomainData;
+        finalInvoice.tax_details = {
+          ...(finalInvoice.tax_details || {}),
+          vehicleAgreement: invoice.vehicleAgreement || {},
+        };
       }
 
       const savedInvoice = await onSave?.(finalInvoice);
@@ -1054,53 +1091,19 @@ export function EnhancedInvoiceBuilder({
 
   const handleSaveAndSubmitForApproval = async () => {
     if (!canSubmitForApproval) {
-      toast.error('Complete customer and item details before submitting for approval');
+      toast.error('Complete customer and item details before saving');
       return;
     }
-
-    const confirmed = confirm('Submit this invoice for approval? It will move to pending approval.');
-    if (!confirmed) return;
 
     setIsSubmittingApproval(true);
     try {
       const savedInvoice = await persistInvoice();
-      if (!savedInvoice) {
-        // Save failed, error toast already shown by persistInvoice
-        return;
+      if (savedInvoice) {
+        onClose();
       }
-      
-      const invoiceId = savedInvoice.id || invoice?.id || initialData?.id;
-
-      if (!invoiceId || !business?.id) {
-        toast.error('Invoice saved but approval submission needs a valid invoice reference');
-        return;
-      }
-
-      const submitRes = await submitInvoiceForApprovalAction(business.id, invoiceId);
-      if (!submitRes?.success) {
-        throw new Error(submitRes?.error || submitRes?.message || 'Failed to submit for approval');
-      }
-
-      if (invoice.dueDate) {
-        await schedulePaymentRemindersAction(business.id, invoiceId);
-      }
-
-      setInvoice(prev => ({
-        ...prev,
-        id: invoiceId,
-        approval_status: 'pending',
-      }));
-
-      const historyRes = await getApprovalHistoryAction(business.id, invoiceId);
-      setApprovalHistory(historyRes?.success ? (historyRes.history || []) : []);
-
-      toast.success('Invoice submitted for approval successfully');
-      
-      // Close the modal after successful submission
-      onClose();
     } catch (error) {
-      console.error('Error submitting invoice for approval:', error);
-      toast.error(error?.message || 'Failed to submit invoice for approval');
+      console.error('Error saving invoice:', error);
+      toast.error(error?.message || 'Failed to save invoice');
     } finally {
       setIsSubmittingApproval(false);
       isSubmittingRef.current = false;
@@ -1371,6 +1374,43 @@ export function EnhancedInvoiceBuilder({
                   </select>
                 </div>
               )}
+              {customerDiscountStats && (
+                <div className="col-span-full mb-2 flex flex-col sm:flex-row items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/70 p-2.5 text-indigo-900 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <WandSparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <div className="text-xs">
+                      <span className="font-bold">Customer Discount Profile:</span>{' '}
+                      <span className="font-semibold text-indigo-700 font-mono">
+                        {formatCurrency(customerDiscountStats.historyTotal, currency)}
+                      </span>{' '}
+                      Total Discounts Availed
+                      {customerDiscountStats.preferredPct > 0 && (
+                        <span className="ml-1 text-[11px] text-indigo-600 font-medium">
+                          ({customerDiscountStats.preferredPct}% Preferred Tier)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {customerDiscountStats.preferredPct > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setInvoice((prev) => ({
+                          ...prev,
+                          discount: customerDiscountStats.preferredPct,
+                          discountType: 'percent',
+                        }));
+                        toast.success(`Applied ${customerDiscountStats.preferredPct}% preferred customer discount`);
+                      }}
+                      className="h-7 px-2.5 rounded-lg text-xs font-bold text-indigo-700 border-indigo-300 bg-white hover:bg-indigo-100 shadow-2xs"
+                    >
+                      Apply {customerDiscountStats.preferredPct}% Discount
+                    </Button>
+                  )}
+                </div>
+              )}
               {invoice.customer.credit_limit > 0 && (
                 <div className={cn(
                   "col-span-full mb-2 flex flex-col gap-2 rounded-lg border p-2.5 sm:flex-row sm:items-center sm:justify-between",
@@ -1454,6 +1494,16 @@ export function EnhancedInvoiceBuilder({
             </div>
           )}
 
+          {/* Vehicle Agreement & Specification Section (Automotive Domains) */}
+          {isAutomotiveDomain(category) && (
+            <VehicleAgreementSection
+              value={invoice.vehicleAgreement || {}}
+              onChange={(val) => setInvoice((prev) => ({ ...prev, vehicleAgreement: val }))}
+              category={category}
+              customer={invoice.customer}
+            />
+          )}
+
           {/* Items Section */}
           <div className="pt-2">
             <div className="mb-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2">
@@ -1515,203 +1565,19 @@ export function EnhancedInvoiceBuilder({
             )}
 
             <div className="space-y-3">
-              {/* Mobile: stacked line cards (no horizontal scroll) */}
-              <div className="lg:hidden">
-                <InvoiceMobileLineItems
-                  items={invoice.items}
-                  products={products}
-                  category={category}
-                  currency={currency}
-                  colors={{ ...colors, primary: brandAccent }}
-                  updateItem={updateItem}
-                  removeItem={removeItem}
-                  addItem={addItem}
-                  onEnterLastRow={addItem}
-                  business={business}
-                  onScanBarcode={handleBarcodeScan}
-                  showTax={showTaxUi}
-                />
-              </div>
-
-              {/* Desktop: wide line table */}
-              {invoice.items.length === 0 ? (
-                <div className="hidden text-center py-10 bg-slate-50 text-slate-500 border border-dashed border-slate-200 rounded-xl lg:block">
-                  <FileText className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-                  <p className="font-medium text-sm text-slate-600">No items added yet.</p>
-                  <p className="text-xs mt-1">Click Add line or scan a barcode to get started.</p>
-                </div>
-              ) : (
-                <div className="relative hidden overflow-x-auto rounded-lg border border-slate-200 shadow-sm lg:block">
-                  <table className="w-full text-sm text-left" style={{minWidth: '900px'}}>
-                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-600">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider w-12">#</th>
-                        <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider">Item Details</th>
-                        {getDomainInvoiceColumns(category).map(col => (
-                          <th key={col.field} className={`px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider ${col.width || 'w-24'}`}>
-                            {col.header}
-                          </th>
-                        ))}
-                        <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider" style={{minWidth:'96px'}}>Qty</th>
-                        <th className="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider" style={{minWidth:'72px'}}>Unit</th>
-                        <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider" style={{minWidth:'110px'}}>Rate</th>
-                        <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider" style={{minWidth:'80px'}}>Disc%</th>
-                        {showTaxUi && (
-                          <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider" style={{minWidth:'80px'}}>Tax%</th>
-                        )}
-                        <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider" style={{minWidth:'130px'}}>Amount</th>
-                        <th className="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider" style={{minWidth:'64px'}}>Expert</th>
-                        <th className="px-4 py-2.5" style={{minWidth:'40px'}}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoice.items.map((item, index) => (
-                        <tr key={item.id} className="bg-white border-b hover:bg-gray-50">
-                          <td className="px-3 py-2 text-center">{index + 1}</td>
-                          <td className="px-3 py-2">
-                            <Combobox
-                              options={products.map(p => ({
-                                value: String(p.id),
-                                label: p.name,
-                                description: p.sku ? `SKU: ${p.sku}` : (p.price ? `${formatCurrency(p.price, currency)}` : '')
-                              }))}
-                              value={String(item.productId || '')}
-                              onChange={(val) => updateItem(item.id, 'productId', val)}
-                              placeholder="Search products..."
-                              emptyText="No products found"
-                              className="h-8 border-none bg-transparent shadow-none text-sm"
-                            />
-                          </td>
-
-                          {/* Domain Specific Columns */}
-                          {getDomainInvoiceColumns(category).map(col => (
-                            <td key={col.field} className="px-3 py-2">
-                              <Input
-                                type={col.type || 'text'}
-                                value={item[col.field] || ''}
-                                onChange={(e) => updateItem(item.id, col.field, e.target.value)}
-                                className="h-9 text-xs rounded-lg border-gray-100 bg-gray-50/50"
-                                placeholder={col.header}
-                              />
-                            </td>
-                          ))}
-
-                          <td className="px-3 py-2" style={{minWidth:'96px'}}>
-                            <Input
-                              type="number"
-                              value={item.quantity || 0}
-                              onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                              min={0}
-                              className="h-8 text-xs text-right w-full"
-                            />
-                          </td>
-                          <td className="px-3 py-2" style={{minWidth:'72px'}}>
-                            <select
-                              value={item.unit || 'pcs'}
-                              onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
-                              className="h-8 w-full rounded-md border border-slate-200 bg-white px-1.5 text-xs text-slate-700"
-                            >
-                              {(getDomainUnits(category) || ['pcs', 'sqft', 'm', 'kg', 'box']).map((u) => (
-                                <option key={u} value={u}>{u}</option>
-                              ))}
-                              {item.unit && !(getDomainUnits(category) || []).includes(item.unit) && (
-                                <option value={item.unit}>{item.unit}</option>
-                              )}
-                            </select>
-                          </td>
-                          <td className="px-3 py-2" style={{minWidth:'110px'}}>
-                            <Input
-                              type="number"
-                              value={item.rate || 0}
-                              onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                              min={0}
-                              step="0.01"
-                              className="h-8 text-xs text-right w-full"
-                            />
-                          </td>
-                          <td className="px-3 py-2" style={{minWidth:'80px'}}>
-                            <Input
-                              type="number"
-                              value={item.discount || 0}
-                              onChange={(e) => updateItem(item.id, 'discount', parseFloat(e.target.value) || 0)}
-                              min={0}
-                              max={100}
-                              className="h-8 text-xs w-full"
-                            />
-                          </td>
-                          {showTaxUi && (
-                          <td className="px-3 py-2" style={{minWidth:'80px'}}>
-                            <Input
-                              type="number"
-                              value={item.taxPercent || 0}
-                              onChange={(e) => updateItem(item.id, 'taxPercent', parseFloat(e.target.value) || 0)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  if (index === invoice.items.length - 1) addItem();
-                                }
-                              }}
-                              min={0}
-                              max={100}
-                              className="h-8 text-xs focus:ring-wine/20 w-full"
-                            />
-                          </td>
-                          )}
-                          <td className="px-3 py-2" style={{minWidth:'130px'}}>
-                            <Input
-                              type="number"
-                              value={item.amount || 0}
-                              onChange={(e) => updateItem(item.id, 'amount', parseFloat(e.target.value) || 0)}
-                              min={0}
-                              step={0.01}
-                              className="h-8 text-xs font-semibold focus:ring-wine/20 w-full"
-                            />
-                            <div className="mt-1 text-[10px] text-gray-400 text-right whitespace-nowrap">
-                              {(() => {
-                                const qty = Number(item.quantity || 0);
-                                const rate = Number(item.rate || 0);
-                                const discountPct = Number(item.discount || 0);
-                                const taxPct = showTaxUi ? Number(item.taxPercent || 0) : 0;
-                                const base = qty * rate;
-                                const discountValue = (base * discountPct) / 100;
-                                const taxable = base - discountValue;
-                                const taxValue = (taxable * taxPct) / 100;
-                                // Textile: show meter conversion note
-                                const isTextileDomain = category === 'textile-wholesale' || category === 'textile';
-                                if (isTextileDomain) {
-                                  const conv = resolveTextileLineQty(item);
-                                  if (conv.conversionNote) {
-                                    return <span className="text-indigo-500 font-medium">{conv.conversionNote}</span>;
-                                  }
-                                }
-                                return showTaxUi
-                                  ? `${formatCurrency(taxable, currency)} + ${formatCurrency(taxValue, currency)} tax`
-                                  : formatCurrency(taxable, currency);
-                              })()}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <ExpertActionPanel 
-                              category={category} 
-                              item={item} 
-                              onUpdate={(field, val) => updateItem(item.id, field, val)} 
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeItem(item.id)}
-                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <DomainMultiRowLineItems
+                items={invoice.items}
+                products={products}
+                category={category}
+                currency={currency}
+                colors={{ ...colors, primary: brandAccent }}
+                updateItem={updateItem}
+                removeItem={removeItem}
+                addItem={addItem}
+                business={business}
+                onScanBarcode={handleBarcodeScan}
+                showTax={showTaxUi}
+              />
             </div>
           </div>
 
@@ -1935,13 +1801,9 @@ export function EnhancedInvoiceBuilder({
                 {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4 text-slate-500" />}
                 A4 PDF
               </Button>
-              <Button type="button" disabled={isSaving} onClick={handleSave} className="h-9 flex-1 rounded-md bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 sm:flex-none">
+              <Button type="button" disabled={isSaving || isSubmittingApproval} onClick={handleSave} className="h-9 flex-1 rounded-md bg-emerald-600 px-5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 sm:flex-none">
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save
-              </Button>
-              <Button type="button" disabled={!canSubmitForApproval} onClick={handleSaveAndSubmitForApproval} className="h-9 flex-1 rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60 sm:flex-none">
-                {(isSaving || isSubmittingApproval) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Submit
+                Save Invoice
               </Button>
             </div>
           </div>

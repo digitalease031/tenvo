@@ -393,12 +393,28 @@ export function ExpenseEntryForm({
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-[11px] font-semibold text-gray-600">
-                                {tx(t, 'expense_note_optional', 'Note (optional)')}
+                            <Label className="text-[11px] font-semibold text-gray-600 flex items-center justify-between">
+                                <span>
+                                    {formData.category === 'miscellaneous'
+                                        ? tx(t, 'expense_note_other_label', 'Expense Detail / Note (e.g. Tea bill, Chai paani)')
+                                        : tx(t, 'expense_note_optional', 'Note (optional)')}
+                                </span>
+                                {formData.category === 'miscellaneous' && (
+                                    <span className="text-[10px] font-medium text-rose-500">
+                                        {tx(t, 'expense_type_anything', 'Type any custom expense')}
+                                    </span>
+                                )}
                             </Label>
                             <Input
-                                className="h-11 rounded-xl border-gray-200"
-                                placeholder={tx(t, 'expense_note_placeholder', 'e.g. fuel for morning route')}
+                                className={cn(
+                                    'h-11 rounded-xl border-gray-200 transition-all',
+                                    formData.category === 'miscellaneous' && 'border-rose-300 bg-rose-50/30 focus-visible:ring-rose-400'
+                                )}
+                                placeholder={
+                                    formData.category === 'miscellaneous'
+                                        ? tx(t, 'expense_note_other_placeholder', 'e.g. Tea bill / Chai Samosa for buyer, shop locks, tips')
+                                        : tx(t, 'expense_note_placeholder', 'e.g. fuel for morning route, chai paani')
+                                }
                                 value={formData.description}
                                 onChange={(e) =>
                                     setFormData((prev) => ({ ...prev, description: e.target.value }))

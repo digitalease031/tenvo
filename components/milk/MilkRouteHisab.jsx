@@ -68,6 +68,17 @@ function currentWeek() {
   return toMilkHisabWeekKey(new Date());
 }
 
+export const PAKISTANI_BREAD_OPTIONS = [
+  { value: '', label: 'Select Bread' },
+  { value: 'Bake Parlor', label: 'Bake Parlor' },
+  { value: 'Dawn', label: 'Dawn Bread' },
+  { value: 'Wonder', label: 'Wonder Bread' },
+  { value: 'Bunny’s', label: 'Bunny’s Bread' },
+  { value: 'Gourmet', label: 'Gourmet Bread' },
+  { value: 'Local Bakery', label: 'Local Bakery' },
+  { value: 'Brown / Bran', label: 'Brown / Bran' },
+];
+
 /**
  * Milk-shop Daily Route: daily doorstep grid + week/month 58mm bills.
  * Hub tab key remains `route-hisab`; UI label is Daily Route.
@@ -1340,7 +1351,7 @@ function dailyRowQtyEntries(row, products) {
     .filter(Boolean);
 }
 
-function DailySheet({ products, rows, currency, onQty, onField, readOnly = false }) {
+function DailySheet({ products, rows, currency, onQty, onBreadType, onField, readOnly = false }) {
   const [expandedId, setExpandedId] = useState(null);
 
   if (!rows.length) {
@@ -1401,7 +1412,10 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                     {filledCount > 0
                       ? ` · ${filled
                           .slice(0, 3)
-                          .map((e) => `${e.label} ${e.qty}`)
+                          .map((e) => {
+                            const bType = row.breadTypes?.[String(e.id)] || row.breadTypes?.[e.id];
+                            return bType ? `${e.label} (${bType}) ${e.qty}` : `${e.label} ${e.qty}`;
+                          })
                           .join(', ')}${filledCount > 3 ? '…' : ''}`
                       : ' · No qty yet'}
                   </span>
@@ -1455,34 +1469,53 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {products.map((p) => (
-                          <tr key={p.id}>
-                            <td className="px-2.5 py-1.5 font-medium text-gray-900">
-                              {shortMilkHisabProductLabel(p, 18)}
-                            </td>
-                            <td className="px-2 py-1.5 text-right text-xs text-gray-500">
-                              {p.unit || 'pcs'}
-                            </td>
-                            <td className="px-2 py-1.5 text-right">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                inputMode="decimal"
-                                value={
-                                  row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''
-                                }
-                                onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                                className="ml-auto h-9 w-[4.75rem] tabular-nums text-center bg-white"
-                                disabled={readOnly}
-                                aria-label={`${p.name} quantity`}
-                              />
-                            </td>
-                            <td className="px-2.5 py-1.5 text-right text-[11px] tabular-nums text-gray-500">
-                              {formatCurrency(Number(p.price) || 0, currency)}
-                            </td>
-                          </tr>
-                        ))}
+                        {products.map((p) => {
+                          const isBread = /bread|double\s*roti|roti/i.test(`${p.name} ${p.hisabShortLabel || ''}`) || p.unit === 'pack';
+                          const pid = String(p.id);
+                          const qty = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
+                          const breadType = row.breadTypes?.[pid] ?? row.breadTypes?.[p.id] ?? '';
+
+                          return (
+                            <tr key={p.id}>
+                              <td className="px-2.5 py-1.5 font-medium text-gray-900">
+                                <span className="block">{shortMilkHisabProductLabel(p, 18)}</span>
+                                {isBread && (
+                                  <select
+                                    value={breadType}
+                                    onChange={(e) => onBreadType?.(row.customerId, p.id, e.target.value)}
+                                    disabled={readOnly}
+                                    className="mt-1.5 block h-8 w-full rounded border border-sky-200 bg-sky-50 px-1.5 text-xs font-medium text-sky-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 focus:outline-none cursor-pointer"
+                                  >
+                                    {PAKISTANI_BREAD_OPTIONS.map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </td>
+                              <td className="px-2 py-1.5 text-right text-xs text-gray-500">
+                                {p.unit || 'pcs'}
+                              </td>
+                              <td className="px-2 py-1.5 text-right">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  inputMode="decimal"
+                                  value={qty}
+                                  onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
+                                  className="ml-auto h-9 w-[4.75rem] tabular-nums text-center bg-white"
+                                  disabled={readOnly}
+                                  aria-label={`${p.name} quantity`}
+                                />
+                              </td>
+                              <td className="px-2.5 py-1.5 text-right text-[11px] tabular-nums text-gray-500">
+                                {formatCurrency(Number(p.price) || 0, currency)}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1511,27 +1544,30 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
               <th className="px-3 py-2.5 whitespace-nowrap">House</th>
               <th className="px-3 py-2.5 whitespace-nowrap">Customer</th>
               <th className="px-3 py-2.5 whitespace-nowrap">Route</th>
-              {products.map((p) => (
-                <th
-                  key={p.id}
-                  className="px-2 py-2 text-center align-bottom min-w-[4.75rem] max-w-[5.5rem]"
-                  title={`${p.name} · ${formatCurrency(Number(p.price) || 0, currency)} / ${p.unit || 'pcs'}`}
-                >
-                  <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-600">
-                    {shortMilkHisabProductLabel(p, 12)}
-                  </span>
-                  <span className="mt-0.5 block font-normal normal-case text-[10px] text-gray-400">
-                    {p.unit || 'pcs'}
-                  </span>
-                </th>
-              ))}
+              {products.map((p) => {
+                const isBreadCol = /bread|double\s*roti|roti/i.test(`${p.name} ${p.hisabShortLabel || ''}`) || p.unit === 'pack';
+                return (
+                  <th
+                    key={p.id}
+                    className={`px-2 py-2 text-center align-bottom ${isBreadCol ? 'min-w-[6.5rem]' : 'min-w-[4.75rem] max-w-[5.5rem]'}`}
+                    title={`${p.name} · ${formatCurrency(Number(p.price) || 0, currency)} / ${p.unit || 'pcs'}`}
+                  >
+                    <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                      {shortMilkHisabProductLabel(p, 12)}
+                    </span>
+                    <span className="mt-0.5 block font-normal normal-case text-[10px] text-gray-400">
+                      {isBreadCol ? 'qty · brand' : (p.unit || 'pcs')}
+                    </span>
+                  </th>
+                );
+              })}
               <th className="px-3 py-2.5 whitespace-nowrap">Notes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.map((row) => (
-              <tr key={row.customerId} className="hover:bg-sky-50/40">
-                <td className="px-2 py-1.5">
+              <tr key={row.customerId} className="hover:bg-sky-50/40 align-middle">
+                <td className="px-2 py-2">
                   <Input
                     value={row.houseNo || ''}
                     onChange={(e) => onField(row.customerId, 'houseNo', e.target.value)}
@@ -1539,10 +1575,10 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                     disabled={readOnly}
                   />
                 </td>
-                <td className="px-3 py-1.5 font-semibold text-gray-900 whitespace-nowrap">
+                <td className="px-3 py-2 font-semibold text-gray-900 whitespace-nowrap">
                   {row.customerName}
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-2">
                   <Input
                     value={row.routeLabel || ''}
                     onChange={(e) => onField(row.customerId, 'routeLabel', e.target.value)}
@@ -1550,21 +1586,51 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                     disabled={readOnly}
                   />
                 </td>
-                {products.map((p) => (
-                  <td key={p.id} className="px-1.5 py-1.5 text-center">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      inputMode="decimal"
-                      value={row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? ''}
-                      onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                      className="mx-auto h-8 w-[4.5rem] tabular-nums text-center"
-                      disabled={readOnly}
-                    />
-                  </td>
-                ))}
-                <td className="px-2 py-1.5">
+                {products.map((p) => {
+                  const isBread = /bread|double\s*roti|roti/i.test(`${p.name} ${p.hisabShortLabel || ''}`) || p.unit === 'pack';
+                  const pid = String(p.id);
+                  const qty = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
+                  const breadType = row.breadTypes?.[pid] ?? row.breadTypes?.[p.id] ?? '';
+
+                  return (
+                    <td
+                      key={p.id}
+                      className={`px-1.5 py-2 text-center align-middle ${isBread ? 'bg-amber-50/40' : ''}`}
+                    >
+                      <div className={`flex flex-col items-center gap-1.5 ${isBread ? 'w-[6rem]' : 'w-[4.5rem]'} mx-auto`}>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          inputMode="decimal"
+                          value={qty}
+                          onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
+                          className="h-8 w-full tabular-nums text-center"
+                          disabled={readOnly}
+                        />
+                        {isBread ? (
+                          <select
+                            value={breadType}
+                            onChange={(e) => onBreadType?.(row.customerId, p.id, e.target.value)}
+                            disabled={readOnly}
+                            className="h-7 w-full rounded-md border border-amber-300 bg-white px-1.5 text-[11px] font-medium text-amber-900 shadow-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-200 focus:outline-none cursor-pointer"
+                            aria-label="Bread brand"
+                          >
+                            {PAKISTANI_BREAD_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          // Invisible spacer keeps row height uniform across all columns
+                          <div className="h-7" aria-hidden />
+                        )}
+                      </div>
+                    </td>
+                  );
+                })}
+                <td className="px-2 py-2">
                   <Input
                     value={row.notes || ''}
                     onChange={(e) => onField(row.customerId, 'notes', e.target.value)}

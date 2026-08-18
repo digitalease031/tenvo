@@ -88,7 +88,7 @@ export function EnhancedInvoiceBuilder({
   const domainInvoiceLabel =
     getDomainConfig(category)?.label_overrides?.invoice || 'Sales Invoice';
   const isPakistaniDomain = isPakistanMarket;
-  const showTaxUi = taxEnabled !== false;
+  const showTaxUi = taxEnabled === true;
   const lineDefaultTaxRate = showTaxUi ? defaultTaxRate : 0;
   const currencySymbol = business?.settings?.financials?.currencySymbol || ctxCurrencySymbol || standards.currencySymbol;
 

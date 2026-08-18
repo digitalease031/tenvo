@@ -74,7 +74,7 @@ export function PurchaseDocumentForm({
 }) {
     const { business, currency, countryIso, defaultTaxRate, taxEnabled } = useFormRegionalContext(category);
     const domainTaxOpts = { countryIso };
-    const showTaxUi = taxEnabled !== false;
+    const showTaxUi = taxEnabled === true;
     const { language } = useLanguage();
     const t = translations[language];
 

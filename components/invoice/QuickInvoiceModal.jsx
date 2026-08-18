@@ -47,7 +47,7 @@ export function QuickInvoiceModal({
 }) {
     const { currency: ctxCurrency, defaultTaxRate, taxEnabled, taxLabel, domainKnowledge } = useFormRegionalContext(category);
     const currency = currencyProp || ctxCurrency;
-    const showTaxUi = taxEnabled !== false;
+    const showTaxUi = taxEnabled === true;
     const defaultTax = showTaxUi ? defaultTaxRate : 0;
     
     // Focus refs for keyboard navigation

@@ -79,7 +79,8 @@ assert.ok(core.includes('formatPdfPaymentMethod'), 'PDF formats payment method l
 const builder = read('components/EnhancedInvoiceBuilder.jsx');
 assert.ok(builder.includes("invoiceType: 'retail'"), 'Invoice form defaults to retail/sales');
 assert.ok(builder.includes('domainInvoiceLabel'), 'Document type uses domain sales label');
-assert.ok(builder.includes('Unit</th>'), 'Line table includes Unit column');
+const domainItems = read('components/invoice/DomainMultiRowLineItems.jsx');
+assert.ok(domainItems.includes('item.unit'), 'Line items component handles Unit selection');
 
 const api = read('lib/api/invoice.js');
 assert.ok(

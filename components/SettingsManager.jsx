@@ -251,8 +251,8 @@ export function SettingsManager({ category }) {
 
   const taxCollectionEnabled = useMemo(() => {
     const fin = business?.settings?.financials;
-    if (!fin || typeof fin !== 'object') return true;
-    return fin.taxEnabled !== false;
+    if (!fin || typeof fin !== 'object') return false;
+    return fin.taxEnabled === true;
   }, [business?.settings?.financials]);
 
   const availableSectionValues = useMemo(() => visibleSections.map(s => s.value), [visibleSections]);

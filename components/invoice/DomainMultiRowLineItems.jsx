@@ -338,18 +338,34 @@ export function DomainMultiRowLineItems({
                         <Label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block truncate">
                           {col.header}
                         </Label>
-                        <Input
-                          type={col.type || 'text'}
-                          value={item[col.field] || ''}
-                          onChange={(e) => updateItem(item.id, col.field, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && isLastRow && addItem) {
-                              addItem();
-                            }
-                          }}
-                          placeholder={col.placeholder || col.header}
-                          className="h-8 text-xs rounded-lg border-slate-200 bg-slate-50/50 shadow-sm focus:bg-white"
-                        />
+                        {col.type === 'select' && Array.isArray(col.options) ? (
+                          <select
+                            value={item[col.field] || ''}
+                            onChange={(e) => updateItem(item.id, col.field, e.target.value)}
+                            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2 text-xs font-medium text-slate-700 shadow-sm focus:bg-white focus:ring-1 focus:ring-slate-300"
+                          >
+                            <option value="">{col.placeholder || `Select…`}</option>
+                            {col.options.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                            {item[col.field] && !col.options.includes(item[col.field]) && (
+                              <option value={item[col.field]}>{item[col.field]}</option>
+                            )}
+                          </select>
+                        ) : (
+                          <Input
+                            type={col.type || 'text'}
+                            value={item[col.field] || ''}
+                            onChange={(e) => updateItem(item.id, col.field, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && isLastRow && addItem) {
+                                addItem();
+                              }
+                            }}
+                            placeholder={col.placeholder || col.header}
+                            className="h-8 text-xs rounded-lg border-slate-200 bg-slate-50/50 shadow-sm focus:bg-white"
+                          />
+                        )}
                       </div>
                     ))}
                   </div>

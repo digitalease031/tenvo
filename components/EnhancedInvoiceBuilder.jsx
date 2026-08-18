@@ -92,6 +92,10 @@ export function EnhancedInvoiceBuilder({
   const lineDefaultTaxRate = showTaxUi ? defaultTaxRate : 0;
   const currencySymbol = business?.settings?.financials?.currencySymbol || ctxCurrencySymbol || standards.currencySymbol;
 
+  // Textile wholesale domains default to 'thaan' as the primary billing unit
+  const isTextileDomain = category === 'textile-wholesale' || category === 'textile';
+  const defaultLineUnit = isTextileDomain ? 'thaan' : 'pcs';
+
   const normalizeProvince = (value = 'punjab') => {
     const raw = String(value || '').trim().toLowerCase();
     const map = {
@@ -193,7 +197,7 @@ export function EnhancedInvoiceBuilder({
           name: item.product_name || item.name || '',
           hsn: item.hsn_code || item.hsn || '',
           quantity,
-          unit: item.unit || item.metadata?.unit || 'pcs',
+          unit: item.unit || item.metadata?.unit || defaultLineUnit,
           rate,
           discount,
           taxPercent,
@@ -395,6 +399,10 @@ export function EnhancedInvoiceBuilder({
                 // Pre-populate thaan_length from product domain_data so conversion works immediately
                 if (!updated.thaan_length) {
                   updated.thaan_length = Number(product.domain_data.thaanlength || product.domain_data.thaan_length || 0) || '';
+                }
+                // Pre-populate roll_bale_no from batch if available
+                if (!updated.roll_bale_no && product.domain_data.batch_number) {
+                  updated.roll_bale_no = product.domain_data.batch_number || '';
                 }
               }
             }
@@ -687,7 +695,7 @@ export function EnhancedInvoiceBuilder({
       name: '',
       hsn: '',
       quantity: 1,
-      unit: lastItem?.unit || 'pcs',
+      unit: lastItem?.unit || defaultLineUnit,
       rate: 0,
       discount: 0,
       taxPercent: showTaxUi
@@ -1001,7 +1009,7 @@ export function EnhancedInvoiceBuilder({
           serial_numbers: serialNumbers,
           metadata: {
             ...(item.metadata || {}),
-            unit: item.unit || item.metadata?.unit || 'pcs',
+            unit: item.unit || item.metadata?.unit || defaultLineUnit,
             article_no: item.article_no || item.metadata?.article_no || '',
             design_no: item.design_no || item.metadata?.design_no || '',
             fabric_type: item.fabric_type || item.metadata?.fabric_type || '',

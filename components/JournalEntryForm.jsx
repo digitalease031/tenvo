@@ -154,6 +154,14 @@ export function JournalEntryForm({ onClose, onSave }) {
     };
 
     const handleSave = async () => {
+        // Filter out incomplete entries
+        const validEntries = formData.entries.filter(e => e.account_id && e.account_id.trim() && parseFloat(e.amount) > 0);
+        
+        if (validEntries.length < 2) {
+            toast.error('At least 2 complete entries (with account and amount) are required');
+            return;
+        }
+
         // Schema validation
         const schemaData = {
             businessId: business?.id,
@@ -161,12 +169,13 @@ export function JournalEntryForm({ onClose, onSave }) {
             description: formData.description,
             referenceType: formData.reference ? 'manual' : null,
             referenceNumber: formData.reference || null,
-            entries: formData.entries.map(e => ({
-                account_id: e.account_id || undefined,
+            entries: validEntries.map(e => ({
+                account_id: e.account_id,
                 debit: e.type === 'debit' ? parseFloat(e.amount) || 0 : 0,
                 credit: e.type === 'credit' ? parseFloat(e.amount) || 0 : 0,
             }))
         };
+        
         const validation = validateWithSchema(journalEntrySchema, schemaData);
         if (!validation.success) {
             const firstError = Object.values(validation.errors)[0];
@@ -179,10 +188,6 @@ export function JournalEntryForm({ onClose, onSave }) {
             toast.error('Journal entry must be balanced (Debits = Credits)');
             return;
         }
-        if (formData.entries.some(e => !e.account_id)) {
-            toast.error('All entries must have a GL account selected');
-            return;
-        }
 
         setIsSaving(true);
         try {
@@ -192,7 +197,7 @@ export function JournalEntryForm({ onClose, onSave }) {
                 date: formData.date,
                 description: formData.description,
                 referenceNumber: formData.reference,
-                entries: formData.entries.map(e => ({
+                entries: validEntries.map(e => ({
                     account_id: e.account_id,
                     debit: e.type === 'debit' ? parseFloat(e.amount) || 0 : 0,
                     credit: e.type === 'credit' ? parseFloat(e.amount) || 0 : 0,
@@ -314,8 +319,10 @@ export function JournalEntryForm({ onClose, onSave }) {
                                 </Button>
                             </div>
                             <div className="space-y-2">
-                                {debitEntries.map(entry => (
-                                    <div key={entry.id} className="flex gap-2 items-start bg-white p-3 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow group">
+                                {debitEntries.map(entry => {
+                                    const isIncomplete = !entry.account_id || !entry.account_id.trim() || !parseFloat(entry.amount);
+                                    return (
+                                    <div key={entry.id} className={`flex gap-2 items-start bg-white p-3 rounded-xl border shadow-sm hover:shadow-md transition-shadow group ${isIncomplete ? 'border-red-200 bg-red-50/30' : 'border-blue-100'}`}>
                                         <div className="flex-1 space-y-2">
                                             <Combobox
                                                 options={glAccounts.map(acc => ({
@@ -348,7 +355,7 @@ export function JournalEntryForm({ onClose, onSave }) {
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         </div>
 
@@ -367,8 +374,10 @@ export function JournalEntryForm({ onClose, onSave }) {
                                 </Button>
                             </div>
                             <div className="space-y-2">
-                                {creditEntries.map(entry => (
-                                    <div key={entry.id} className="flex gap-2 items-start bg-white p-3 rounded-xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow group">
+                                {creditEntries.map(entry => {
+                                    const isIncomplete = !entry.account_id || !entry.account_id.trim() || !parseFloat(entry.amount);
+                                    return (
+                                    <div key={entry.id} className={`flex gap-2 items-start bg-white p-3 rounded-xl border shadow-sm hover:shadow-md transition-shadow group ${isIncomplete ? 'border-red-200 bg-red-50/30' : 'border-emerald-100'}`}>
                                         <div className="flex-1 space-y-2">
                                             <Combobox
                                                 options={glAccounts.map(acc => ({
@@ -401,7 +410,7 @@ export function JournalEntryForm({ onClose, onSave }) {
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         </div>
                     </div>

@@ -16,7 +16,10 @@ import { apiSuccess, apiError } from '@/lib/api/_shared/response';
  */
 export const GET = withApiPermission('finance.view_gl', async (request, { businessId, routeParams }) => {
     const id = routeParams?.params?.id;
-    if (!id) return apiError('MISSING_ID', 'Session ID is required', 400);
+    if (!id) {
+        console.error('[bank-reconciliation GET] Missing ID. routeParams:', routeParams);
+        return apiError('MISSING_ID', 'Session ID is required', 400);
+    }
 
     const client = await pool.connect();
     try {
@@ -33,6 +36,10 @@ export const GET = withApiPermission('finance.view_gl', async (request, { busine
         }
 
         const session = sessionRes.rows[0];
+        if (!session || !session.account_id) {
+            console.error('[bank-reconciliation GET] Invalid session data:', session);
+            return apiError('INVALID_SESSION', 'Session data is incomplete', 500);
+        }
 
         const linesRes = await client.query(
             `SELECT bsl.*,
@@ -62,7 +69,11 @@ export const GET = withApiPermission('finance.view_gl', async (request, { busine
             [businessId, session.account_id, session.statement_date]
         );
 
-        return apiSuccess({ session, lines: linesRes.rows, gl_entries: glRes.rows });
+        // Ensure all rows have IDs to prevent "Cannot read properties of undefined"
+        const lines = (linesRes.rows || []).filter(line => line && line.id);
+        const glEntries = (glRes.rows || []).filter(ge => ge && ge.id);
+
+        return apiSuccess({ session, lines, gl_entries: glEntries });
     } catch (err) {
         if (err.code === '42P01') {
             return apiError('TABLES_MISSING', 'Tables missing', 503);
@@ -76,7 +87,10 @@ export const GET = withApiPermission('finance.view_gl', async (request, { busine
 
 export const PATCH = withApiPermission('finance.manage_accounts', async (request, { businessId, parsedBody, routeParams }) => {
     const id = routeParams?.params?.id;
-    if (!id) return apiError('MISSING_ID', 'Session ID is required', 400);
+    if (!id) {
+        console.error('[bank-reconciliation PATCH] Missing ID. routeParams:', routeParams);
+        return apiError('MISSING_ID', 'Session ID is required', 400);
+    }
 
     const body = parsedBody || {};
     const { matched_lines, status } = body;
@@ -87,6 +101,10 @@ export const PATCH = withApiPermission('finance.manage_accounts', async (request
 
         if (Array.isArray(matched_lines)) {
             for (const line of matched_lines) {
+                if (!line || !line.line_id) {
+                    console.warn('[bank-reconciliation PATCH] Skipping invalid line:', line);
+                    continue;
+                }
                 await client.query(
                     `UPDATE bank_statement_lines
                      SET matched = $1, gl_entry_id = $2

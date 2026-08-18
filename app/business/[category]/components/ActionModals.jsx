@@ -30,6 +30,7 @@ import { getNavItemAccess } from '@/lib/rbac/permissions';
 import { useBusiness } from '@/lib/context/BusinessContext';
 import { isPosRelevant } from '@/lib/config/domains';
 import { useResolvedBusinessId } from '@/lib/hooks/useResolvedBusinessId';
+import { isTextileWholesale } from '@/lib/utils/textileWholesaleDomainFilter';
 
 const VendorForm = dynamic(
     () => import('@/components/VendorForm').then((m) => ({ default: m.VendorForm })),
@@ -58,6 +59,10 @@ const PaymentModal = dynamic(
 );
 const CustomerForm = dynamic(
     () => import('@/components/CustomerForm').then((m) => ({ default: m.CustomerForm })),
+    { ssr: false }
+);
+const TextileCustomerForm = dynamic(
+    () => import('@/components/textile/TextileCustomerForm').then((m) => ({ default: m.TextileCustomerForm })),
     { ssr: false }
 );
 const ExcelCustomerGrid = dynamic(
@@ -286,20 +291,32 @@ export function ActionModals({
                     <DialogHeader className="sr-only">
                         <DialogTitle>Customer Form</DialogTitle>
                     </DialogHeader>
-                    <CustomerForm
-                        initialData={editingCustomer}
-                        category={category}
-                        onSave={onSaveCustomer}
-                        onEntitlementError={() => {
-                            setShowCustomerForm(false);
-                            setEditingCustomer(null);
-                            onTabChange('settings');
-                        }}
-                        onClose={() => {
-                            setShowCustomerForm(false);
-                            setEditingCustomer(null);
-                        }}
-                    />
+                    {isTextileWholesale(category) ? (
+                        <TextileCustomerForm
+                            initialData={editingCustomer}
+                            category={category}
+                            onSave={onSaveCustomer}
+                            onClose={() => {
+                                setShowCustomerForm(false);
+                                setEditingCustomer(null);
+                            }}
+                        />
+                    ) : (
+                        <CustomerForm
+                            initialData={editingCustomer}
+                            category={category}
+                            onSave={onSaveCustomer}
+                            onEntitlementError={() => {
+                                setShowCustomerForm(false);
+                                setEditingCustomer(null);
+                                onTabChange('settings');
+                            }}
+                            onClose={() => {
+                                setShowCustomerForm(false);
+                                setEditingCustomer(null);
+                            }}
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
 

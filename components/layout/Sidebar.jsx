@@ -40,6 +40,7 @@ import {
   isConstructionDomain,
   mergeConstructionLeanNavSettings,
 } from '@/lib/config/constructionHubNav';
+import { isTextileWholesale, isTextileWholesaleTabVisible } from '@/lib/utils/textileWholesaleDomainFilter';
 import { prefetchHubTabChunk } from '@/lib/utils/hubTabNavigation';
 import { useHubTab } from '@/lib/context/HubTabContext';
 import toast from 'react-hot-toast';
@@ -345,6 +346,11 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
   // --- Navigation access control ---------------------------------------------
   // Check if a nav item should be visible + whether it's locked behind subscription
   const getItemState = (item) => {
+    // Textile wholesale domain filtering - hide irrelevant tabs
+    if (isTextileWholesale(category) && !isTextileWholesaleTabVisible(item.key)) {
+      return { visible: false, locked: false, requiredPlan: null };
+    }
+
     // Platform-only items: only visible to platform owner/admin
     if (item.platformOnly && !safeIsPlatformAdmin) {
       return { visible: false, locked: false, requiredPlan: null };

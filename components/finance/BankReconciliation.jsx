@@ -234,9 +234,9 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
 
     const stats = sessionDetail ? (() => {
         const lines = sessionDetail.lines || [];
-        const matched = lines.filter(l => l.matched).length;
+        const matched = lines.filter(l => l && l.matched).length;
         const unmatched = lines.length - matched;
-        const stmtTotal = lines.reduce((s, l) => s + Number(l.credit || 0) - Number(l.debit || 0), 0);
+        const stmtTotal = lines.reduce((s, l) => s + (Number(l?.credit || 0) - Number(l?.debit || 0)), 0);
         const closing = Number(sessionDetail.session?.statement_closing_balance || 0);
         const difference = closing - stmtTotal;
         return { matched, unmatched, total: lines.length, stmtTotal, closing, difference };
@@ -256,7 +256,7 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
 
         const { session, lines = [], gl_entries = [] } = sessionDetail;
         const unmatchedGLEntries = gl_entries.filter(
-            ge => !lines.some(l => l.matched && l.gl_entry_id === ge.id)
+            ge => ge && ge.id && !lines.some(l => l && l.matched && l.gl_entry_id === ge.id)
         );
 
         return (
@@ -326,7 +326,7 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                             {lines.length === 0 && (
                                 <p className="text-xs text-gray-400 text-center py-8">No statement lines</p>
                             )}
-                            {lines.map(line => (
+                            {lines.filter(line => line && line.id).map(line => (
                                 <div key={line.id} className={`px-4 py-3 ${line.matched ? 'bg-emerald-50/40' : ''}`}>
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
@@ -383,8 +383,8 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                                                         onClick={() => handleMatch(line.id, ge.id)}
                                                         className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white text-xs"
                                                     >
-                                                        <span className="font-mono text-gray-400 text-[10px] w-20 shrink-0">{ge.journal_number || ge.id.slice(0, 8)}</span>
-                                                        <span className="flex-1 truncate text-gray-700">{ge.description}</span>
+                                                        <span className="font-mono text-gray-400 text-[10px] w-20 shrink-0">{ge.journal_number || (ge.id ? ge.id.slice(0, 8) : 'N/A')}</span>
+                                                        <span className="flex-1 truncate text-gray-700">{ge.description || 'No description'}</span>
                                                         <span className="shrink-0 font-bold text-gray-600">
                                                             {Number(ge.debit) > 0
                                                                 ? <span className="text-red-600">DR {formatCurrency(Number(ge.debit), currency)}</span>
@@ -410,15 +410,15 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                             {gl_entries.length === 0 && (
                                 <p className="text-xs text-gray-400 text-center py-8">No GL entries for this account</p>
                             )}
-                            {gl_entries.map(ge => {
-                                const isMatched = lines.some(l => l.matched && l.gl_entry_id === ge.id);
+                            {gl_entries.filter(ge => ge && ge.id).map(ge => {
+                                const isMatched = lines.some(l => l && l.matched && l.gl_entry_id === ge.id);
                                 return (
                                     <div key={ge.id} className={`px-4 py-3 ${isMatched ? 'bg-emerald-50/40' : ''}`}>
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-semibold text-gray-800 truncate">{ge.description || 'No description'}</p>
                                                 <p className="text-[10px] text-gray-400 mt-0.5">
-                                                    <span className="font-mono">{ge.journal_number || ge.id.slice(0, 8)}</span>
+                                                    <span className="font-mono">{ge.journal_number || (ge.id ? ge.id.slice(0, 8) : 'N/A')}</span>
                                                     <span className="ml-2">{format(new Date(ge.transaction_date), 'dd MMM')}</span>
                                                 </p>
                                             </div>
@@ -599,7 +599,7 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                         </div>
                     ) : (
                         <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-                            {sessions.map(s => (
+                            {sessions.filter(s => s && s.id).map(s => (
                                 <div key={s.id} className="flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50/60">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">

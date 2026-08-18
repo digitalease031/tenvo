@@ -105,13 +105,20 @@ function StepBasics({ formData, onChange, category, errors, business }) {
                 <Input
                     value={formData.name || ''}
                     onChange={(e) => onChange('name', e.target.value)}
-                    placeholder={`Enter ${labels.name.toLowerCase()}`}
+                    placeholder={resolveDomainKey(category) === 'textile-wholesale'
+                        ? 'e.g. Gul Ahmed Digital Lawn GA-101 or leave blank (auto from Article No)'
+                        : `Enter ${labels.name.toLowerCase()}`}
                     className={cn(
                         'h-11 min-w-0 rounded-xl text-sm font-medium',
                         errors.name && 'border-red-300 focus-visible:ring-red-200'
                     )}
                     autoFocus
                 />
+                {resolveDomainKey(category) === 'textile-wholesale' && (
+                    <p className="text-[11px] text-indigo-500">
+                        Name auto-fills from Brand + Article No on the next step. You can override it here.
+                    </p>
+                )}
                 {errors.name && <p className="text-xs font-medium text-red-600">{errors.name}</p>}
             </div>
 
@@ -185,7 +192,7 @@ function StepBasics({ formData, onChange, category, errors, business }) {
                 <div className="min-w-0 space-y-1.5">
                     <label className={FIELD_LABEL}>Unit</label>
                     <select
-                        value={formData.unit || units[0] || 'pcs'}
+                        value={formData.unit || (resolveDomainKey(category) === 'textile-wholesale' ? 'thaan' : (units[0] || 'pcs'))}
                         onChange={(e) => onChange('unit', e.target.value)}
                         className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm"
                     >
@@ -193,6 +200,9 @@ function StepBasics({ formData, onChange, category, errors, business }) {
                             <option key={u} value={u}>{u}</option>
                         ))}
                     </select>
+                    {resolveDomainKey(category) === 'textile-wholesale' && !formData.unit && (
+                        <p className="text-[11px] text-indigo-500 font-medium">Thaan = one fabric roll (~40m). Change to meter for per-meter billing.</p>
+                    )}
                 </div>
             </div>
 
@@ -603,7 +613,7 @@ export function ProductWizard({
             is_perishable: false,
             domain_data: {},
             ...defaults,
-            unit: defaults.unit || units[0] || 'pcs',
+            unit: defaults.unit || (resolvedCategory === 'textile-wholesale' ? 'thaan' : (units[0] || 'pcs')),
             category: defaults.category || suggestions[0] || '',
             tax_percent: defaults.tax_percent ?? tax ?? 17,
         };

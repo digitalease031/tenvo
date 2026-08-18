@@ -14,6 +14,7 @@ import { resolveDomainKey } from '@/lib/config/domainKeyAliases';
 import { isWaterHisabRelevant, isRouteHisabRelevant } from '@/lib/storefront/waterShopHisab';
 import { resolvePosVariant } from '@/lib/config/posDomains';
 import { useResolvedBusinessId } from '@/lib/hooks/useResolvedBusinessId';
+import { isTextileWholesale } from '@/lib/utils/textileWholesaleDomainFilter';
 
 const DomainDashboard = lazyHubTab(() => import('./tabs/DomainDashboard').then(mod => mod.DomainDashboard));
 const InventoryTab = lazyHubTab(() => import('./tabs/InventoryTab').then(mod => mod.InventoryTab));
@@ -65,6 +66,7 @@ const TabGuard = lazyHubTab(() => import('@/components/guards/TabGuard').then(mo
 const ResourceLimitBanner = lazyHubTab(() => import('@/components/ui/ResourceLimitBanner').then(mod => mod.ResourceLimitBanner));
 const NotificationBell = lazyHubTab(() => import('@/components/notifications/NotificationBell').then(mod => mod.NotificationBell));
 const ConstructionHub = lazyHubTab(() => import('@/components/construction/ConstructionHub').then(mod => mod.ConstructionHub));
+const TextileWholesaleHub = lazyHubTab(() => import('@/components/textile/TextileWholesaleHub').then(mod => mod.TextileWholesaleHub));
 
 /** Tabs that stay mounted after first visit (SWR keep-alive — no remount refetch storms). */
 const KEEP_ALIVE_TABS = new Set([
@@ -487,6 +489,18 @@ export function DashboardTabs({
                         <ConstructionHub
                             constructionOps={advancedDashboardSnapshot?.data?.constructionOps}
                             isOpsLoading={!isDataLoaded}
+                        />
+                    ) : isTextileWholesale(category) ? wrapTab(
+                        <TextileWholesaleHub
+                            businessId={activeBusinessId}
+                            category={category}
+                            products={products}
+                            customers={customers}
+                            invoices={invoices}
+                            currency={currency}
+                            onAction={handlers.handleQuickAction}
+                            dashboardMetrics={dashboardMetrics}
+                            isLoading={!isDataLoaded}
                         />
                     ) : wrapTab(
                         <DomainDashboard

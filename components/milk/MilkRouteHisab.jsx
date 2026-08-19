@@ -68,17 +68,6 @@ function currentWeek() {
   return toMilkHisabWeekKey(new Date());
 }
 
-export const PAKISTANI_BREAD_OPTIONS = [
-  { value: '', label: 'Select Bread' },
-  { value: 'Bake Parlor', label: 'Bake Parlor' },
-  { value: 'Dawn', label: 'Dawn Bread' },
-  { value: 'Wonder', label: 'Wonder Bread' },
-  { value: 'Bunny’s', label: 'Bunny’s Bread' },
-  { value: 'Gourmet', label: 'Gourmet Bread' },
-  { value: 'Local Bakery', label: 'Local Bakery' },
-  { value: 'Brown / Bran', label: 'Brown / Bran' },
-];
-
 /**
  * Milk-shop Daily Route: daily doorstep grid + week/month 58mm bills.
  * Hub tab key remains `route-hisab`; UI label is Daily Route.
@@ -486,23 +475,6 @@ export function MilkRouteHisab({ businessId, category }) {
     );
   };
 
-  const updateBreadType = (customerId, productId, breadType) => {
-    setDayDirty(true);
-    const pid = String(productId);
-    setRows((prev) =>
-      prev.map((r) => {
-        if (String(r.customerId) !== String(customerId)) return r;
-        return {
-          ...r,
-          breadTypes: {
-            ...(r.breadTypes || {}),
-            [pid]: breadType,
-          },
-        };
-      })
-    );
-  };
-
   const updateRowField = (customerId, field, value) => {
     setDayDirty(true);
     setRows((prev) =>
@@ -523,7 +495,6 @@ export function MilkRouteHisab({ businessId, category }) {
         routeLabel: r.routeLabel,
         notes: r.notes,
         qtyByProduct,
-        breadTypes: r.breadTypes || {},
       };
     });
 
@@ -1277,7 +1248,6 @@ export function MilkRouteHisab({ businessId, category }) {
           rows={visibleRows}
           currency={currency}
           onQty={updateQty}
-          onBreadType={updateBreadType}
           onField={updateRowField}
           readOnly={offlineEnabled && !isOnline && !daySnapshotReady}
         />
@@ -1341,17 +1311,31 @@ function dailyRowQtyEntries(row, products) {
     .map((p) => {
       const qty = Number(row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? 0);
       if (!(qty > 0)) return null;
+      const price = Number(p.price) || 0;
       return {
         id: p.id,
         label: shortMilkHisabProductLabel(p, 12),
         qty,
         unit: p.unit || 'pcs',
+        price,
+        lineTotal: qty * price,
       };
     })
     .filter(Boolean);
 }
 
-function DailySheet({ products, rows, currency, onQty, onBreadType, onField, readOnly = false }) {
+function calculateRowDayAmount(row, products) {
+  let total = 0;
+  for (const p of products || []) {
+    const qty = Number(row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? 0);
+    if (qty > 0) {
+      total += qty * (Number(p.price) || 0);
+    }
+  }
+  return Math.round(total * 100) / 100;
+}
+
+function DailySheet({ products, rows, currency, onQty, onField, readOnly = false }) {
   const [expandedId, setExpandedId] = useState(null);
 
   if (!rows.length) {
@@ -1376,6 +1360,8 @@ function DailySheet({ products, rows, currency, onQty, onBreadType, onField, rea
           const open = String(expandedId) === String(row.customerId);
           const filled = dailyRowQtyEntries(row, products);
           const filledCount = filled.length;
+          const dayAmount = calculateRowDayAmount(row, products);
+
           return (
             <div
               key={row.customerId}
@@ -1403,8 +1389,15 @@ function DailySheet({ products, rows, currency, onQty, onBreadType, onField, rea
                   />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-gray-900 truncate">
-                    {row.customerName}
+                  <span className="flex items-center justify-between gap-1">
+                    <span className="block text-sm font-semibold text-gray-900 truncate">
+                      {row.customerName}
+                    </span>
+                    {dayAmount > 0 && (
+                      <span className="text-xs font-bold tabular-nums text-sky-800 shrink-0">
+                        {formatCurrency(dayAmount, currency)}
+                      </span>
+                    )}
                   </span>
                   <span className="mt-0.5 block text-[11px] text-gray-500 truncate">
                     House {row.houseNo || '-'}
@@ -1412,10 +1405,7 @@ function DailySheet({ products, rows, currency, onQty, onBreadType, onField, rea
                     {filledCount > 0
                       ? ` · ${filled
                           .slice(0, 3)
-                          .map((e) => {
-                            const bType = row.breadTypes?.[String(e.id)] || row.breadTypes?.[e.id];
-                            return bType ? `${e.label} (${bType}) ${e.qty}` : `${e.label} ${e.qty}`;
-                          })
+                          .map((e) => `${e.label} ${e.qty}`)
                           .join(', ')}${filledCount > 3 ? '…' : ''}`
                       : ' · No qty yet'}
                   </span>
@@ -1463,39 +1453,30 @@ function DailySheet({ products, rows, currency, onQty, onBreadType, onField, rea
                       <thead className="bg-gray-50 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                         <tr>
                           <th className="px-2.5 py-2">Product</th>
-                          <th className="px-2 py-2 text-right w-16">Unit</th>
-                          <th className="px-2 py-2 text-right w-24">Qty</th>
+                          <th className="px-2 py-2 text-right w-14">Unit</th>
                           <th className="px-2.5 py-2 text-right w-20">Rate</th>
+                          <th className="px-2 py-2 text-right w-20">Qty</th>
+                          <th className="px-2.5 py-2 text-right w-20">Total</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {products.map((p) => {
-                          const isBread = /bread|double\s*roti|roti/i.test(`${p.name} ${p.hisabShortLabel || ''}`) || p.unit === 'pack';
                           const pid = String(p.id);
                           const qty = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
-                          const breadType = row.breadTypes?.[pid] ?? row.breadTypes?.[p.id] ?? '';
+                          const numericQty = Number(qty) || 0;
+                          const price = Number(p.price) || 0;
+                          const lineTotal = numericQty * price;
 
                           return (
                             <tr key={p.id}>
                               <td className="px-2.5 py-1.5 font-medium text-gray-900">
                                 <span className="block">{shortMilkHisabProductLabel(p, 18)}</span>
-                                {isBread && (
-                                  <select
-                                    value={breadType}
-                                    onChange={(e) => onBreadType?.(row.customerId, p.id, e.target.value)}
-                                    disabled={readOnly}
-                                    className="mt-1.5 block h-8 w-full rounded border border-sky-200 bg-sky-50 px-1.5 text-xs font-medium text-sky-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-200 focus:outline-none cursor-pointer"
-                                  >
-                                    {PAKISTANI_BREAD_OPTIONS.map((opt) => (
-                                      <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
                               </td>
                               <td className="px-2 py-1.5 text-right text-xs text-gray-500">
                                 {p.unit || 'pcs'}
+                              </td>
+                              <td className="px-2.5 py-1.5 text-right text-[11px] tabular-nums text-gray-500">
+                                {formatCurrency(price, currency)}
                               </td>
                               <td className="px-2 py-1.5 text-right">
                                 <Input
@@ -1505,13 +1486,13 @@ function DailySheet({ products, rows, currency, onQty, onBreadType, onField, rea
                                   inputMode="decimal"
                                   value={qty}
                                   onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                                  className="ml-auto h-9 w-[4.75rem] tabular-nums text-center bg-white"
+                                  className="ml-auto h-8 w-16 tabular-nums text-center bg-white"
                                   disabled={readOnly}
                                   aria-label={`${p.name} quantity`}
                                 />
                               </td>
-                              <td className="px-2.5 py-1.5 text-right text-[11px] tabular-nums text-gray-500">
-                                {formatCurrency(Number(p.price) || 0, currency)}
+                              <td className="px-2.5 py-1.5 text-right text-xs font-semibold tabular-nums text-gray-900">
+                                {numericQty > 0 ? formatCurrency(lineTotal, currency) : '—'}
                               </td>
                             </tr>
                           );
@@ -1537,109 +1518,104 @@ function DailySheet({ products, rows, currency, onQty, onBreadType, onField, rea
         })}
       </div>
 
-      <div className="hidden lg:block overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <div className="hidden lg:block overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-3 py-2.5 whitespace-nowrap">House</th>
               <th className="px-3 py-2.5 whitespace-nowrap">Customer</th>
               <th className="px-3 py-2.5 whitespace-nowrap">Route</th>
-              {products.map((p) => {
-                const isBreadCol = /bread|double\s*roti|roti/i.test(`${p.name} ${p.hisabShortLabel || ''}`) || p.unit === 'pack';
-                return (
-                  <th
-                    key={p.id}
-                    className={`px-2 py-2 text-center align-bottom ${isBreadCol ? 'min-w-[6.5rem]' : 'min-w-[4.75rem] max-w-[5.5rem]'}`}
-                    title={`${p.name} · ${formatCurrency(Number(p.price) || 0, currency)} / ${p.unit || 'pcs'}`}
-                  >
-                    <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-600">
-                      {shortMilkHisabProductLabel(p, 12)}
-                    </span>
-                    <span className="mt-0.5 block font-normal normal-case text-[10px] text-gray-400">
-                      {isBreadCol ? 'qty · brand' : (p.unit || 'pcs')}
-                    </span>
-                  </th>
-                );
-              })}
+              {products.map((p) => (
+                <th
+                  key={p.id}
+                  className="px-2 py-2 text-center align-bottom min-w-[5.25rem] max-w-[6.5rem]"
+                  title={`${p.name} · ${formatCurrency(Number(p.price) || 0, currency)} / ${p.unit || 'pcs'}`}
+                >
+                  <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-700">
+                    {shortMilkHisabProductLabel(p, 12)}
+                  </span>
+                  <span className="mt-0.5 block font-normal normal-case text-[10px] text-sky-700 font-medium">
+                    {formatCurrency(Number(p.price) || 0, currency)}/{p.unit || 'pcs'}
+                  </span>
+                </th>
+              ))}
+              <th className="px-3 py-2.5 whitespace-nowrap text-right min-w-[6rem]">Day Total</th>
               <th className="px-3 py-2.5 whitespace-nowrap">Notes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {rows.map((row) => (
-              <tr key={row.customerId} className="hover:bg-sky-50/40 align-middle">
-                <td className="px-2 py-2">
-                  <Input
-                    value={row.houseNo || ''}
-                    onChange={(e) => onField(row.customerId, 'houseNo', e.target.value)}
-                    className="h-8 w-28"
-                    disabled={readOnly}
-                  />
-                </td>
-                <td className="px-3 py-2 font-semibold text-gray-900 whitespace-nowrap">
-                  {row.customerName}
-                </td>
-                <td className="px-2 py-2">
-                  <Input
-                    value={row.routeLabel || ''}
-                    onChange={(e) => onField(row.customerId, 'routeLabel', e.target.value)}
-                    className="h-8 w-32"
-                    disabled={readOnly}
-                  />
-                </td>
-                {products.map((p) => {
-                  const isBread = /bread|double\s*roti|roti/i.test(`${p.name} ${p.hisabShortLabel || ''}`) || p.unit === 'pack';
-                  const pid = String(p.id);
-                  const qty = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
-                  const breadType = row.breadTypes?.[pid] ?? row.breadTypes?.[p.id] ?? '';
+            {rows.map((row) => {
+              const rowDayTotal = calculateRowDayAmount(row, products);
+              return (
+                <tr key={row.customerId} className="hover:bg-sky-50/40 align-middle">
+                  <td className="px-2 py-2">
+                    <Input
+                      value={row.houseNo || ''}
+                      onChange={(e) => onField(row.customerId, 'houseNo', e.target.value)}
+                      className="h-8 w-24"
+                      disabled={readOnly}
+                    />
+                  </td>
+                  <td className="px-3 py-2 font-semibold text-gray-900 whitespace-nowrap">
+                    {row.customerName}
+                  </td>
+                  <td className="px-2 py-2">
+                    <Input
+                      value={row.routeLabel || ''}
+                      onChange={(e) => onField(row.customerId, 'routeLabel', e.target.value)}
+                      className="h-8 w-28"
+                      disabled={readOnly}
+                    />
+                  </td>
+                  {products.map((p) => {
+                    const pid = String(p.id);
+                    const qty = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
+                    const numericQty = Number(qty) || 0;
+                    const price = Number(p.price) || 0;
+                    const lineTotal = numericQty * price;
 
-                  return (
-                    <td
-                      key={p.id}
-                      className={`px-1.5 py-2 text-center align-middle ${isBread ? 'bg-amber-50/40' : ''}`}
-                    >
-                      <div className={`flex flex-col items-center gap-1.5 ${isBread ? 'w-[6rem]' : 'w-[4.5rem]'} mx-auto`}>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          inputMode="decimal"
-                          value={qty}
-                          onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                          className="h-8 w-full tabular-nums text-center"
-                          disabled={readOnly}
-                        />
-                        {isBread ? (
-                          <select
-                            value={breadType}
-                            onChange={(e) => onBreadType?.(row.customerId, p.id, e.target.value)}
+                    return (
+                      <td key={p.id} className="px-1.5 py-2 text-center align-middle">
+                        <div className="flex flex-col items-center gap-1 w-[4.75rem] mx-auto">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            inputMode="decimal"
+                            value={qty}
+                            onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
+                            className={cn(
+                              'h-8 w-full tabular-nums text-center transition-colors',
+                              numericQty > 0 ? 'border-sky-300 bg-sky-50/60 font-medium text-sky-900' : ''
+                            )}
                             disabled={readOnly}
-                            className="h-7 w-full rounded-md border border-amber-300 bg-white px-1.5 text-[11px] font-medium text-amber-900 shadow-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-200 focus:outline-none cursor-pointer"
-                            aria-label="Bread brand"
+                          />
+                          <span
+                            className={cn(
+                              'text-[10px] tabular-nums font-semibold h-4 leading-4 truncate max-w-full',
+                              numericQty > 0 ? 'text-emerald-700' : 'text-gray-300'
+                            )}
                           >
-                            {PAKISTANI_BREAD_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          // Invisible spacer keeps row height uniform across all columns
-                          <div className="h-7" aria-hidden />
-                        )}
-                      </div>
-                    </td>
-                  );
-                })}
-                <td className="px-2 py-2">
-                  <Input
-                    value={row.notes || ''}
-                    onChange={(e) => onField(row.customerId, 'notes', e.target.value)}
-                    className="h-8 min-w-[8rem]"
-                    disabled={readOnly}
-                  />
-                </td>
-              </tr>
-            ))}
+                            {numericQty > 0 ? formatCurrency(lineTotal, currency) : '—'}
+                          </span>
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-2 text-right font-bold text-sm tabular-nums text-gray-900 whitespace-nowrap bg-sky-50/30">
+                    {rowDayTotal > 0 ? formatCurrency(rowDayTotal, currency) : '—'}
+                  </td>
+                  <td className="px-2 py-2">
+                    <Input
+                      value={row.notes || ''}
+                      onChange={(e) => onField(row.customerId, 'notes', e.target.value)}
+                      className="h-8 min-w-[7rem]"
+                      disabled={readOnly}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

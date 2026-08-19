@@ -24,6 +24,7 @@ import { isPharmacyElevatedStore } from '@/lib/storefront/pharmacyStorefront';
 import { isTyreElevatedStore } from '@/lib/storefront/tyreStorefront';
 import { isFootwearElevatedStore } from '@/lib/storefront/footwearStorefront';
 import { isElectronicsElevatedStore } from '@/lib/storefront/electronicsStorefront';
+import { isEvBikesStore, formatEvProductSpecs } from '@/lib/storefront/evBikesStorefront';
 import { isPrescriptionRequiredProduct, buildPharmacyPrescriptionContactHref } from '@/lib/storefront/pharmacyProducts';
 import { PharmacyPrescriptionCta } from '@/components/storefront/pharmacy/PharmacyPrescriptionCta';
 import { getStorefrontStockState } from '@/lib/storefront/storefrontStockUi';
@@ -53,6 +54,8 @@ export function ProductCard({ product, businessDomain, variant = 'default' }) {
   const tyreStore = isTyreElevatedStore(business?.category);
   const footwearStore = isFootwearElevatedStore(business?.category);
   const electronicsStore = isElectronicsElevatedStore(business?.category);
+  const evStore = isEvBikesStore(business?.category);
+  const evSpecs = evStore ? formatEvProductSpecs(product) : [];
   const requiresPrescription = pharmacyStore && isPrescriptionRequiredProduct(product);
   const bookableFitness = fitnessStore && isFitnessBookableProduct(product);
   const meetingUrl = fitnessStore ? getTenantMeetingUrl(business, settings) : '';
@@ -431,6 +434,16 @@ export function ProductCard({ product, businessDomain, variant = 'default' }) {
 
         {electronicsStore && electronicsHint && !isDense && (
           <p className="truncate text-[10px] font-semibold text-slate-600">{electronicsHint}</p>
+        )}
+
+        {evStore && evSpecs.length > 0 && !isDense && (
+          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+            {evSpecs.slice(0, 3).map((spec) => (
+              <span key={spec.id} className="inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100/80">
+                {spec.value}
+              </span>
+            ))}
+          </div>
         )}
 
         {product.rating && (!isDense || footwearStore) && (

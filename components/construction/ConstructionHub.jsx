@@ -29,6 +29,8 @@ import { ConstructionFinanceHub } from './ConstructionFinanceHub';
 import { ProcurementHub } from './ProcurementHub';
 import { ConstructionReportsHub } from './ConstructionReportsHub';
 import { ConstructionSettingsHub } from './ConstructionSettingsHub';
+import { ConstructionLetterheadHub } from './ConstructionLetterheadHub';
+import { FileSpreadsheet } from 'lucide-react';
 
 import { getProjectsAction } from '@/lib/actions/construction/projects';
 import { getBOQItemsAction } from '@/lib/actions/construction/boq';
@@ -54,6 +56,7 @@ const TAB_ICONS = {
   finance:          Banknote,
   procurement:      ShoppingCart,
   reports:          BarChart3,
+  letterhead:       FileSpreadsheet,
   settings:         Settings,
 };
 
@@ -253,6 +256,9 @@ export function ConstructionHub({ constructionOps, isOpsLoading }) {
 
       case 'reports':
         return <ConstructionReportsHub projects={projects} />;
+
+      case 'letterhead':
+        return <ConstructionLetterheadHub projects={projects} />;
 
       case 'settings':
         return <ConstructionSettingsHub />;

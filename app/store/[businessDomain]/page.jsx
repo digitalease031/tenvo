@@ -222,12 +222,12 @@ export default async function StoreHomePage({ params }) {
   const supermarketElevatedHero = heroPreset.type === 'supermarket-elevated';
   const autoPartsHero = finderHero && isAutoPartsStore(business.category);
   const marinePartsHero = finderHero && isMarinePartsStore(business.category);
-  const jewelleryElevatedHero = heroPreset.type === 'jewellery-elevated';
-  const skipHomeNavSections = finderHero || editorialHero || dealershipHero || marketplaceHero || pharmacyElevatedHero || furnitureElevatedHero || tilesElevatedHero || tyreElevatedHero || footwearElevatedHero || electronicsElevatedHero || restaurantElevatedHero || fitnessElevatedHero || supermarketElevatedHero || jewelleryElevatedHero || marinePartsHero;
+  const evBikesElevatedHero = heroPreset.type === 'ev-bikes-elevated';
+  const skipHomeNavSections = finderHero || editorialHero || dealershipHero || marketplaceHero || pharmacyElevatedHero || furnitureElevatedHero || tilesElevatedHero || tyreElevatedHero || footwearElevatedHero || electronicsElevatedHero || restaurantElevatedHero || fitnessElevatedHero || supermarketElevatedHero || jewelleryElevatedHero || marinePartsHero || evBikesElevatedHero;
   const copy = getStoreHomeCopy(business, domainCfg, landing);
   const contact = resolveStoreContact({ business, settings });
 
-  const needsCatalogBackfill = !editorialHero && !dealershipHero && !marketplaceHero && !autoPartsHero && !marinePartsHero && !furnitureElevatedHero && !tilesElevatedHero && !tyreElevatedHero && !footwearElevatedHero && !electronicsElevatedHero && !restaurantElevatedHero && !fitnessElevatedHero && !supermarketElevatedHero && !jewelleryElevatedHero;
+  const needsCatalogBackfill = !editorialHero && !dealershipHero && !marketplaceHero && !autoPartsHero && !marinePartsHero && !furnitureElevatedHero && !tilesElevatedHero && !tyreElevatedHero && !footwearElevatedHero && !electronicsElevatedHero && !restaurantElevatedHero && !fitnessElevatedHero && !supermarketElevatedHero && !jewelleryElevatedHero && !evBikesElevatedHero;
 
   const catalogPlan = buildStoreHomeCatalogPlan({
     editorialHero,
@@ -1014,6 +1014,22 @@ export default async function StoreHomePage({ params }) {
           storeName={fitnessStoreName}
           businessDescription={business.description || settings?.description}
           country={business.country || settings?.contact?.country}
+        />
+      )}
+
+      {evBikesElevatedHero && (
+        <LazyVerticalHomeSections
+          variant="ev-bikes"
+          businessDomain={businessDomain}
+          businessCategory={business.category}
+          business={business}
+          categories={categories}
+          products={catalogSnapshotResult.success ? catalogSnapshotResult.products : featuredProducts}
+          currency={storeCurrency}
+          accent={accent}
+          base={heroPreset.base}
+          settings={settings}
+          storeName={business.business_name}
         />
       )}
 

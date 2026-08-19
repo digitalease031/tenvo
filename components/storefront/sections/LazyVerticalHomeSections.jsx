@@ -61,12 +61,18 @@ const FashionHomeSections = dynamicSection(() =>
 const ConstructionHomeSections = dynamicSection(() =>
   import('./construction/ConstructionHomeSections').then((m) => ({ default: m.ConstructionHomeSections }))
 );
+const EvBikesHomeSections = dynamicSection(() =>
+  import('./ev/EvBikesHomeSections').then((m) => ({ default: m.EvBikesHomeSections }))
+);
 
 /**
  * Code-split elevated vertical homepage sections (only the active vertical chunk loads).
  */
 export function LazyVerticalHomeSections({ variant, ...props }) {
   switch (variant) {
+    case 'ev-bikes':
+    case 'ev':
+      return <EvBikesHomeSections {...props} />;
     case 'dealership':
       return <DealershipHomeSections {...props} />;
     case 'marketplace':

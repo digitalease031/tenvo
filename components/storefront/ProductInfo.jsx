@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { isPharmacyElevatedStore } from '@/lib/storefront/pharmacyStorefront';
 import { isTyreElevatedStore } from '@/lib/storefront/tyreStorefront';
 import { isElectronicsElevatedStore } from '@/lib/storefront/electronicsStorefront';
 import { isFootwearElevatedStore } from '@/lib/storefront/footwearStorefront';
+import { isEvBikesStore, formatEvProductSpecs } from '@/lib/storefront/evBikesStorefront';
 import { resolvePharmacyProductMeta } from '@/lib/storefront/pharmacyProducts';
 import { resolveSourcingBadge, buildElectronicsAttributeRows } from '@/lib/storefront/productAttributeChips';
 import { ProductAttributeList } from '@/components/storefront/ProductAttributeList';
@@ -31,8 +32,10 @@ export function ProductInfo({ product, businessDomain }) {
   const showTyreMeta = isTyreElevatedStore(categoryKey);
   const showElectronicsMeta = isElectronicsElevatedStore(categoryKey);
   const showFootwearMeta = isFootwearElevatedStore(categoryKey);
+  const showEvMeta = isEvBikesStore(categoryKey);
   const pharmacyStore = isPharmacyElevatedStore(categoryKey);
   const pharmacyMeta = pharmacyStore ? resolvePharmacyProductMeta(product) : null;
+  const evSpecs = showEvMeta ? formatEvProductSpecs(product) : [];
 
   const { stock: displayStock, isOutOfStock, isLowStock } = getStorefrontStockState(product);
 
@@ -86,6 +89,11 @@ export function ProductInfo({ product, businessDomain }) {
             {electronicsWarranty} warranty
           </Badge>
         ) : null}
+        {evSpecs.map((spec) => (
+          <Badge key={spec.id} variant="outline" className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 font-semibold">
+            {spec.label}: {spec.value}
+          </Badge>
+        ))}
       </div>
 
       <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">{product.name}</h1>
@@ -136,7 +144,7 @@ export function ProductInfo({ product, businessDomain }) {
         <p className="text-gray-600 leading-relaxed">{product.description}</p>
       ) : null}
 
-      {(showFashionMeta || showPartsMeta || showMarineMeta || showTyreMeta || showElectronicsMeta || showFootwearMeta || product.sku) ? (
+      {(showFashionMeta || showPartsMeta || showMarineMeta || showTyreMeta || showElectronicsMeta || showFootwearMeta || showEvMeta || product.sku) ? (
         <ProductAttributeList
           product={product}
           businessDomain={businessDomain}
@@ -146,6 +154,7 @@ export function ProductInfo({ product, businessDomain }) {
           showTyreMeta={showTyreMeta}
           showElectronicsMeta={showElectronicsMeta}
           showFootwearMeta={showFootwearMeta}
+          showEvMeta={showEvMeta}
           hideBadgeKeys={[
             ...(sourcingBadge ? ['sourcing'] : []),
             ...(electronicsWarranty ? ['warranty'] : []),

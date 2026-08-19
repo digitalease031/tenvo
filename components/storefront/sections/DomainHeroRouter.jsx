@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { PartsFinderHero } from './heroes/PartsFinderHero';
 import { MarinePartsFinderHero } from './heroes/MarinePartsFinderHero';
@@ -22,6 +22,7 @@ import { RestaurantHero } from './restaurant/RestaurantHero';
 import { FitnessHero } from './fitness/FitnessHero';
 import { SupermarketHero } from './supermarket/SupermarketHero';
 import { JewelleryHero } from './heroes/JewelleryHero';
+import { EvBikesHero } from './ev/EvBikesHero';
 
 /**
  * Renders the domain-appropriate immersive hero (parts finder, pharmacy, fashion, etc.).
@@ -38,6 +39,15 @@ export function DomainHeroRouter({
   if (!preset?.type) return null;
 
   switch (preset.type) {
+    case 'ev-bikes-elevated':
+      return (
+        <EvBikesHero
+          preset={preset}
+          businessDomain={businessDomain}
+          accent={accent}
+          storeName={preset.storeName}
+        />
+      );
     case 'parts-finder':
       return (
         <PartsFinderHero

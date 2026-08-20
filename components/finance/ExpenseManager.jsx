@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-    Receipt, Plus, Filter, Trash2, Loader2,
+    Receipt, Plus, Filter, Trash2, Loader2, Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { formatDisplayDate } from '@/lib/utils/formatDisplayDate';
 import { ExpenseEntryForm } from '@/components/ExpenseEntryForm';
-import { deleteExpenseAction } from '@/lib/actions/basic/expense';
+import { deleteExpenseAction, getGeneralExpenseReportDataAction } from '@/lib/actions/basic/expense';
 import {
     getExpenseCategoriesForDomain,
     normalizeExpenseCategory,
@@ -34,6 +34,41 @@ export function ExpenseManager({
     const [showForm, setShowForm] = useState(false);
     const [filterCategory, setFilterCategory] = useState('all');
     const [deletingId, setDeletingId] = useState(null);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+    const handleExportExpenseReportPdf = async (periodKey) => {
+        if (!businessId || !periodKey) return;
+        setIsExportingPdf(true);
+        const toastId = toast.loading('Generating expense report PDF...');
+        try {
+            const res = await getGeneralExpenseReportDataAction({
+                businessId,
+                periodKey,
+                businessCategory,
+            });
+            if (!res.success) {
+                toast.error(res.error || 'Failed to fetch expense report data', { id: toastId });
+                return;
+            }
+            const { generateExpenseReportPdf } = await import('@/lib/pdf/expenseReportPdf');
+            const doc = generateExpenseReportPdf({
+                business: res.business,
+                currency: currency === 'Rs.' ? 'PKR' : currency,
+                periodLabel: res.periodLabel,
+                dateFrom: res.dateFrom,
+                dateTo: res.dateTo,
+                expenses: res.expenses,
+            });
+            const filename = `Expense_Report_${periodKey}_${res.dateTo || 'download'}.pdf`;
+            doc.save(filename);
+            toast.success('Expense report downloaded!', { id: toastId });
+        } catch (e) {
+            console.error('handleExportExpenseReportPdf error:', e);
+            toast.error('Failed to generate expense report PDF', { id: toastId });
+        } finally {
+            setIsExportingPdf(false);
+        }
+    };
 
     const categories = useMemo(
         () =>
@@ -130,7 +165,7 @@ export function ExpenseManager({
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex w-full items-center gap-2 sm:w-auto">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <Select value={filterCategory} onValueChange={setFilterCategory}>
                         <SelectTrigger className="h-9 w-full rounded-xl text-xs sm:w-[180px]">
                             <Filter className="mr-2 h-3 w-3" />
@@ -143,6 +178,24 @@ export function ExpenseManager({
                                     {cat.label}
                                 </SelectItem>
                             ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select disabled={isExportingPdf} onValueChange={(val) => { if (val) handleExportExpenseReportPdf(val); }}>
+                        <SelectTrigger className="h-9 w-full rounded-xl bg-white text-xs text-gray-700 sm:w-[180px]">
+                            {isExportingPdf ? (
+                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-brand-primary" />
+                            ) : (
+                                <Download className="mr-2 h-3.5 w-3.5 text-gray-500" />
+                            )}
+                            <SelectValue placeholder="Download Report PDF" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="monthly">📅 Monthly (This Month)</SelectItem>
+                            <SelectItem value="last-3-months">🗓️ 3 Months (Last 90 Days)</SelectItem>
+                            <SelectItem value="last-6-months">📆 6 Months (Last 180 Days)</SelectItem>
+                            <SelectItem value="yearly">📊 Yearly (This Year)</SelectItem>
+                            <SelectItem value="all-time">📑 All Time</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

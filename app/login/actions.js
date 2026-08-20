@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import pool from '@/lib/db';
+import { getFirstAllowedTab } from '@/lib/rbac/permissions';
+import { extractModuleAccess } from '@/lib/rbac/moduleAccess';
 
 /**
  * Server Action: Login with Better Auth
@@ -45,7 +47,7 @@ export async function login(formData) {
         try {
             // Get user's active business membership
             const membershipResult = await client.query(`
-                SELECT business_id, role 
+                SELECT business_id, role, permissions 
                 FROM business_users 
                 WHERE user_id = $1 AND status = 'active'
                 ORDER BY created_at DESC
@@ -53,18 +55,31 @@ export async function login(formData) {
             `, [userId]);
 
             if (membershipResult.rows.length > 0) {
-                const { business_id } = membershipResult.rows[0];
+                const { business_id, role, permissions } = membershipResult.rows[0];
 
                 // Get business domain
                 const businessResult = await client.query(`
-                    SELECT domain 
+                    SELECT domain, category, plan_tier, settings 
                     FROM businesses 
                     WHERE id = $1
                 `, [business_id]);
 
                 if (businessResult.rows.length > 0) {
-                    const { domain } = businessResult.rows[0];
-                    redirectPath = `/business/${domain}`;
+                    const { domain, category, plan_tier, settings } = businessResult.rows[0];
+                    const moduleAccess = extractModuleAccess(permissions);
+                    const startingTab = getFirstAllowedTab({
+                        role,
+                        planTier: plan_tier || 'free',
+                        businessSettings: settings,
+                        moduleAccess,
+                        category: category || 'retail-shop',
+                    });
+
+                    if (startingTab && startingTab !== 'dashboard') {
+                        redirectPath = `/business/${domain}?tab=${startingTab}`;
+                    } else {
+                        redirectPath = `/business/${domain}`;
+                    }
                 }
             } else {
                 console.warn('User authenticated but no active business membership found.');

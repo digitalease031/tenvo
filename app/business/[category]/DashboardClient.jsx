@@ -43,6 +43,7 @@ import { BusinessLoadingBoundary } from '@/components/guards/BusinessLoadingBoun
 import { useHubReady } from '@/lib/hooks/useHubReady';
 import { useResourceLimits } from '@/lib/hooks/useResourceLimits';
 import { usePermissions } from '@/lib/hooks/usePermissions';
+import { getFirstAllowedTab, getNavItemAccess } from '@/lib/rbac/permissions';
 import { getDomainConfig } from '@/lib/config/domains';
 import { QUICK_ACTION_IDS } from '@/lib/config/quickActions';
 import { normalizeDashboardTab, resolveDashboardTab, resolveFinanceViewForTab } from '@/lib/config/tabs';
@@ -104,6 +105,8 @@ function BusinessDashboardContent() {
     business,
     role,
     planTier: contextPlanTier,
+    moduleAccess,
+    isPlatformOwner,
     updateBusiness,
     isLoading: businessLoading,
     switchBusinessByDomain,
@@ -133,6 +136,35 @@ function BusinessDashboardContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, business?.id]);
+
+  // Sub-user module permissions redirect: if current activeTab is not accessible (e.g. dashboard turned off),
+  // automatically redirect to their first allowed tab (e.g. pos, inventory, customers).
+  useEffect(() => {
+    if (!business?.id || isPlatformOwner || businessLoading) return;
+    const currentAccess = getNavItemAccess(
+      activeTab,
+      role || 'viewer',
+      contextPlanTier || business?.plan_tier || 'free',
+      business?.settings,
+      business?.platformFeatureOverrides,
+      moduleAccess
+    );
+
+    if (!currentAccess.visible || currentAccess.locked) {
+      const allowedTab = getFirstAllowedTab({
+        role: role || 'viewer',
+        planTier: contextPlanTier || business?.plan_tier || 'free',
+        businessSettings: business?.settings,
+        platformOverrides: business?.platformFeatureOverrides,
+        moduleAccess,
+        category,
+      });
+
+      if (allowedTab && allowedTab !== activeTab) {
+        goToTab(allowedTab, { replace: true });
+      }
+    }
+  }, [activeTab, business?.id, role, contextPlanTier, business?.plan_tier, business?.settings, business?.platformFeatureOverrides, moduleAccess, isPlatformOwner, businessLoading, category, goToTab]);
 
   useEffect(() => {
     if (activeTab) prefetchHubTabChunk(activeTab);
@@ -203,6 +235,14 @@ function BusinessDashboardContent() {
     }
     setShowExpenseForm(true);
   }, [planCan]);
+
+  // Auto-open modals based on URL query params (e.g. ?modal=add-customer or ?action=add-customer)
+  useEffect(() => {
+    const modalParam = searchParams.get('modal') || searchParams.get('action');
+    if (modalParam === 'add-customer' || modalParam === 'new-customer') {
+      setShowCustomerForm(true);
+    }
+  }, [searchParams]);
 
   // Drop in-flight product editors when the active shop changes (prevents cross-tenant save).
   useEffect(() => {

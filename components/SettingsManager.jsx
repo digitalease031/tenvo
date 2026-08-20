@@ -67,7 +67,7 @@ const ASSIGNABLE_TEAM_ROLES = [
 
 function resolveMemberModules(member) {
   if (member?.module_access != null && typeof member.module_access === 'object') {
-    return { ...member.module_access, dashboard: true };
+    return member.module_access;
   }
   return getDefaultModulesForRole(member?.role);
 }
@@ -1513,13 +1513,13 @@ export function SettingsManager({ category }) {
                     <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Module access</p>
                       <p className="text-xs text-slate-500 font-medium">
-                        Choose which hub areas this member can open. Dashboard is always included.
+                        Choose which hub areas this member can open (e.g. POS only, Inventory only, Customers, or custom combinations without Dashboard).
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         {STAFF_ACCESS_MODULES.map((mod) => {
                           const planLocked = isStaffModulePlanLocked(mod.id, planTier, business?.settings);
-                          const checked = mod.id === 'dashboard' || createModules?.[mod.id] === true;
-                          const disabled = mod.id === 'dashboard' || planLocked;
+                          const checked = createModules?.[mod.id] === true;
+                          const disabled = planLocked;
                           return (
                             <label
                               key={mod.id}
@@ -1537,7 +1537,7 @@ export function SettingsManager({ category }) {
                                 onChange={() => toggleCreateModule(mod.id)}
                               />
                               <span className="truncate">{mod.label}</span>
-                              {planLocked && mod.id !== 'dashboard' ? (
+                              {planLocked ? (
                                 <span className="ml-auto shrink-0 text-[9px] font-semibold uppercase text-amber-700">Plan</span>
                               ) : null}
                             </label>
@@ -1644,8 +1644,8 @@ export function SettingsManager({ category }) {
                                   <div className="grid grid-cols-2 gap-1.5">
                                     {STAFF_ACCESS_MODULES.map((mod) => {
                                       const planLocked = isStaffModulePlanLocked(mod.id, planTier, business?.settings);
-                                      const checked = mod.id === 'dashboard' || draftModules?.[mod.id] === true;
-                                      const disabled = mod.id === 'dashboard' || planLocked;
+                                      const checked = draftModules?.[mod.id] === true;
+                                      const disabled = planLocked;
                                       return (
                                         <label
                                           key={mod.id}
@@ -1663,7 +1663,7 @@ export function SettingsManager({ category }) {
                                             onChange={() => toggleAccessDraftModule(mod.id)}
                                           />
                                           <span className="truncate">{mod.label}</span>
-                                          {planLocked && mod.id !== 'dashboard' ? (
+                                          {planLocked ? (
                                             <span className="ml-auto text-[9px] font-semibold uppercase text-amber-700">Plan</span>
                                           ) : null}
                                         </label>

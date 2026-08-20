@@ -18,7 +18,10 @@ const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
  * @property {string} [className]
  */
 /** @type {React.ForwardRefExoticComponent<DropdownMenuTriggerProps & React.RefAttributes<HTMLButtonElement>>} */
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+const DropdownMenuTrigger = React.forwardRef(({ suppressHydrationWarning = true, ...props }, ref) => (
+  <DropdownMenuPrimitive.Trigger ref={ref} suppressHydrationWarning={suppressHydrationWarning} {...props} />
+));
+DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName;
 
 /**
  * @typedef {Object} DropdownMenuSeparatorProps

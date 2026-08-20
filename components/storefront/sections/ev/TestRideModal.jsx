@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Calendar, MapPin, Zap, CheckCircle2, User, Phone } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 

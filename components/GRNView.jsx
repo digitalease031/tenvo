@@ -5,10 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Printer, CheckCircle2, Package, Loader2, FileText, Building2, MapPin } from 'lucide-react';
+import { Printer, CheckCircle2, Package, Loader2, FileText, Building2, MapPin, Download } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { useBusiness } from '@/lib/context/BusinessContext';
 import { purchaseAPI } from '@/lib/api/purchases';
+import { downloadPurchaseOrderPdf } from '@/lib/pdf/purchaseOrderPdf';
 import toast from 'react-hot-toast';
 import {
   getPurchaseStatusLabel,
@@ -67,18 +68,31 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
     const canReceive = isReceivablePurchaseStatus(purchase.status);
     const vendorAddress = [purchase.vendor_address, purchase.vendor_city].filter(Boolean).join(', ');
 
+    const handleDownloadPdf = () => {
+        try {
+            downloadPurchaseOrderPdf({ purchase, business, currency });
+            toast.success('Purchase Order PDF downloaded');
+        } catch (err) {
+            console.error('Failed to generate PO PDF:', err);
+            toast.error('Could not generate PDF');
+        }
+    };
+
     return (
-        <div id="printable-grn" className="space-y-8 animate-in fade-in duration-500 bg-white p-1">
+        <div id="printable-grn" className="space-y-8 animate-in fade-in duration-500 bg-white p-2 text-gray-900">
+            {/* Top Brand Strip */}
+            <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: brandColorHex }} />
+
             {/* Header Info */}
-            <div className="flex justify-between items-start border-b border-gray-100 pb-8">
+            <div className="flex justify-between items-start border-b border-gray-100 pb-6">
                 <div className="space-y-6">
                     <div className="flex items-center gap-3">
                         <div className="p-3 border-2 border-gray-900 text-gray-900 rounded-lg">
                             <Package className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
-                                {isReceived ? 'Good Receipt Note' : 'Purchase Order'}
+                            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+                                {isReceived ? 'Good Receipt Note (GRN)' : 'Purchase Order'}
                             </h2>
                             <p className="text-gray-600 font-bold uppercase text-[10px] tracking-widest mt-0.5">
                                 Ref: #{purchase.purchase_number}
@@ -93,9 +107,9 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                                 <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-wider">Supplier Details</Label>
                             </div>
                             <div className="pl-6">
-                                <p className="font-semibold text-gray-800 text-lg">{purchase.vendor_name}</p>
-                                <p className="text-sm text-gray-500">{purchase.vendor_email}</p>
-                                <p className="text-sm text-gray-500">{purchase.vendor_phone}</p>
+                                <p className="font-semibold text-gray-800 text-lg">{purchase.vendor_name || 'Supplier'}</p>
+                                {purchase.vendor_email && <p className="text-sm text-gray-500">{purchase.vendor_email}</p>}
+                                {purchase.vendor_phone && <p className="text-sm text-gray-500">{purchase.vendor_phone}</p>}
                                 {vendorAddress && (
                                     <p className="text-sm text-gray-500">{vendorAddress}</p>
                                 )}
@@ -107,7 +121,7 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                                 <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-wider">Receiving Entity</Label>
                             </div>
                             <div className="pl-6">
-                                <p className="font-semibold text-gray-800 text-lg">{business?.name}</p>
+                                <p className="font-semibold text-gray-800 text-lg">{business?.name || 'Main Business'}</p>
                                 <p className="text-sm text-gray-500">{business?.address || 'Primary Business Location'}</p>
                             </div>
                         </div>
@@ -117,7 +131,7 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                 <div className="text-right space-y-6">
                     <div className="space-y-1">
                         <Label className="text-[10px] font-semibold uppercase text-gray-400">Date Issued</Label>
-                        <p className="font-bold text-gray-800">{new Date(purchase.date).toLocaleDateString('en-PK', { dateStyle: 'long' })}</p>
+                        <p className="font-bold text-gray-800">{purchase.date ? new Date(purchase.date).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '-'}</p>
                     </div>
                     <div className="space-y-1">
                         <Label className="text-[10px] font-semibold uppercase text-gray-500">Status</Label>
@@ -152,7 +166,7 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 text-gray-900">
-                        {purchase.items?.map((item, idx) => (
+                        {purchase.items?.map((item) => (
                             <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-6 py-3">
                                     <p className="font-bold">{item.product_name || item.description}</p>
@@ -185,17 +199,17 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                         {purchase.notes || 'No additional notes provided for this transaction.'}
                     </div>
                 </div>
-                <div className="w-80 space-y-4 pt-2">
+                <div className="w-80 space-y-3 pt-2">
                     <div className="flex justify-between text-sm font-bold text-gray-500">
                         <span>Subtotal</span>
                         <span className="font-mono">{formatCurrency(purchase.subtotal, currency)}</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold text-gray-500">
-                        <span>GST/Tax Total</span>
+                        <span>GST / Tax Total</span>
                         <span className="font-mono">{formatCurrency(purchase.tax_total, currency)}</span>
                     </div>
-                    <div className="border-t border-gray-100 pt-3">
-                        <div className="flex justify-between text-xl font-semibold text-gray-900">
+                    <div className="border-t border-gray-200 pt-3">
+                        <div className="flex justify-between text-xl font-bold text-gray-900">
                             <span>Net Payable</span>
                             <span style={{ color: brandColorHex }}>{formatCurrency(purchase.total_amount, currency)}</span>
                         </div>
@@ -203,8 +217,24 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                 </div>
             </div>
 
+            {/* Signature Blocks */}
+            <div className="pt-12 grid grid-cols-3 gap-8 text-center text-xs text-gray-500">
+                <div className="border-t border-gray-300 pt-2 font-semibold">
+                    Prepared By (Procurement)
+                </div>
+                <div className="border-t border-gray-300 pt-2 font-semibold">
+                    Approved By (Management)
+                </div>
+                <div className="border-t border-gray-300 pt-2 font-semibold">
+                    {isReceived ? 'Received By (Storekeeper)' : 'Vendor Acknowledgment'}
+                </div>
+            </div>
+
             {/* Actions */}
             <div className="flex justify-end gap-3 no-print pt-6 border-t border-dashed border-gray-200">
+                <Button variant="outline" className="rounded-xl h-11 px-5 font-bold" onClick={handleDownloadPdf}>
+                    <Download className="w-4 h-4 mr-2" /> Download PDF
+                </Button>
                 <Button variant="outline" className="rounded-xl h-11 px-6 font-bold" onClick={() => window.print()}>
                     <Printer className="w-4 h-4 mr-2" /> Print Document
                 </Button>
@@ -223,52 +253,29 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                 @media print {
                     @page {
                         size: A4;
-                        margin: 10mm;
+                        margin: 12mm;
                     }
-                    body {
-                        background: white !important;
-                        color: black !important;
+                    body * {
+                        visibility: hidden !important;
                     }
-                    /* Hide everything by default */
-                    body > * {
-                        display: none !important;
-                    }
-                    /* Show only the printable container */
                     #printable-grn, #printable-grn * {
-                        display: block !important;
                         visibility: visible !important;
                     }
-                    /* Reset styles for printing */
                     #printable-grn {
-                        display: block !important;
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        background: white;
-                        padding: 0;
-                        margin: 0;
+                        position: absolute !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        background: white !important;
                     }
                     .no-print {
                         display: none !important;
                     }
-                    /* Specific layout fixes for print */
-                    .flex { display: flex !important; }
-                    .justify-between { justify-content: space-between !important; }
-                    .items-start { align-items: flex-start !important; }
-                    .grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 2rem !important; }
-                    .gap-12 { gap: 3rem !important; }
-                    
-                    table { width: 100% !important; border-collapse: collapse !important; }
-                    th, td { border: 1px solid #e5e7eb !important; padding: 0.5rem !important; }
-                    
-                    /* Ensure text is black and visible */
-                    .text-gray-900 { color: #111827 !important; }
-                    .text-gray-800 { color: #1f2937 !important; }
-                    .text-gray-600 { color: #4b5563 !important; }
-                    .text-gray-500 { color: #6b7280 !important; }
                 }
             `}</style>
         </div>
     );
 }
+

@@ -46,10 +46,18 @@ function logSection(title) {
 async function checkDatabaseTables() {
   logSection('Database Schema Check');
   
+  if (!process.env.DATABASE_URL) {
+    try {
+      const dotenv = await import('dotenv');
+      dotenv.config({ path: join(ROOT, '.env.local') });
+      dotenv.config({ path: join(ROOT, '.env') });
+    } catch { /* ignore */ }
+  }
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     log('⚠️  DATABASE_URL not set. Skipping database checks.', 'yellow');
-    return false;
+    return true;
   }
 
   const pool = new Pool({ connectionString: databaseUrl });

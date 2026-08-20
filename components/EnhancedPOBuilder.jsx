@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Combobox } from '@/components/ui/combobox';
 import { formatCurrency } from '@/lib/currency';
 import { useFormRegionalContext } from '@/lib/hooks/useFormRegionalContext';
-import { calculatePurchaseLineTotal, calculatePurchaseTotals } from '@/lib/utils/purchaseTotals';
+import { calculatePurchaseLineTotal, calculatePurchaseTotals, isValidPurchaseLine } from '@/lib/utils/purchaseTotals';
 import { resolveInventoryDomainFeatures } from '@/lib/utils/inventoryDomainFeatures';
 import { showActionError } from '@/lib/utils/formErrorHandler';
 import { purchaseAPI } from '@/lib/api/purchases';
@@ -47,9 +47,7 @@ function createEmptyLine(defaultTaxRate = 0) {
     };
 }
 
-function isLineValid(item) {
-    return Boolean(item?.productId) && Number(item?.quantity) > 0 && Number(item?.unitCost) >= 0;
-}
+const isLineValid = isValidPurchaseLine;
 
 function warehouseDescription(w) {
     return [w?.address, w?.city, w?.location].filter(Boolean).join(', ');

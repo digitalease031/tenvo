@@ -87,10 +87,28 @@ function clampFractionDigits(value: unknown, fallback: number): number {
   return Math.max(0, Math.min(20, Math.floor(n)));
 }
 
+function coerceToNumber(val: unknown): number {
+  if (typeof val === 'number') {
+    return Number.isFinite(val) ? val : 0;
+  }
+  if (typeof val === 'string') {
+    const parsed = parseFloat(val.replace(/,/g, '').replace(/[^\d.-]/g, '').trim());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (val && typeof val === 'object') {
+    if ('toNumber' in val && typeof (val as any).toNumber === 'function') {
+      try { return (val as any).toNumber(); } catch { /* ignore */ }
+    }
+    const num = Number(val);
+    if (Number.isFinite(num)) return num;
+  }
+  return 0;
+}
+
 /**
  * Format amount in specified currency
  * 
- * @param amount - Numeric amount to format
+ * @param amount - Numeric amount to format (number, string, or Decimal)
  * @param currency - Currency code (default: PKR)
  * @param options - Additional Intl.NumberFormat options
  * @returns Formatted currency string
@@ -100,20 +118,16 @@ function clampFractionDigits(value: unknown, fallback: number): number {
  * formatCurrency(100, 'USD') // Returns '$100.00'
  */
 export function formatCurrency(
-  amount: number,
+  amount: number | string | unknown,
   currency: CurrencyCode = 'PKR',
   options?: Intl.NumberFormatOptions
 ): string {
-  // Robust NaN handling
-  if (typeof amount !== 'number' || isNaN(amount)) {
-    amount = 0;
-  }
-
+  const numericAmount = coerceToNumber(amount);
   const config = CURRENCY_CONFIG[currency];
 
   if (!config) {
     console.warn(`Unknown currency: ${currency}, defaulting to PKR`);
-    return formatCurrency(amount, 'PKR', options);
+    return formatCurrency(numericAmount, 'PKR', options);
   }
 
   const { minimumFractionDigits: optMin, maximumFractionDigits: optMax, ...restOptions } = options || {};
@@ -140,17 +154,17 @@ export function formatCurrency(
       minimumFractionDigits: minD,
       maximumFractionDigits: maxD,
       ...restOptions,
-    }).format(amount);
+    }).format(numericAmount);
     return `₨${parts}`;
   }
 
-  return formatter.format(amount);
+  return formatter.format(numericAmount);
 }
 
 /**
  * Format amount without currency symbol (for display in tables)
  * 
- * @param amount - Numeric amount
+ * @param amount - Numeric amount (number, string, or Decimal)
  * @param currency - Currency code (default: PKR)
  * @returns Formatted number string
  * 
@@ -158,14 +172,10 @@ export function formatCurrency(
  * formatAmount(1000, 'PKR') // Returns '1,000.00'
  */
 export function formatAmount(
-  amount: number,
+  amount: number | string | unknown,
   currency: CurrencyCode = 'PKR'
 ): string {
-  // Robust NaN handling
-  if (typeof amount !== 'number' || isNaN(amount)) {
-    amount = 0;
-  }
-
+  const numericAmount = coerceToNumber(amount);
   const config = CURRENCY_CONFIG[currency];
   const minD = clampFractionDigits(config.decimal, config.decimal);
   const maxD = clampFractionDigits(config.decimal, config.decimal);
@@ -174,7 +184,7 @@ export function formatAmount(
     maximumFractionDigits: maxD,
   });
 
-  return formatter.format(amount);
+  return formatter.format(numericAmount);
 }
 
 /**

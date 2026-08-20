@@ -1,19 +1,21 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CheckSquare, XCircle, Clock, AlertTriangle, CheckCircle2,
-    FileText, DollarSign, RotateCcw, ShoppingCart, ChevronRight
+    FileText, DollarSign, RotateCcw, ShoppingCart, ChevronRight, Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/currency';
 
 const TYPE_CONFIG = {
     expense: { icon: DollarSign, color: 'bg-red-100 text-red-600', label: 'Expense' },
-    purchase: { icon: ShoppingCart, color: 'bg-blue-100 text-blue-600', label: 'Purchase' },
+    purchase: { icon: ShoppingCart, color: 'bg-blue-100 text-blue-600', label: 'Purchase Order' },
+    stock_adjustment: { icon: Package, color: 'bg-indigo-100 text-indigo-600', label: 'Stock Adjustment' },
     refund: { icon: RotateCcw, color: 'bg-amber-100 text-amber-600', label: 'Refund' },
     credit_note: { icon: FileText, color: 'bg-wine-100 text-wine-600', label: 'Credit Note' },
     journal_entry: { icon: FileText, color: 'bg-emerald-100 text-emerald-600', label: 'Journal Entry' },
@@ -66,8 +68,8 @@ export function ApprovalInbox({
                                             {req.description || 'No description'} by {req.requester_name || 'Unknown'}
                                         </p>
                                     </div>
-                                    {req.amount && (
-                                        <span className="text-sm font-bold text-gray-900">{currency}{parseFloat(req.amount).toLocaleString()}</span>
+                                    {req.amount != null && (
+                                        <span className="text-sm font-bold text-gray-900">{formatCurrency(req.amount, currency)}</span>
                                     )}
                                     <div className="flex items-center gap-1.5">
                                         <Button

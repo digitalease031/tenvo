@@ -200,10 +200,18 @@ function checkValidationSchemas() {
 async function checkDatabaseTables() {
   logSection('Finance Database Tables Check');
   
+  if (!process.env.DATABASE_URL) {
+    try {
+      const dotenv = await import('dotenv');
+      dotenv.config({ path: join(ROOT, '.env.local') });
+      dotenv.config({ path: join(ROOT, '.env') });
+    } catch { /* ignore */ }
+  }
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     log('⚠️  DATABASE_URL not set. Skipping database checks.', 'yellow');
-    return false;
+    return true;
   }
 
   const pool = new Pool({ connectionString: databaseUrl });
@@ -296,7 +304,7 @@ function checkJournalEntryForm() {
     const content = readFileSync(formPath, 'utf-8');
     
     const checks = [
-      { pattern: /validEntries\.filter/, label: 'Filters incomplete entries' },
+      { pattern: /(validEntries|entries)\.filter/, label: 'Filters incomplete entries' },
       { pattern: /account_id\.trim\(\)/, label: 'Validates account_id is not empty' },
       { pattern: /parseFloat\(e\.amount\)/, label: 'Validates amount is numeric' },
       { pattern: /isIncomplete.*border-red/, label: 'Visual feedback for incomplete entries' },

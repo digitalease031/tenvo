@@ -81,9 +81,12 @@ export function PurchaseOrderManager({ purchaseOrders = [], onCreate, onUpdateSt
     {
       accessorKey: 'total_amount',
       header: 'Amount',
-      cell: ({ row }) => (
-        <span className="font-semibold text-gray-900">{formatCurrency(row.original.total_amount, currency)}</span>
-      ),
+      cell: ({ row }) => {
+        const val = row.original.total_amount ?? row.original.total ?? row.original.amount ?? 0;
+        return (
+          <span className="font-semibold text-gray-900">{formatCurrency(val, currency)}</span>
+        );
+      },
     },
     {
       accessorKey: 'status',
@@ -147,7 +150,10 @@ export function PurchaseOrderManager({ purchaseOrders = [], onCreate, onUpdateSt
   );
 
   const openOrdersCount = purchaseOrders.filter(p => isOpenPurchaseStatus(p.status)).length;
-  const procurementValue = purchaseOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+  const procurementValue = purchaseOrders.reduce((sum, order) => {
+    const val = Number(order.total_amount ?? order.total ?? order.amount) || 0;
+    return sum + val;
+  }, 0);
   const pendingReceiptCount = purchaseOrders.filter(p => normalizePurchaseStatus(p.status) === PURCHASE_STATUSES.ORDERED).length;
   const receivedCount = purchaseOrders.filter(p => normalizePurchaseStatus(p.status) === PURCHASE_STATUSES.RECEIVED).length;
 

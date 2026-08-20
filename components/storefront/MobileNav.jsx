@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { X, ChevronDown, Home, ShoppingBag, User, Heart, Package, Truck, RotateCcw, HelpCircle, Phone } from 'lucide-react';
+import { X, ChevronDown, Home, ShoppingBag, User, Heart, Package, Truck, RotateCcw, HelpCircle, Phone, Calculator } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/lib/hooks/storefront/useCart';
@@ -27,6 +27,7 @@ export function MobileNav({ isOpen, onClose, categories, businessDomain, accent 
   ];
 
   const supportLinks = [
+    { label: 'Installment Plan',    href: `${storeRoot}/installments`, icon: Calculator },
     { label: 'Shipping Info',       href: `${storeRoot}/shipping`,  icon: Truck },
     { label: 'Returns & Exchanges', href: `${storeRoot}/returns`,   icon: RotateCcw },
     { label: 'FAQs',                href: `${storeRoot}/faqs`,      icon: HelpCircle },

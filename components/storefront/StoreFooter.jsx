@@ -16,6 +16,8 @@ import { resolveStoreContact } from '@/lib/storefront/businessContact';
 import { getStoreFooterCopy } from '@/lib/storefront/storeFooterCopy';
 import { isAutoDealershipStore, getDealershipFooterColumns } from '@/lib/storefront/autoDealership';
 import { isAutoMarketplaceStore, getMarketplaceFooterColumns } from '@/lib/storefront/autoMarketplace';
+import { isEvBikesStore } from '@/lib/storefront/evBikesStorefront';
+import { isElectronicsElevatedStore } from '@/lib/storefront/electronicsStorefront';
 import { StorefrontBrandMark } from '@/components/storefront/StorefrontBrandMark';
 import { getAboutStorefrontConfig } from '@/lib/storefront/aboutStorefront';
 import { isPharmacyElevatedStore, getPharmacyFooterColumns, formatPharmacyStoreName } from '@/lib/storefront/pharmacyStorefront';
@@ -130,7 +132,43 @@ export function StoreFooter({ business, settings }) {
         }),
       }))
     : [];
-  const darkPortalFooter = dealershipFooter || marketplaceFooter || fitnessFooter || supermarketFooter;
+  const evFooter = isEvBikesStore(business?.category);
+  const darkPortalFooter = dealershipFooter || marketplaceFooter || fitnessFooter || supermarketFooter || evFooter;
+
+  const evColumns = evFooter
+    ? [
+        {
+          title: 'EV Lineup',
+          links: [
+            { label: 'All EV Models', href: `/store/${businessDomain}/products` },
+            { label: 'PAVE Scheme', href: `/store/${businessDomain}/products?category=pave` },
+            { label: 'Electric Motorcycles', href: `/store/${businessDomain}/products?category=electric-motorcycles` },
+            { label: 'Smart Scooters', href: `/store/${businessDomain}/products?category=urban-ev-scooters` },
+            { label: 'Batteries & Chargers', href: `/store/${businessDomain}/products?category=batteries-chargers` },
+          ],
+        },
+        {
+          title: 'Customer Support',
+          links: [
+            { label: 'Installment Calculator', href: `/store/${businessDomain}/installments` },
+            { label: 'Track Order', href: `/store/${businessDomain}/orders` },
+            { label: 'Book Test Ride', href: `/store/${businessDomain}#test-ride` },
+            { label: 'Contact Showroom', href: `/store/${businessDomain}/contact` },
+            { label: 'Shipping & Returns', href: `/store/${businessDomain}/returns` },
+          ],
+        },
+        {
+          title: 'Showroom Brands',
+          links: [
+            { label: 'Metro EV Pakistan', href: `/store/${businessDomain}/products?category=metro` },
+            { label: 'Vlektra Motorcycles', href: `/store/${businessDomain}/products?category=vlektra` },
+            { label: 'REVOO EV Series', href: `/store/${businessDomain}/products?category=revoo` },
+            { label: 'Ramza Aima EV', href: `/store/${businessDomain}/products?category=ramza` },
+          ],
+        },
+      ]
+    : [];
+
   // Generic trust badges (Fast delivery, secure payment, etc.) removed from all storefront footers.
   const skipFooterTrustStrip = true;
   const portalColumns = dealershipFooter
@@ -141,7 +179,11 @@ export function StoreFooter({ business, settings }) {
         ? fitnessColumns
         : supermarketFooter
           ? supermarketColumns
-          : pharmacyColumns;
+          : pharmacyFooter
+            ? pharmacyColumns
+            : evFooter
+              ? evColumns
+              : [];
   const displayStoreName = pharmacyFooter
     ? formatPharmacyStoreName(storeName)
     : fitnessFooter
@@ -195,7 +237,15 @@ export function StoreFooter({ business, settings }) {
       href: `/store/${businessDomain}/products?category=${encodeURIComponent(cat.slug || cat.name)}`,
     }));
 
+  const supportsInstallments =
+    isEvBikesStore(business?.category) ||
+    isAutoDealershipStore(business?.category) ||
+    isElectronicsElevatedStore(business?.category);
+
   const supportLinks = [
+    ...(supportsInstallments
+      ? [{ label: 'Installment Plan', href: `/store/${businessDomain}/installments` }]
+      : []),
     ...(aboutCfg.enabled && aboutCfg.showInFooter
       ? [{ label: 'About Us', href: `/store/${businessDomain}/about` }]
       : []),
@@ -418,9 +468,14 @@ export function StoreFooter({ business, settings }) {
               {contact.showContactPageCta ? (
                 <Link
                   href={`/store/${businessDomain}/contact`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white"
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-xs font-black shadow transition-all',
+                    darkPortalFooter
+                      ? 'border border-red-900/50 bg-neutral-900 text-amber-300 hover:bg-red-950 hover:border-amber-500/50'
+                      : 'border border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white'
+                  )}
                 >
-                  <HelpCircle className="h-4 w-4" style={{ color: accent }} />
+                  <HelpCircle className="h-4 w-4 text-amber-400" />
                   Get in touch
                 </Link>
               ) : null}

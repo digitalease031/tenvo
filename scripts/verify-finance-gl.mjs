@@ -57,7 +57,7 @@ includes('components/TaxComplianceManager.jsx', 'periodPos', 'GST includes POS t
 
 // A/R & A/P aging (Statements)
 includes('lib/utils/agingBuckets.js', 'bucketAgingRows', 'shared aging bucket helper');
-includes('lib/services/InvoicePaymentService.js', 'LEFT JOIN (\n                        SELECT invoice_id, SUM(amount) AS amount_paid', 'AR aging uses aggregated payment join (not N+1 balance fn)');
+includes('lib/services/InvoicePaymentService.js', 'SELECT invoice_id, SUM(amount) AS amount_paid', 'AR aging uses aggregated payment join (not N+1 balance fn)');
 includes('lib/services/InvoicePaymentService.js', 'bucketAgingRows', 'AR aging buckets outstanding balance');
 {
   const agingSrc = read('lib/services/InvoicePaymentService.js');

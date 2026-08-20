@@ -439,7 +439,7 @@ export function ProductCard({ product, businessDomain, variant = 'default' }) {
         {evStore && evSpecs.length > 0 && !isDense && (
           <div className="flex flex-wrap items-center gap-1 pt-0.5">
             {evSpecs.slice(0, 3).map((spec) => (
-              <span key={spec.id} className="inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100/80">
+              <span key={spec.id} className="inline-flex items-center rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 border border-red-100/80">
                 {spec.value}
               </span>
             ))}

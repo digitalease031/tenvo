@@ -90,7 +90,7 @@ export function ProductInfo({ product, businessDomain }) {
           </Badge>
         ) : null}
         {evSpecs.map((spec) => (
-          <Badge key={spec.id} variant="outline" className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 font-semibold">
+          <Badge key={spec.id} variant="outline" className="text-xs border-red-200 text-red-700 bg-red-50 font-semibold">
             {spec.label}: {spec.value}
           </Badge>
         ))}

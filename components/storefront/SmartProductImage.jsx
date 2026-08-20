@@ -37,12 +37,16 @@ export function SmartProductImage({
   placeholderLabel,
   imageVariant,
 }) {
-  const safeSrc = isDeadImageUrl(src)
+  const unwrapSrc = (s) => (typeof s === 'string' ? s : (typeof s?.url === 'string' ? s.url : (typeof s?.src === 'string' ? s.src : '')));
+  const rawSrc = unwrapSrc(src);
+  const rawFallback = unwrapSrc(fallbackSrc);
+
+  const safeSrc = isDeadImageUrl(rawSrc)
     ? ''
-    : normalizeStorefrontRemoteImageUrl(src || '');
+    : normalizeStorefrontRemoteImageUrl(rawSrc || '');
   const safeFallback =
-    fallbackSrc && !isDeadImageUrl(fallbackSrc)
-      ? normalizeStorefrontRemoteImageUrl(fallbackSrc)
+    rawFallback && !isDeadImageUrl(rawFallback)
+      ? normalizeStorefrontRemoteImageUrl(rawFallback)
       : '';
   const [currentSrc, setCurrentSrc] = useState(safeSrc || safeFallback);
   const [failed, setFailed] = useState(false);

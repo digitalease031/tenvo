@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
-import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { SmartProductImage } from '@/components/storefront/SmartProductImage';
 
-export function EvBikesPaveBanner({ businessDomain, onSelectPaveFilter }) {
+export function EvBikesPaveBanner({ onSelectPaveFilter }) {
   return (
     <section className="w-full px-4 sm:px-6 lg:px-12 my-6">
       <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-8 sm:p-12 shadow-sm transition-all text-slate-900">

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Zap, ArrowRight, BatteryCharging, Gauge, Clock, ShieldCheck,
-  ChevronLeft, ChevronRight, Calendar, Sparkles, Bike, Flame
+  ChevronLeft, ChevronRight, Calendar, Sparkles, Bike
 } from 'lucide-react';
 import { SmartProductImage } from '@/components/storefront/SmartProductImage';
 import { TestRideModal } from './TestRideModal';
@@ -62,7 +62,7 @@ export function EvBikesHero({ preset, accent = '#991b1b', storeName = 'Tenvo EV'
   ];
 
   return (
-    <section className="relative w-full overflow-hidden bg-slate-50 text-slate-900 min-h-[640px] lg:min-h-[720px] flex flex-col justify-between border-b border-slate-200">
+    <section className="relative w-full overflow-hidden bg-slate-50 text-slate-900 h-[min(100svh,840px)] min-h-[640px] sm:min-h-[700px] lg:min-h-[760px] flex flex-col justify-between border-b border-slate-200">
       {/* Background Slides with smooth transition & clean light overlays */}
       <div className="absolute inset-0">
         {slides.map((s, i) => (
@@ -121,21 +121,24 @@ export function EvBikesHero({ preset, accent = '#991b1b', storeName = 'Tenvo EV'
       </div>
 
       {/* Main Hero Showcase Content */}
-      <div className="relative z-10 w-full px-4 py-12 sm:px-6 lg:px-12">
-        <div className="max-w-3xl space-y-6">
+      <div className="relative z-10 w-full px-4 py-8 sm:py-12 sm:px-6 lg:px-12">
+        <div className="max-w-3xl space-y-5">
           {/* Active Slide Badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-1.5 text-xs font-bold tracking-widest text-red-700 uppercase backdrop-blur-md">
             <Sparkles className="h-3.5 w-3.5 text-red-600" />
             {activeSlide.badge || '⚡ Zero Emissions · Instant Torque'}
           </div>
 
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-slate-900 leading-tight">
-            {activeSlide.title}
-          </h1>
+          {/* Reserved height title block to prevent slide height shifts */}
+          <div className="min-h-[130px] sm:min-h-[160px] lg:min-h-[180px] flex flex-col justify-center space-y-2">
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-slate-900 leading-tight">
+              {activeSlide.title}
+            </h1>
 
-          <p className="text-base sm:text-lg text-slate-600 max-w-2xl leading-relaxed font-medium">
-            {activeSlide.subtitle}
-          </p>
+            <p className="text-base sm:text-lg text-slate-600 max-w-2xl leading-relaxed font-medium line-clamp-2">
+              {activeSlide.subtitle}
+            </p>
+          </div>
 
           {/* Floating Spec Badges Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 max-w-2xl">

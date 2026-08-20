@@ -16,7 +16,6 @@ export function EvBikesSavingsCalculator({
   products = [],
   currency = 'PKR',
   storeName = 'Metro',
-  onBookTestRide,
 }) {
   // Ev model list from products
   const evModels = useMemo(() => {

@@ -9,7 +9,6 @@ import {
   Shield, FileUp,
   Gauge, Percent, Calendar,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useStorefront } from '@/lib/context/StorefrontContext';
 import { useCart } from '@/lib/hooks/storefront/useCart';
@@ -53,7 +52,7 @@ export function StoreHeader({ business, categories, settings }) {
 
   const { cart } = useCart();
   const { wishlistCount } = useWishlist();
-  const { businessDomain, currency } = useStorefront();
+  const { businessDomain } = useStorefront();
 
   const cartItemCount = cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
@@ -110,7 +109,6 @@ export function StoreHeader({ business, categories, settings }) {
   const editorialOnHome = editorialNav && isHome;
   const jewelleryOnHome = jewelleryNav && isHome;
   const dealershipOnHome = dealershipNav && isHome;
-  const marketplaceOnHome = marketplaceNav && isHome;
   const pharmacyOnHome = pharmacyNav && isHome;
   /** Jewellery / beauty / fashion: one compact bar when scrolled (no stacked announcement + policies). */
   const compactLuxuryHeader = (jewelleryNav || editorialNav) && isScrolled;

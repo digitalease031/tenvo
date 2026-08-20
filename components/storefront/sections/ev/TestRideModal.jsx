@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, Calendar, MapPin, Zap, CheckCircle2, User, Phone } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -9,19 +9,14 @@ import { toast } from 'react-hot-toast';
  * Allows visitors to request a free test ride for Vlektra, Metro EV, or Ramza models.
  */
 export function TestRideModal({ isOpen, onClose, storeName = 'Tenvo EV', vehicle = null }) {
-  const [model, setModel] = useState('Metro T9 Sport (Smart Scooter)');
+  const [modelOverride, setModelOverride] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('Lahore');
   const [date, setDate] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  // Sync vehicle name when passed into modal
-  useEffect(() => {
-    if (vehicle?.name) {
-      setModel(vehicle.name);
-    }
-  }, [vehicle]);
+  const model = modelOverride || vehicle?.name || 'Metro T9 Sport (Smart Scooter)';
 
   if (!isOpen) return null;
 
@@ -37,6 +32,7 @@ export function TestRideModal({ isOpen, onClose, storeName = 'Tenvo EV', vehicle
 
   const handleReset = () => {
     setSubmitted(false);
+    setModelOverride('');
     setName('');
     setPhone('');
     setDate('');
@@ -96,7 +92,7 @@ export function TestRideModal({ isOpen, onClose, storeName = 'Tenvo EV', vehicle
               </label>
               <select
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => setModelOverride(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-bold text-slate-900 focus:border-red-600 focus:bg-white focus:outline-none"
               >
                 <option value="Metro T9 Sport (Smart Scooter)">Metro T9 Sport — Graphene Smart Scooter (90 km Range)</option>

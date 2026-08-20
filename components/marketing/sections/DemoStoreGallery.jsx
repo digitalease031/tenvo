@@ -66,7 +66,7 @@ const FADE_MS = 700;
 const HOLD_MS = 5200;
 
 /** Last-resort card art when a demo hero CDN fails (hotlink / 404). */
-const DEMO_CARD_HERO_FALLBACK = buildUnsplashImageUrl('1503376780353-7e6692767b70', {
+const DEMO_CARD_HERO_FALLBACK = buildUnsplashImageUrl('1441984904996-e0b6ba687e04', {
   w: 900,
   q: 82,
 });

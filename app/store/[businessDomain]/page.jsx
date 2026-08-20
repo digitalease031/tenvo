@@ -222,6 +222,7 @@ export default async function StoreHomePage({ params }) {
   const supermarketElevatedHero = heroPreset.type === 'supermarket-elevated';
   const autoPartsHero = finderHero && isAutoPartsStore(business.category);
   const marinePartsHero = finderHero && isMarinePartsStore(business.category);
+  const jewelleryElevatedHero = heroPreset.type === 'jewellery-elevated';
   const evBikesElevatedHero = heroPreset.type === 'ev-bikes-elevated';
   const skipHomeNavSections = finderHero || editorialHero || dealershipHero || marketplaceHero || pharmacyElevatedHero || furnitureElevatedHero || tilesElevatedHero || tyreElevatedHero || footwearElevatedHero || electronicsElevatedHero || restaurantElevatedHero || fitnessElevatedHero || supermarketElevatedHero || jewelleryElevatedHero || marinePartsHero || evBikesElevatedHero;
   const copy = getStoreHomeCopy(business, domainCfg, landing);

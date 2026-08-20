@@ -173,35 +173,30 @@ async function fixDemoStores() {
         let storefrontFixedCount = 0;
         
         for (const business of demoBusinesses) {
-            const settingsResults = await prisma.$queryRaw`
-                SELECT id, storefront_settings FROM business_settings 
-                WHERE business_id = ${business.id}::uuid
-            `;
-            const settings = settingsResults?.[0];
+            const settings = await prisma.business_settings.findUnique({
+                where: { business_id: business.id },
+            });
             
             if (!settings) {
-                // Create settings if missing
-                await prisma.$executeRaw`
-                    INSERT INTO business_settings (business_id, settings, storefront_settings)
-                    VALUES (${business.id}::uuid, '{}'::jsonb, '{"enabled": true}'::jsonb)
-                `;
+                await prisma.business_settings.create({
+                    data: {
+                        business_id: business.id,
+                        is_storefront_enabled: true,
+                        settings: { storefront: { enabled: true } },
+                    },
+                });
                 console.log(`   ✅ Created settings for: ${business.domain}`);
                 storefrontFixedCount++;
-            } else {
-                const storefrontSettings = typeof settings.storefront_settings === 'string'
-                    ? JSON.parse(settings.storefront_settings)
-                    : settings.storefront_settings || {};
-                
-                if (storefrontSettings.enabled === false) {
-                    await prisma.$executeRaw`
-                        UPDATE business_settings
-                        SET storefront_settings = jsonb_set(COALESCE(storefront_settings, '{}'::jsonb), '{enabled}', 'true'::jsonb),
-                            updated_at = NOW()
-                        WHERE business_id = ${business.id}::uuid
-                    `;
-                    console.log(`   ✅ Enabled storefront for: ${business.domain}`);
-                    storefrontFixedCount++;
-                }
+            } else if (settings.is_storefront_enabled === false) {
+                await prisma.business_settings.update({
+                    where: { business_id: business.id },
+                    data: {
+                        is_storefront_enabled: true,
+                        updated_at: new Date(),
+                    },
+                });
+                console.log(`   ✅ Enabled storefront for: ${business.domain}`);
+                storefrontFixedCount++;
             }
         }
         

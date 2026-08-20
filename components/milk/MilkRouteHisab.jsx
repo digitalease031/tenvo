@@ -990,10 +990,10 @@ export function MilkRouteHisab({ businessId, category }) {
         prev.map((r) =>
           r.customerId === row.customerId
             ? {
-                ...r,
-                paymentStatus: res.paymentStatus || next,
-                hisabPaymentStatus: next,
-              }
+              ...r,
+              paymentStatus: res.paymentStatus || next,
+              hisabPaymentStatus: next,
+            }
             : r
         )
       );
@@ -1406,9 +1406,9 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                     {row.routeLabel ? ` · ${row.routeLabel}` : ''}
                     {filledCount > 0
                       ? ` · ${filled
-                          .slice(0, 3)
-                          .map((e) => `${e.label} ${e.qty}`)
-                          .join(', ')}${filledCount > 3 ? '…' : ''}`
+                        .slice(0, 3)
+                        .map((e) => `${e.label} ${e.qty}`)
+                        .join(', ')}${filledCount > 3 ? '…' : ''}`
                       : ' · No qty yet'}
                   </span>
                 </span>
@@ -1698,7 +1698,7 @@ function BillsActionCluster({
   return (
     <div className="inline-flex flex-nowrap items-center gap-1">
       {canPrint ? (
-        <>
+        <React.Fragment>
           <button
             type="button"
             className={BILL_ACTION_BTN}
@@ -1728,7 +1728,7 @@ function BillsActionCluster({
             )}
           </button>
           {urduBillsEnabled ? (
-            <>
+            <React.Fragment>
               <button
                 type="button"
                 className={cn(BILL_ACTION_BTN, 'w-auto min-w-[1.75rem] px-1.5 font-urdu text-[10px] leading-none')}
@@ -1753,15 +1753,15 @@ function BillsActionCluster({
                   <Download className="h-3.5 w-3.5" />
                 )}
               </button>
-            </>
+            </React.Fragment>
           ) : null}
-        </>
+        </React.Fragment>
       ) : null}
 
       {canPrint && remindable ? <span className="mx-0.5 h-4 w-px shrink-0 bg-gray-200" aria-hidden /> : null}
 
       {remindable ? (
-        <>
+        <React.Fragment>
           <button
             type="button"
             className={BILL_ACTION_BTN}
@@ -1796,7 +1796,7 @@ function BillsActionCluster({
           >
             <Mail className="h-3.5 w-3.5" />
           </button>
-        </>
+        </React.Fragment>
       ) : Number(row.amount) > 0 && String(row.paymentStatus || '').toLowerCase() === 'paid' ? (
         <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Paid</span>
       ) : null}

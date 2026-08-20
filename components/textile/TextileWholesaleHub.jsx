@@ -34,6 +34,8 @@ import {
   Filter,
 } from 'lucide-react';
 
+import { calculateThaanStockSummary } from '@/lib/utils/textileWholesaleHelpers';
+
 export function TextileWholesaleHub({ 
   businessId,
   category,
@@ -62,31 +64,13 @@ export function TextileWholesaleHub({
     }).format(amount || 0);
   };
 
-  // Process products into stock summary
+  // Process products into stock summary (with variable Thaan breakdown support)
   const stockSummary = useMemo(() => {
-    let totalThaans = 0;
-    let totalMeters = 0;
-    let stockValue = 0;
-
-    products.forEach(product => {
-      const stock = product.stock || 0;
-      const costPrice = product.cost_price || product.price || 0;
-      
-      if (product.unit === 'thaan') {
-        totalThaans += stock;
-        const length = product.domain_data?.thaanlength || 40;
-        totalMeters += stock * length;
-      } else if (product.unit === 'meter' || product.unit === 'm') {
-        totalMeters += stock;
-      }
-      
-      stockValue += stock * costPrice;
-    });
-
+    const calculated = calculateThaanStockSummary(products);
     return {
-      totalThaans: Math.round(totalThaans),
-      totalMeters: Math.round(totalMeters),
-      stockValue: formatCurrency(stockValue),
+      totalThaans: calculated.totalThaans,
+      totalMeters: calculated.totalMeters,
+      stockValue: formatCurrency(calculated.stockValue),
       totalArticles: products.length,
     };
   }, [products, formatCurrency]);

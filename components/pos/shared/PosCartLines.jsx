@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, ShoppingCart, Weight, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductThumbnail } from '@/components/product/ProductThumbnail';
-import { cn } from '@/lib/utils';
+import { formatFabricQtyDisplay } from '@/lib/utils/fabricUnitConversions';
 
 /**
  * Shared POS cart line list (browse stays outside — lines live in the cart panel).
@@ -137,6 +137,11 @@ export function PosCartLines({
                                         {Number(item.unitPrice || 0).toLocaleString()}
                                         {item.unit ? ` / ${item.unit}` : ''}
                                     </p>
+                                    {item.unit === 'thaan' || businessCategory === 'textile-wholesale' || businessCategory === 'textile' ? (
+                                        <p className="text-[10px] font-medium text-emerald-500 mt-0.5">
+                                            {formatFabricQtyDisplay(item)}
+                                        </p>
+                                    ) : null}
                                 </div>
 
                                 <div

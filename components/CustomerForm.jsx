@@ -275,7 +275,6 @@ export function CustomerForm({
     };
 
     const handleFillDemo = () => {
-        const isTextile = category.includes('textile');
         const isPharmacy = category === 'pharmacy';
         const randomLocal = '3' + Math.floor(Math.random() * 90 + 10) + ' ' + Math.floor(Math.random() * 9000000 + 1000000);
 
@@ -283,17 +282,14 @@ export function CustomerForm({
         setLocalPhone(randomLocal);
         setFormData(prev => ({
             ...prev,
-            name: isTextile ? 'Zubair Fabrics & Sons' : (isPharmacy ? 'Al-Shifa Medicos' : 'Global Traders'),
+            name: isPharmacy ? 'Al-Shifa Medicos' : 'Global Traders',
             email: 'contact@demo-client.com',
             ntn: Math.floor(Math.random() * 9000000 + 1000000) + '-' + Math.floor(Math.random() * 9),
             cnic: '42201-' + Math.floor(Math.random() * 9000000 + 1000000) + '-' + Math.floor(Math.random() * 9),
-            address: isTextile ? 'Shop # 45, Jama Cloth Market' : 'Plot 123, Sector 5',
-            city: isTextile ? 'Karachi' : 'Lahore',
+            address: 'Plot 123, Sector 5',
+            city: 'Lahore',
             credit_limit: 500000,
             domain_data: {
-                marketlocation: isTextile ? 'Jama Cloth' : '',
-                brokername: isTextile ? 'Haji Bashoor' : '',
-                shopname: isTextile ? 'Zubair Fabrics' : '',
                 marketsegment: 'Wholesale',
             }
         }));

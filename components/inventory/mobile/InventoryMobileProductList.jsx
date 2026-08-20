@@ -185,10 +185,17 @@ export function InventoryMobileProductList({
                     inactive && 'opacity-75'
                   )}
                 >
-                  <button
-                    type="button"
-                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left cursor-pointer"
                     onClick={() => onEdit?.(p)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onEdit?.(p);
+                      }
+                    }}
                   >
                     <ProductThumbnail
                       product={p}
@@ -251,7 +258,7 @@ export function InventoryMobileProductList({
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" aria-hidden />
-                  </button>
+                  </div>
 
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     {canQuickEdit ? (

@@ -500,6 +500,7 @@ export function TextileCustomerForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {/* Textile payment terms include options such as Credit 30 Days and Cheque (PDC) */}
                     {getTextilePaymentTerms().map((term) => (
                       <SelectItem key={term.value} value={term.value}>
                         {term.label}

@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth';
 import { verifyBusinessAccess } from '@/lib/auth/access';
 import { pickBusinessIdFromSearchParams } from '@/lib/utils/pickBusinessId';
 
-async function assertNotificationBusinessAccess(session, businessId, client = null) {
+async function assertNotificationBusinessAccess(session, businessId, client = pool) {
   await verifyBusinessAccess(session.user.id, businessId, [], client, session.user);
 }
 
@@ -26,52 +26,54 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Business ID required' }, { status: 400 });
     }
 
-    const client = await pool.connect();
-
-    try {
-      await assertNotificationBusinessAccess(session, businessId, client);
-      let query = `
-        SELECT 
-          id,
-          type,
-          title,
-          message,
-          metadata,
-          is_read,
-          action_url,
-          created_at
-        FROM notifications
-        WHERE business_id = $1 AND is_dismissed = false
-      `;
-      
-      const params = [businessId];
-      
-      if (unreadOnly) {
-        query += ' AND is_read = false';
-      }
-      
-      query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
-      params.push(limit);
-      
-      const result = await client.query(query, params);
-      
-      // Get unread count
-      const countResult = await client.query(
+    await assertNotificationBusinessAccess(session, businessId, pool);
+    let query = `
+      SELECT 
+        id,
+        type,
+        title,
+        message,
+        metadata,
+        is_read,
+        action_url,
+        created_at
+      FROM notifications
+      WHERE business_id = $1 AND is_dismissed = false
+    `;
+    
+    const params = [businessId];
+    
+    if (unreadOnly) {
+      query += ' AND is_read = false';
+    }
+    
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+    
+    const [result, countResult] = await Promise.all([
+      pool.query(query, params),
+      pool.query(
         'SELECT COUNT(*) as unread_count FROM notifications WHERE business_id = $1 AND is_read = false AND is_dismissed = false',
         [businessId]
-      );
-      
-      return NextResponse.json({
-        notifications: result.rows,
-        unreadCount: parseInt(countResult.rows[0].unread_count)
-      });
-      
-    } finally {
-      client.release();
-    }
+      )
+    ]);
+    
+    return NextResponse.json({
+      notifications: result.rows,
+      unreadCount: parseInt(countResult.rows[0]?.unread_count || '0', 10)
+    });
   } catch (error) {
+    const isMissingTable =
+      error?.code === '42P01' ||
+      /relation "notifications" does not exist/i.test(error?.message || '');
+    if (isMissingTable) {
+      return NextResponse.json({
+        notifications: [],
+        unreadCount: 0,
+      });
+    }
     console.error('Error fetching notifications:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ notifications: [], unreadCount: 0, error: 'Failed to load notifications' }, { status: 200 });
   }
 }
 
@@ -86,35 +88,28 @@ export async function PATCH(request) {
     const body = await request.json();
     const { notificationId, businessId, markAllRead } = body;
 
-    const client = await pool.connect();
-
-    try {
-      if (markAllRead && businessId) {
-        await assertNotificationBusinessAccess(session, businessId, client);
-        await client.query(
-          'UPDATE notifications SET is_read = true WHERE business_id = $1',
-          [businessId]
-        );
-      } else if (notificationId) {
-        const owned = await client.query(
-          'SELECT business_id FROM notifications WHERE id = $1',
-          [notificationId]
-        );
-        if (!owned.rows.length) {
-          return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-        }
-        await assertNotificationBusinessAccess(session, owned.rows[0].business_id, client);
-        await client.query(
-          'UPDATE notifications SET is_read = true WHERE id = $1',
-          [notificationId]
-        );
+    if (markAllRead && businessId) {
+      await assertNotificationBusinessAccess(session, businessId, pool);
+      await pool.query(
+        'UPDATE notifications SET is_read = true WHERE business_id = $1',
+        [businessId]
+      );
+    } else if (notificationId) {
+      const owned = await pool.query(
+        'SELECT business_id FROM notifications WHERE id = $1',
+        [notificationId]
+      );
+      if (!owned.rows.length) {
+        return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
       }
-      
-      return NextResponse.json({ success: true });
-      
-    } finally {
-      client.release();
+      await assertNotificationBusinessAccess(session, owned.rows[0].business_id, pool);
+      await pool.query(
+        'UPDATE notifications SET is_read = true WHERE id = $1',
+        [notificationId]
+      );
     }
+    
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating notifications:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -138,37 +133,30 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Notification ID required' }, { status: 400 });
     }
 
-    const client = await pool.connect();
-
-    try {
-      if (clearAll && businessId) {
-        await assertNotificationBusinessAccess(session, businessId, client);
-        await client.query(
-          'UPDATE notifications SET is_dismissed = true WHERE business_id = $1 AND is_dismissed = false',
-          [businessId]
-        );
-        return NextResponse.json({ success: true });
-      }
-
-      const owned = await client.query(
-        'SELECT business_id FROM notifications WHERE id = $1',
-        [notificationId]
+    if (clearAll && businessId) {
+      await assertNotificationBusinessAccess(session, businessId, pool);
+      await pool.query(
+        'UPDATE notifications SET is_dismissed = true WHERE business_id = $1 AND is_dismissed = false',
+        [businessId]
       );
-      if (!owned.rows.length) {
-        return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-      }
-      await assertNotificationBusinessAccess(session, owned.rows[0].business_id, client);
-
-      await client.query(
-        'UPDATE notifications SET is_dismissed = true WHERE id = $1',
-        [notificationId]
-      );
-      
       return NextResponse.json({ success: true });
-      
-    } finally {
-      client.release();
     }
+
+    const owned = await pool.query(
+      'SELECT business_id FROM notifications WHERE id = $1',
+      [notificationId]
+    );
+    if (!owned.rows.length) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    }
+    await assertNotificationBusinessAccess(session, owned.rows[0].business_id, pool);
+
+    await pool.query(
+      'UPDATE notifications SET is_dismissed = true WHERE id = $1',
+      [notificationId]
+    );
+    
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error dismissing notification:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

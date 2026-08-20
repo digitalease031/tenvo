@@ -133,7 +133,7 @@ export function StoreFooter({ business, settings }) {
       }))
     : [];
   const evFooter = isEvBikesStore(business?.category);
-  const darkPortalFooter = dealershipFooter || marketplaceFooter || fitnessFooter || supermarketFooter || evFooter;
+  const darkPortalFooter = dealershipFooter || marketplaceFooter || fitnessFooter || supermarketFooter;
 
   const evColumns = evFooter
     ? [
@@ -541,7 +541,7 @@ export function StoreFooter({ business, settings }) {
             )}
           </div>
 
-          {(darkPortalFooter || pharmacyFooter) ? (
+          {(darkPortalFooter || pharmacyFooter || evFooter) ? (
             portalColumns.map((col) => (
               <div
                 key={col.title}

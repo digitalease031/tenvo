@@ -151,11 +151,8 @@ export function StoreHeader({ business, categories, settings }) {
       {/* ── Announcement / Top Bar ─────────────────────────────────────── */}
       {showAnnouncementBar && (
         <div
-          className={cn(
-            'hidden text-white text-xs py-2 px-4 md:block',
-            isEvBikesStore(business?.category) && 'bg-neutral-950 border-b border-red-900/40'
-          )}
-          style={isEvBikesStore(business?.category) ? {} : { backgroundColor: accent }}
+          className="hidden text-white text-xs py-2 px-4 md:block"
+          style={{ backgroundColor: accent }}
         >
           <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4">
             {/* Left: contact info */}
@@ -211,14 +208,12 @@ export function StoreHeader({ business, categories, settings }) {
           'border-b transition-all duration-300',
           transparentHeader
             ? 'border-transparent bg-transparent'
-            : isEvBikesStore(business?.category)
-              ? 'bg-black border-red-900/40 text-white shadow-xl'
-              : marketplaceNav
-                ? cn('border-neutral-200 bg-white', isScrolled && 'shadow-md')
-                : cn(
-                  'bg-white',
-                  isScrolled ? 'shadow-lg' : 'border-stone-200'
-                )
+            : marketplaceNav
+              ? cn('border-neutral-200 bg-white', isScrolled && 'shadow-md')
+              : cn(
+                'bg-white',
+                isScrolled ? 'shadow-lg' : 'border-stone-200'
+              )
         )}
       >
         {/* Marketplace Service Strip - Only visible when scrolled */}
@@ -827,8 +822,7 @@ export function StoreHeader({ business, categories, settings }) {
                 accent={accent}
                 size={isScrolled ? 'sm' : 'md'}
                 nameClassName={cn(
-                  'truncate transition-all duration-200 group-hover:opacity-80',
-                  isEvBikesStore(business?.category) ? 'text-white font-black' : 'text-gray-900',
+                  'truncate transition-all duration-200 group-hover:opacity-80 text-gray-900',
                   isScrolled ? 'text-base' : 'text-lg'
                 )}
                 logoClassName={cn(
@@ -845,14 +839,10 @@ export function StoreHeader({ business, categories, settings }) {
                 className={cn(
                   'px-3.5 py-2 text-xs font-bold rounded-2xl transition-all whitespace-nowrap',
                   isHome
-                    ? isEvBikesStore(business?.category)
-                      ? 'bg-gradient-to-r from-red-800 to-red-950 text-amber-300 border border-amber-500/40 shadow-md font-black'
-                      : 'text-white'
-                    : isEvBikesStore(business?.category)
-                      ? 'text-neutral-300 hover:text-amber-400 hover:bg-neutral-900'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'text-white'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                 )}
-                style={isHome && !isEvBikesStore(business?.category) ? { backgroundColor: accent } : {}}
+                style={isHome ? { backgroundColor: accent } : {}}
               >
                 Home
               </Link>
@@ -861,14 +851,10 @@ export function StoreHeader({ business, categories, settings }) {
                 className={cn(
                   'px-3.5 py-2 text-xs font-bold rounded-2xl transition-all whitespace-nowrap',
                   isActive(`/store/${businessDomain}/products`)
-                    ? isEvBikesStore(business?.category)
-                      ? 'bg-gradient-to-r from-red-800 to-red-950 text-amber-300 border border-amber-500/40 shadow-md font-black'
-                      : 'text-white'
-                    : isEvBikesStore(business?.category)
-                      ? 'text-neutral-300 hover:text-amber-400 hover:bg-neutral-900'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'text-white'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                 )}
-                style={isActive(`/store/${businessDomain}/products`) && !isEvBikesStore(business?.category) ? { backgroundColor: accent } : {}}
+                style={isActive(`/store/${businessDomain}/products`) ? { backgroundColor: accent } : {}}
               >
                 All Products
               </Link>
@@ -877,12 +863,7 @@ export function StoreHeader({ business, categories, settings }) {
                 <Link
                   key={cat.id}
                   href={`/store/${businessDomain}/products?category=${cat.slug}`}
-                  className={cn(
-                    'px-3.5 py-2 text-xs font-semibold rounded-2xl transition-colors whitespace-nowrap',
-                    isEvBikesStore(business?.category)
-                      ? 'text-neutral-300 hover:text-amber-400 hover:bg-neutral-900'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  )}
+                  className="px-3.5 py-2 text-xs font-semibold rounded-2xl transition-colors whitespace-nowrap text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                 >
                   {cat.name}
                 </Link>

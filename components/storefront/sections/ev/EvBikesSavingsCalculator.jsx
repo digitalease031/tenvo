@@ -266,8 +266,8 @@ export function EvBikesSavingsCalculator({
               </p>
             </div>
 
-            <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-lg space-y-2 text-white">
-              <p className="text-xs font-extrabold text-amber-300 uppercase">Estimated Yearly Savings</p>
+            <div className="rounded-3xl border border-red-600 bg-red-600 p-6 shadow-md space-y-2 text-white">
+              <p className="text-xs font-extrabold text-red-100 uppercase">Estimated Yearly Savings</p>
               <p className="text-2xl sm:text-3xl font-black text-white tracking-tight tabular-nums">
                 {isCalculated ? formatCurrency(estimatedYearlySavings, currency) : 0}
               </p>

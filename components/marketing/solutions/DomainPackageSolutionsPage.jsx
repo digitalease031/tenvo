@@ -124,6 +124,10 @@ export default function DomainPackageSolutionsPage({ pkg, content }) {
   const painPoints = Array.isArray(content.painPoints) ? content.painPoints : [];
   const outcomes = Array.isArray(content.outcomes) ? content.outcomes : [];
   const featureShowcases = Array.isArray(content.featureShowcases) ? content.featureShowcases : [];
+  const channelPillars = Array.isArray(content.channelPillars) ? content.channelPillars : [];
+  const highlightFeatures = Array.isArray(content.highlightFeatures) ? content.highlightFeatures : [];
+  const competitorNotes = Array.isArray(pkg.competitorNotes) ? pkg.competitorNotes : [];
+  const faqs = Array.isArray(pkg.faqs) ? pkg.faqs.map((f) => ({ question: f.question, answer: f.answer })) : [];
   const growth = { ...DEFAULT_GROWTH, ...(content.growthStrip || {}) };
 
   const guideSteps =
@@ -315,7 +319,7 @@ export default function DomainPackageSolutionsPage({ pkg, content }) {
           lead={content.channelsLead}
         />
         <div className="grid gap-5 md:grid-cols-3 sm:gap-6">
-          {content.channelPillars.map(({ icon, title, body, accent, iconClass }, idx) => {
+          {channelPillars.map(({ icon, title, body, accent, iconClass }, idx) => {
             const Icon = resolveLucideIcon(icon, 'Globe');
             return (
               <article
@@ -413,7 +417,7 @@ export default function DomainPackageSolutionsPage({ pkg, content }) {
           lead="One hub for catalog, channels, and compliance instead of bolting storefront, POS, and spreadsheets together."
         />
         <ul className="mx-auto grid max-w-5xl gap-4 md:grid-cols-3">
-          {pkg.competitorNotes.map((note) => (
+          {competitorNotes.map((note) => (
             <li
               key={note}
               className="flex h-full flex-col rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
@@ -486,7 +490,7 @@ export default function DomainPackageSolutionsPage({ pkg, content }) {
         <div className="mx-auto mt-10 max-w-5xl rounded-3xl border border-neutral-200/80 bg-neutral-50/60 p-5 shadow-sm sm:p-6 lg:p-8">
           <p className={cn(MARKETING_EYEBROW, 'mb-4 text-center')}>Pre-enabled plan features</p>
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {content.highlightFeatures.map((key) => (
+            {highlightFeatures.map((key) => (
               <li
                 key={key}
                 className="flex items-start gap-2.5 rounded-xl border border-neutral-100 bg-white px-3.5 py-3 text-sm font-medium text-neutral-700"
@@ -554,7 +558,7 @@ export default function DomainPackageSolutionsPage({ pkg, content }) {
         <FAQSection
           title={content.faqTitle || `${pkg.name} FAQ`}
           subtitle="Scope, verticals, and how this relates to standard plans."
-          faqs={pkg.faqs.map((f) => ({ question: f.question, answer: f.answer }))}
+          faqs={faqs}
         />
       </div>
 

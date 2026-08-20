@@ -23,6 +23,7 @@ import { warehouseAPI } from '@/lib/api/warehouse';
 import { QuickVendorForm } from '@/components/QuickVendorForm';
 import { QuickWarehouseForm } from '@/components/QuickWarehouseForm';
 import { POMobileLineItems } from '@/components/purchase/POMobileLineItems';
+import { useDataOptional } from '@/lib/context/DataContext';
 import toast from 'react-hot-toast';
 import { purchaseSchema, validateWithSchema } from '@/lib/validation/schemas';
 import { PURCHASE_STATUSES } from '@/lib/constants/purchaseStatus';
@@ -46,7 +47,7 @@ function createEmptyLine(defaultTaxRate = 0) {
     };
 }
 
-function isValidPurchaseLine(item) {
+function isLineValid(item) {
     return Boolean(item?.productId) && Number(item?.quantity) > 0 && Number(item?.unitCost) >= 0;
 }
 
@@ -54,9 +55,19 @@ function warehouseDescription(w) {
     return [w?.address, w?.city, w?.location].filter(Boolean).join(', ');
 }
 
-export default function EnhancedPOBuilder({ businessId, onSuccess, onCancel, category = 'retail-shop', colors }) {
+export default function EnhancedPOBuilder({
+    businessId,
+    onSuccess,
+    onCancel,
+    category = 'retail-shop',
+    colors,
+    initialVendors,
+    initialProducts,
+    initialWarehouses,
+}) {
     const accentColor = colors?.primary || '#059669';
     const { currency, defaultTaxRate, domainKnowledge, taxLabel, business } = useFormRegionalContext(category);
+    const dataCtx = useDataOptional();
 
     const domainFeatures = useMemo(
         () => resolveInventoryDomainFeatures(category, { domainKnowledge, business }),
@@ -65,19 +76,27 @@ export default function EnhancedPOBuilder({ businessId, onSuccess, onCancel, cat
     const showBatchFields = domainFeatures.batchTrackingEnabled;
     const showExpiryFields = domainFeatures.expiryTrackingEnabled;
 
-    const [loading, setLoading] = useState(true);
+    const seedVendors = initialVendors || dataCtx?.vendors || [];
+    const seedProducts = initialProducts || dataCtx?.products || [];
+    const seedWarehouses = (initialWarehouses || dataCtx?.locations || []).filter((w) => w?.is_active !== false);
+
+    const hasSeedData = seedVendors.length > 0 || seedProducts.length > 0 || seedWarehouses.length > 0;
+
+    const [loading, setLoading] = useState(!hasSeedData);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [vendors, setVendors] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [warehouses, setWarehouses] = useState([]);
+    const [vendors, setVendors] = useState(seedVendors);
+    const [products, setProducts] = useState(seedProducts);
+    const [warehouses, setWarehouses] = useState(seedWarehouses);
 
     const [showVendorForm, setShowVendorForm] = useState(false);
     const [showWarehouseForm, setShowWarehouseForm] = useState(false);
 
+    const defaultWarehouseId = seedWarehouses.find((w) => w.is_primary)?.id || seedWarehouses[0]?.id || '';
+
     const [header, setHeader] = useState(() => ({
         vendorId: '',
-        warehouseId: '',
+        warehouseId: defaultWarehouseId,
         purchaseNumber: `PO-${new Date().toISOString().slice(2, 4)}${new Date().toISOString().slice(5, 7)}-${Math.floor(1000 + Math.random() * 9000)}`,
         date: new Date().toISOString().split('T')[0],
         notes: '',
@@ -87,21 +106,44 @@ export default function EnhancedPOBuilder({ businessId, onSuccess, onCancel, cat
     const [items, setItems] = useState(() => [createEmptyLine(0)]);
 
     useEffect(() => {
+        // Sync seed data if context loads right after mount
+        if (seedVendors.length > 0 && vendors.length === 0) setVendors(seedVendors);
+        if (seedProducts.length > 0 && products.length === 0) setProducts(seedProducts);
+        if (seedWarehouses.length > 0 && warehouses.length === 0) {
+            setWarehouses(seedWarehouses);
+            const pri = seedWarehouses.find((w) => w.is_primary) || seedWarehouses[0];
+            if (pri && !header.warehouseId) {
+                setHeader((p) => ({ ...p, warehouseId: pri.id }));
+            }
+        }
+    }, [seedVendors, seedProducts, seedWarehouses]);
+
+    useEffect(() => {
         async function loadData() {
             if (!businessId) return;
-            setLoading(true);
+
+            const needVendors = vendors.length === 0;
+            const needProducts = products.length === 0;
+            const needWarehouses = warehouses.length === 0;
+
+            if (!needVendors && !needProducts && !needWarehouses) {
+                setLoading(false);
+                return;
+            }
+
+            if (vendors.length === 0 && products.length === 0) {
+                setLoading(true);
+            }
+
             try {
                 const [vendResult, prodResult, whResult] = await Promise.allSettled([
-                    vendorAPI.getAll(businessId),
-                    productAPI.getAll(businessId, { includeSerials: false }),
-                    warehouseAPI.getLocations(businessId),
+                    needVendors ? vendorAPI.getAll(businessId) : Promise.resolve(vendors),
+                    needProducts ? productAPI.getAll(businessId, { unbounded: true }) : Promise.resolve(products),
+                    needWarehouses ? warehouseAPI.getLocations(businessId) : Promise.resolve(warehouses),
                 ]);
+
                 if (vendResult.status === 'fulfilled') setVendors(vendResult.value || []);
-                else toast.error('Could not load suppliers');
-
                 if (prodResult.status === 'fulfilled') setProducts(prodResult.value || []);
-                else toast.error('Could not load products');
-
                 if (whResult.status === 'fulfilled') {
                     const locs = (whResult.value || []).filter((w) => w?.is_active !== false);
                     setWarehouses(locs);
@@ -109,8 +151,6 @@ export default function EnhancedPOBuilder({ businessId, onSuccess, onCancel, cat
                         const primary = locs.find((w) => w.is_primary) || locs[0];
                         setHeader((p) => ({ ...p, warehouseId: p.warehouseId || primary.id }));
                     }
-                } else {
-                    toast.error('Could not load warehouses');
                 }
             } finally {
                 setLoading(false);

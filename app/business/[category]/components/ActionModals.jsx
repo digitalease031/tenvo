@@ -382,6 +382,7 @@ export function ActionModals({
                         businessId={activeBusinessId}
                         category={category}
                         colors={colors}
+                        initialProducts={products}
                         onSuccess={() => {
                             setShowPOBuilder(false);
                             refreshData?.();

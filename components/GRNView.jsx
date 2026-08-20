@@ -17,7 +17,7 @@ import {
   PURCHASE_STATUSES,
 } from '@/lib/constants/purchaseStatus';
 
-export default function GRNView({ poId, businessId, business, onUpdateStatus, colors }) {
+export default function GRNView({ poId, businessId, business, onUpdateStatus, colors, initialPo = null }) {
     const { currency: ctxCurrency } = useBusiness();
     const currency = business?.currency || ctxCurrency || 'PKR';
     const brandColorHex =
@@ -25,27 +25,42 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
         business?.settingsParsed?.brand?.primaryColor ||
         colors?.primary ||
         '#0284c7';
-    const [purchase, setPurchase] = useState(null);
-    const [loading, setLoading] = useState(true);
+
+    const targetPoId = poId || initialPo?.id;
+    const targetBusinessId = businessId || initialPo?.business_id || business?.id;
+
+    const [purchase, setPurchase] = useState(initialPo);
+    const [loading, setLoading] = useState(!initialPo);
+
+    useEffect(() => {
+        if (initialPo) setPurchase(initialPo);
+    }, [initialPo]);
 
     useEffect(() => {
         async function fetchDetails() {
-            if (!poId || !businessId) return;
+            if (!targetPoId || !targetBusinessId) {
+                setLoading(false);
+                return;
+            }
             try {
-                setLoading(true);
-                const data = await purchaseAPI.getById(businessId, poId);
-                setPurchase(data);
+                if (!initialPo) setLoading(true);
+                const data = await purchaseAPI.getById(targetBusinessId, targetPoId);
+                if (data) {
+                    setPurchase(data);
+                }
             } catch (error) {
                 console.error('Error fetching PO details:', error);
-                toast.error('Failed to load document details');
+                if (!initialPo && !purchase) {
+                    toast.error('Failed to load document details');
+                }
             } finally {
                 setLoading(false);
             }
         }
         fetchDetails();
-    }, [poId, businessId]);
+    }, [targetPoId, targetBusinessId]);
 
-    if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>;
+    if (loading && !purchase) return <div className="flex h-64 items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>;
     if (!purchase) return <div className="p-8 text-center text-gray-400 font-medium">Document not found</div>;
 
     const isReceived = normalizePurchaseStatus(purchase.status) === PURCHASE_STATUSES.RECEIVED;

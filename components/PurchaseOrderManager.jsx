@@ -342,6 +342,7 @@ export function PurchaseOrderManager({ purchaseOrders = [], onCreate, onUpdateSt
           <GRNView
             poId={poToView?.id}
             businessId={business?.id}
+            initialPo={poToView}
             business={business}
             colors={colors}
             onUpdateStatus={(id, status) => {

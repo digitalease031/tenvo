@@ -25,28 +25,38 @@ import { QuickWarehouseForm } from '@/components/QuickWarehouseForm';
 import { productAPI } from '@/lib/api/product';
 import { vendorAPI } from '@/lib/api/vendors';
 import { warehouseAPI } from '@/lib/api/warehouse';
-import { Combobox } from '@/components/ui/combobox';
+import { useDataOptional } from '@/lib/context/DataContext';
 
 export default function NewPurchasePage() {
     const router = useRouter();
     const { business, currency } = useBusiness();
-    const [loading, setLoading] = useState(false);
+    const dataCtx = useDataOptional();
+
+    const seedVendors = dataCtx?.vendors || [];
+    const seedProducts = dataCtx?.products || [];
+    const seedWarehouses = (dataCtx?.locations || []).filter((w) => w?.is_active !== false);
+
+    const hasSeedData = seedVendors.length > 0 || seedProducts.length > 0 || seedWarehouses.length > 0;
+
+    const [loading, setLoading] = useState(!hasSeedData);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Data lists
-    const [vendors, setVendors] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [warehouses, setWarehouses] = useState([]);
+    const [vendors, setVendors] = useState(seedVendors);
+    const [products, setProducts] = useState(seedProducts);
+    const [warehouses, setWarehouses] = useState(seedWarehouses);
 
     // UI States
     const [showProductForm, setShowProductForm] = useState(false);
     const [showVendorForm, setShowVendorForm] = useState(false);
     const [showWarehouseForm, setShowWarehouseForm] = useState(false);
 
+    const defaultWarehouseId = seedWarehouses.find((w) => w.is_primary)?.id || seedWarehouses[0]?.id || '';
+
     // Form State
     const [header, setHeader] = useState(() => ({
         vendorId: '',
-        warehouseId: '',
+        warehouseId: defaultWarehouseId,
         purchaseNumber: `PO-${new Date().toISOString().slice(2, 4)}${new Date().toISOString().slice(5, 7)}-${Math.floor(1000 + Math.random() * 9000)}`,
         date: new Date().toISOString().split('T')[0],
         notes: ''
@@ -66,29 +76,29 @@ export default function NewPurchasePage() {
 
     // Load initial data
     useEffect(() => {
-        if (!business?.id) {
-            console.log('NewPurchasePage: Waiting for business context...');
-            return;
-        }
+        if (!business?.id) return;
 
         async function loadData() {
-            try {
+            const needVendors = vendors.length === 0;
+            const needProducts = products.length === 0;
+            const needWarehouses = warehouses.length === 0;
+
+            if (!needVendors && !needProducts && !needWarehouses) {
+                setLoading(false);
+                return;
+            }
+
+            if (vendors.length === 0 && products.length === 0) {
                 setLoading(true);
+            }
+
+            try {
                 const bid = business.id;
-                console.log('NewPurchasePage: Initializing for Business ID:', bid);
-
-                // Load all in parallel for performance
                 const [vendRes, prodRes, whRes] = await Promise.all([
-                    vendorAPI.getAll(bid),
-                    productAPI.getAll(bid, { includeSerials: false }),
-                    warehouseAPI.getLocations(bid)
+                    needVendors ? vendorAPI.getAll(bid) : Promise.resolve(vendors),
+                    needProducts ? productAPI.getAll(bid, { unbounded: true }) : Promise.resolve(products),
+                    needWarehouses ? warehouseAPI.getLocations(bid) : Promise.resolve(warehouses)
                 ]);
-
-                console.log('NewPurchasePage Data Load Stats:', {
-                    vendors: vendRes?.length || 0,
-                    products: prodRes?.length || 0,
-                    warehouses: whRes?.length || 0
-                });
 
                 setVendors(vendRes || []);
                 setProducts(prodRes || []);
@@ -96,16 +106,11 @@ export default function NewPurchasePage() {
                 const locations = whRes || [];
                 setWarehouses(locations);
 
-                if (locations.length > 0) {
+                if (locations.length > 0 && !header.warehouseId) {
                     setHeader(prev => ({
                         ...prev,
                         warehouseId: locations[0].id
                     }));
-                } else {
-                    toast('No warehouse found. Please create one to manage stock.', {
-                        icon: '[WARNING]',
-                        duration: 5000
-                    });
                 }
             } catch (err) {
                 console.error('NewPurchasePage Critical Load Error:', err);

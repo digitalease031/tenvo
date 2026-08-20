@@ -19,6 +19,7 @@ import {
 import { purchaseAPI } from '@/lib/api/purchases';
 import { useBusiness } from '@/lib/context/BusinessContext';
 import { formatCurrency } from '@/lib/currency';
+import { getPurchaseStatusLabel, getPurchaseStatusBadgeClass } from '@/lib/constants/purchaseStatus';
 import toast from 'react-hot-toast';
 
 export default function PurchasesPage() {
@@ -130,8 +131,8 @@ export default function PurchasesPage() {
                                     {new Date(purchase.date).toLocaleDateString()}
                                 </div>
                                 <div>
-                                    <Badge variant={purchase.status === 'received' ? 'secondary' : 'outline'}>
-                                        {purchase.status}
+                                    <Badge variant="outline" className={`font-semibold uppercase text-[10px] px-2 py-0.5 rounded-full ${getPurchaseStatusBadgeClass(purchase.status)}`}>
+                                        {getPurchaseStatusLabel(purchase.status)}
                                     </Badge>
                                 </div>
                                 <div className="text-right font-bold font-mono">

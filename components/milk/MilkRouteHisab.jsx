@@ -42,6 +42,7 @@ import {
   shortMilkHisabProductLabel,
   buildMilkHisabPeriodKpis,
   isMilkHisabBillRemindable,
+  parseQtyCalculatorInput,
 } from '@/lib/storefront/milkShopHisab';
 import { isMilkHisabOfflineEnabled, isMilkHisabNetworkFailure } from '@/lib/utils/milkHisabOfflineAccess';
 import { useMilkHisabOffline } from '@/lib/hooks/useMilkHisabOffline';
@@ -367,8 +368,9 @@ export function MilkRouteHisab({ businessId, category }) {
     let amount = 0;
     for (const row of rows) {
       for (const p of products) {
-        const qty = Number(row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id]) || 0;
-        amount += qty * (Number(p.price) || 0);
+        const rawInput = row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id];
+        const { lineTotal } = parseQtyCalculatorInput(rawInput, p.price);
+        amount += lineTotal;
       }
     }
     return Math.round(amount * 100) / 100;
@@ -1309,16 +1311,17 @@ function HisabKpiStrip({ items = [] }) {
 function dailyRowQtyEntries(row, products) {
   return (products || [])
     .map((p) => {
-      const qty = Number(row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? 0);
+      const rawInput = row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id];
+      const { qty, price, lineTotal, isCustomPrice } = parseQtyCalculatorInput(rawInput, p.price);
       if (!(qty > 0)) return null;
-      const price = Number(p.price) || 0;
       return {
         id: p.id,
         label: shortMilkHisabProductLabel(p, 12),
         qty,
         unit: p.unit || 'pcs',
         price,
-        lineTotal: qty * price,
+        lineTotal,
+        isCustomPrice,
       };
     })
     .filter(Boolean);
@@ -1327,10 +1330,9 @@ function dailyRowQtyEntries(row, products) {
 function calculateRowDayAmount(row, products) {
   let total = 0;
   for (const p of products || []) {
-    const qty = Number(row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id] ?? 0);
-    if (qty > 0) {
-      total += qty * (Number(p.price) || 0);
-    }
+    const rawInput = row.qtyByProduct?.[String(p.id)] ?? row.qtyByProduct?.[p.id];
+    const { lineTotal } = parseQtyCalculatorInput(rawInput, p.price);
+    total += lineTotal;
   }
   return Math.round(total * 100) / 100;
 }
@@ -1454,18 +1456,15 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                         <tr>
                           <th className="px-2.5 py-2">Product</th>
                           <th className="px-2 py-2 text-right w-14">Unit</th>
-                          <th className="px-2.5 py-2 text-right w-20">Rate</th>
-                          <th className="px-2 py-2 text-right w-20">Qty</th>
+                          <th className="px-2.5 py-2 text-right w-24">Qty (e.g. 5*100)</th>
                           <th className="px-2.5 py-2 text-right w-20">Total</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {products.map((p) => {
                           const pid = String(p.id);
-                          const qty = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
-                          const numericQty = Number(qty) || 0;
-                          const price = Number(p.price) || 0;
-                          const lineTotal = numericQty * price;
+                          const rawInput = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
+                          const { qty, lineTotal, isCustomPrice } = parseQtyCalculatorInput(rawInput, p.price);
 
                           return (
                             <tr key={p.id}>
@@ -1475,24 +1474,23 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                               <td className="px-2 py-1.5 text-right text-xs text-gray-500">
                                 {p.unit || 'pcs'}
                               </td>
-                              <td className="px-2.5 py-1.5 text-right text-[11px] tabular-nums text-gray-500">
-                                {formatCurrency(price, currency)}
-                              </td>
-                              <td className="px-2 py-1.5 text-right">
+                              <td className="px-2.5 py-1.5 text-right">
                                 <Input
-                                  type="number"
-                                  min="0"
-                                  step="0.1"
-                                  inputMode="decimal"
-                                  value={qty}
+                                  type="text"
+                                  inputMode="text"
+                                  placeholder="0"
+                                  value={rawInput}
                                   onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
-                                  className="ml-auto h-8 w-16 tabular-nums text-center bg-white"
+                                  className={cn(
+                                    'ml-auto h-8 w-20 tabular-nums text-center bg-white text-xs',
+                                    qty > 0 && isCustomPrice ? 'border-amber-400 bg-amber-50/70 font-semibold' : ''
+                                  )}
                                   disabled={readOnly}
                                   aria-label={`${p.name} quantity`}
                                 />
                               </td>
                               <td className="px-2.5 py-1.5 text-right text-xs font-semibold tabular-nums text-gray-900">
-                                {numericQty > 0 ? formatCurrency(lineTotal, currency) : '—'}
+                                {qty > 0 ? formatCurrency(lineTotal, currency) : '—'}
                               </td>
                             </tr>
                           );
@@ -1529,13 +1527,13 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                 <th
                   key={p.id}
                   className="px-2 py-2 text-center align-bottom min-w-[5.25rem] max-w-[6.5rem]"
-                  title={`${p.name} · ${formatCurrency(Number(p.price) || 0, currency)} / ${p.unit || 'pcs'}`}
+                  title={`${p.name} (${p.unit || 'pcs'})`}
                 >
                   <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-700">
                     {shortMilkHisabProductLabel(p, 12)}
                   </span>
-                  <span className="mt-0.5 block font-normal normal-case text-[10px] text-sky-700 font-medium">
-                    {formatCurrency(Number(p.price) || 0, currency)}/{p.unit || 'pcs'}
+                  <span className="mt-0.5 block font-normal normal-case text-[10px] text-gray-400 font-medium">
+                    {p.unit || 'pcs'}
                   </span>
                 </th>
               ))}
@@ -1569,34 +1567,40 @@ function DailySheet({ products, rows, currency, onQty, onField, readOnly = false
                   </td>
                   {products.map((p) => {
                     const pid = String(p.id);
-                    const qty = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
-                    const numericQty = Number(qty) || 0;
-                    const price = Number(p.price) || 0;
-                    const lineTotal = numericQty * price;
+                    const rawInput = row.qtyByProduct?.[pid] ?? row.qtyByProduct?.[p.id] ?? '';
+                    const { qty, price, lineTotal, isCustomPrice } = parseQtyCalculatorInput(rawInput, p.price);
 
                     return (
                       <td key={p.id} className="px-1.5 py-2 text-center align-middle">
                         <div className="flex flex-col items-center gap-1 w-[4.75rem] mx-auto">
                           <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            inputMode="decimal"
-                            value={qty}
+                            type="text"
+                            inputMode="text"
+                            placeholder="0"
+                            value={rawInput}
                             onChange={(e) => onQty(row.customerId, p.id, e.target.value)}
                             className={cn(
-                              'h-8 w-full tabular-nums text-center transition-colors',
-                              numericQty > 0 ? 'border-sky-300 bg-sky-50/60 font-medium text-sky-900' : ''
+                              'h-8 w-full tabular-nums text-center transition-colors text-xs',
+                              qty > 0
+                                ? isCustomPrice
+                                  ? 'border-amber-400 bg-amber-50/70 font-semibold text-amber-900 ring-1 ring-amber-200'
+                                  : 'border-sky-300 bg-sky-50/60 font-medium text-sky-900'
+                                : ''
                             )}
                             disabled={readOnly}
+                            title={isCustomPrice ? `Qty: ${qty} × ${formatCurrency(price, currency)}` : `Qty: ${qty}`}
                           />
                           <span
                             className={cn(
                               'text-[10px] tabular-nums font-semibold h-4 leading-4 truncate max-w-full',
-                              numericQty > 0 ? 'text-emerald-700' : 'text-gray-300'
+                              qty > 0
+                                ? isCustomPrice
+                                  ? 'text-amber-800'
+                                  : 'text-emerald-700'
+                                : 'text-gray-300'
                             )}
                           >
-                            {numericQty > 0 ? formatCurrency(lineTotal, currency) : '—'}
+                            {qty > 0 ? formatCurrency(lineTotal, currency) : '—'}
                           </span>
                         </div>
                       </td>

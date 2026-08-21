@@ -9,6 +9,7 @@ import { useBusiness } from '@/lib/context/BusinessContext';
 import { formatCurrency } from '@/lib/currency';
 import { generateFinanceStatementPDF, buildFinancePdfMeta } from '@/lib/pdf/financeStatementPdf';
 import { resolveDisplayCurrency } from '@/lib/utils/businessRegionalContext';
+import { PrintableFinancialHeader, PrintableFinancialFooter } from '@/components/finance/PrintableFinancialHeader';
 import toast from 'react-hot-toast';
 
 export default function DayBookReport({ businessId }) {
@@ -89,8 +90,8 @@ export default function DayBookReport({ businessId }) {
   };
 
   return (
-    <Card className="border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm print:shadow-none">
-      <CardHeader className="flex flex-col gap-3 border-b border-gray-100 dark:border-slate-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm print:shadow-none print:border-none">
+      <CardHeader className="flex flex-col gap-3 border-b border-gray-100 dark:border-slate-800 pb-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div>
           <CardTitle className="text-xl font-semibold text-gray-900 dark:text-gray-100">Day Book</CardTitle>
           <CardDescription>Non-draft journal lines for the selected date (posted and reversed)</CardDescription>
@@ -109,12 +110,15 @@ export default function DayBookReport({ businessId }) {
             <Download className="w-4 h-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
-            Print
-          </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0 print:p-0">
+        <PrintableFinancialHeader
+          business={business}
+          title="Day Book"
+          periodLabel={`Date: ${date}`}
+          currency={currency}
+        />
         {loading && !rows.length ? (
           <div className="flex justify-center p-12">
             <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
@@ -170,17 +174,18 @@ export default function DayBookReport({ businessId }) {
                 )}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-gray-200 dark:border-slate-700 font-semibold">
-                  <td colSpan={4} className="px-4 py-3">
+                <tr className="border-t-2 border-gray-200 dark:border-slate-700 font-semibold accounting-grand-total">
+                  <td colSpan={4} className="px-4 py-3 font-bold print:text-black">
                     Totals {totals.balanced ? '' : '(imbalance)'}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(totals.debit, currency)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(totals.credit, currency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-mono font-bold print:text-black">{formatCurrency(totals.debit, currency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-mono font-bold print:text-black">{formatCurrency(totals.credit, currency)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
+        <PrintableFinancialFooter />
       </CardContent>
     </Card>
   );

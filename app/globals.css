@@ -771,3 +771,124 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   INTERNATIONAL STANDARD FINANCIAL REPORT PRINT STYLESHEET
+   ═══════════════════════════════════════════════════════════════ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+
+  /* Hide app navigation chrome, headers, sidebars, mobile bottom dock, tabs, controls, toasts, dialogs */
+  header,
+  aside,
+  nav,
+  footer,
+  [role="navigation"],
+  [data-sidebar],
+  [data-mobile-dock],
+  [data-header],
+  [data-app-header],
+  [role="tablist"],
+  [data-slot="tabs-list"],
+  .tenvo-toast-container,
+  [role="dialog"],
+  .print\:hidden,
+  .print-hidden,
+  button,
+  input,
+  select,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Global background reset for pure white paper and high contrast text */
+  html,
+  body,
+  #__next,
+  main,
+  div,
+  section,
+  article,
+  .card,
+  [role="tabpanel"] {
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    text-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Hide scrollbars during print */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Force desktop table wrappers to stay visible when printing */
+  .hidden.lg\:block {
+    display: block !important;
+  }
+
+  /* Main container full width reset */
+  .printable-report,
+  #printable-document,
+  #printable-financial-report,
+  [role="tabpanel"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  /* Table typography and border rules */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 1rem !important;
+    font-size: 11px !important;
+  }
+
+  th {
+    border-bottom: 2px solid #111827 !important;
+    background-color: #f3f4f6 !important;
+    color: #111827 !important;
+    font-weight: 700 !important;
+    padding: 6px 8px !important;
+    text-transform: uppercase !important;
+    font-size: 10px !important;
+  }
+
+  td {
+    padding: 5px 8px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    color: #111827 !important;
+  }
+
+  /* Standard Accounting double-line underline for grand totals */
+  .accounting-grand-total {
+    border-top: 1px solid #111827 !important;
+    border-bottom: 4px double #111827 !important;
+    font-weight: 800 !important;
+    background-color: transparent !important;
+  }
+
+  /* Prevent page break splitting inside rows */
+  tr,
+  section,
+  .print-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+

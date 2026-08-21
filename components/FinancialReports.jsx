@@ -13,13 +13,20 @@ import { AgingReportsPanel } from '@/components/reports/AgingReportsPanel';
 import TrialBalanceView from '@/components/TrialBalanceView';
 import DayBookReport from '@/components/finance/DayBookReport';
 import { generateFinanceStatementPDF, generateSectionedFinancePDF, buildFinancePdfMeta } from '@/lib/pdf/financeStatementPdf';
+import { PrintableFinancialHeader, PrintableFinancialFooter } from '@/components/finance/PrintableFinancialHeader';
 import toast from 'react-hot-toast';
 
 // Helper for row rendering
 const ReportRow = ({ label, amount, type = 'normal', indent = false, currency }) => (
-    <div className={`flex justify-between py-2 border-b border-gray-150 dark:border-slate-800/40 ${type === 'total' ? 'font-bold bg-gray-50/50 dark:bg-slate-900/50 px-2 rounded mt-1' : ''} ${indent ? 'pl-8' : ''}`}>
-        <span className={`${type === 'total' ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'}`}>{label}</span>
-        <span className={`${type === 'total' ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300 font-mono'}`}>
+    <div className={`flex justify-between py-2 border-b border-gray-150 dark:border-slate-800/40 ${
+        type === 'grand-total' 
+            ? 'font-bold text-gray-900 dark:text-gray-100 border-t-2 border-gray-900 dark:border-gray-100 border-b-4 border-double border-gray-900 dark:border-gray-100 py-3 mt-2 print:border-gray-900' 
+            : type === 'total' 
+            ? 'font-bold bg-gray-50/50 dark:bg-slate-900/50 px-2 rounded mt-1 text-gray-900 dark:text-gray-100 print:bg-transparent print:px-0 print:border-t print:border-gray-800' 
+            : ''
+    } ${indent ? 'pl-8' : ''}`}>
+        <span className={`${type === 'total' || type === 'grand-total' ? 'text-gray-900 dark:text-gray-100 font-bold' : 'text-gray-600 dark:text-gray-400'}`}>{label}</span>
+        <span className={`${type === 'total' || type === 'grand-total' ? 'text-gray-900 dark:text-gray-100 font-mono font-bold' : 'text-gray-700 dark:text-gray-300 font-mono'}`}>
             {formatCurrency(amount || 0, currency)}
         </span>
     </div>
@@ -27,11 +34,11 @@ const ReportRow = ({ label, amount, type = 'normal', indent = false, currency })
 
 // Helper for section header
 const SectionHeader = ({ title, icon: Icon, color }) => (
-    <div className="flex items-center gap-2 mt-6 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
-        <div className={`p-1.5 rounded-lg ${color}`}>
+    <div className="flex items-center gap-2 mt-6 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800 print:mt-4 print:mb-2 print:border-gray-900">
+        <div className={`p-1.5 rounded-lg ${color} print:hidden`}>
             <Icon className="w-4 h-4 text-white" />
         </div>
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm uppercase tracking-wide">{title}</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm uppercase tracking-wide print:text-black print:font-bold">{title}</h3>
     </div>
 );
 
@@ -138,8 +145,6 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
         // Fetches close over date state; ranges refresh via explicit Refresh buttons.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [businessId, activeTab, plData, bsData, cfData]);
-
-    const handlePrint = () => window.print();
 
     const handleDownloadPdf = async () => {
         try {
@@ -265,7 +270,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
 
     return (
         <Card className="border-none shadow-none bg-transparent">
-            <CardHeader className="px-0 pt-0 pb-6">
+            <CardHeader className="px-0 pt-0 pb-6 print:hidden">
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">Financial Reports</CardTitle>
@@ -275,7 +280,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
             </CardHeader>
             <CardContent className="px-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between print:hidden">
                         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 border border-gray-250 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
                             <TabsTrigger value="pl" className="text-xs sm:text-sm">Profit & Loss</TabsTrigger>
                             <TabsTrigger value="bs" className="text-xs sm:text-sm">Balance Sheet</TabsTrigger>
@@ -322,24 +327,25 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                 </>
                             ) : null}
                             {activeTab !== 'aging' && activeTab !== 'tb' && activeTab !== 'day-book' && (
-                            <>
                             <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
                                 <Download className="w-4 h-4 mr-2" />
                                 PDF
                             </Button>
-                            <Button variant="outline" size="sm" onClick={handlePrint}>
-                                Print
-                            </Button>
-                            </>
                             )}
                         </div>
                     </div>
 
                     {/* PROFIT & LOSS CONTENT */}
                     <TabsContent value="pl">
-                        <Card className="border border-gray-200 dark:border-slate-800 shadow-sm print:shadow-none bg-white dark:bg-slate-950 min-h-[500px]">
-                            <CardContent className="p-3 sm:p-8">
-                                <div className="text-center mb-8 border-b border-gray-100 dark:border-slate-800 pb-4">
+                        <Card className="border border-gray-200 dark:border-slate-800 shadow-sm print:shadow-none print:border-none bg-white dark:bg-slate-950 min-h-[500px]">
+                            <CardContent className="p-3 sm:p-8 print:p-0">
+                                <PrintableFinancialHeader
+                                    business={business}
+                                    title="Profit & Loss Statement"
+                                    periodLabel={`For the period ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`}
+                                    currency={reportCurrency}
+                                />
+                                <div className="text-center mb-8 border-b border-gray-100 dark:border-slate-800 pb-4 print:hidden">
                                     <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 uppercase">Profit & Loss Statement</h2>
                                     {business?.business_name && (
                                         <p className="text-gray-800 dark:text-gray-200 font-semibold text-base mt-2">{business.business_name}</p>
@@ -357,7 +363,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                 {loading && !plData ? (
                                     <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
                                 ) : plData ? (
-                                    <div className="max-w-3xl mx-auto space-y-8">
+                                    <div className="max-w-3xl mx-auto space-y-8 print:max-w-none">
                                         {/* INCOME SECTION */}
                                         <section>
                                             <SectionHeader title="Operating Income" icon={TrendingUp} color="bg-green-500" />
@@ -389,16 +395,16 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                         </section>
 
                                         {/* GROSS PROFIT SUMMARY */}
-                                        <section className="bg-green-50/50 dark:bg-emerald-950/20 p-4 rounded-xl border border-green-100 dark:border-emerald-900/30 flex items-center justify-between">
+                                        <section className="bg-green-50/50 dark:bg-emerald-950/20 p-4 rounded-xl border border-green-100 dark:border-emerald-900/30 flex items-center justify-between print:bg-transparent print:border-t print:border-b print:border-gray-800 print:rounded-none print:px-0 print:py-2 print:my-2">
                                             <div>
-                                                <h3 className="font-bold text-green-800 dark:text-emerald-300">Gross Profit</h3>
-                                                <p className="text-green-600/70 dark:text-emerald-400/60 text-xs">Operating Income - COGS</p>
+                                                <h3 className="font-bold text-green-800 dark:text-emerald-300 print:text-black">Gross Profit</h3>
+                                                <p className="text-green-600/70 dark:text-emerald-400/60 text-xs print:hidden">Operating Income - COGS</p>
                                             </div>
                                             <div className="text-right">
-                                                <div className={`text-xl font-bold ${Number(plData.grossProfit) >= 0 ? 'text-green-700 dark:text-emerald-400' : 'text-red-700 dark:text-rose-400'}`}>
+                                                <div className={`text-xl font-bold ${Number(plData.grossProfit) >= 0 ? 'text-green-700 dark:text-emerald-400 print:text-black' : 'text-red-700 dark:text-rose-400 print:text-black'}`}>
                                                     {formatCurrency(Number(plData.grossProfit), reportCurrency)}
                                                 </div>
-                                                <div className="text-[10px] font-bold text-green-600 dark:text-emerald-500 uppercase tracking-wider">
+                                                <div className="text-[10px] font-bold text-green-600 dark:text-emerald-500 uppercase tracking-wider print:hidden">
                                                     {Number(plData.totalIncome) > 0 ? Math.round((Number(plData.grossProfit) / Number(plData.totalIncome)) * 100) : 0}% Margin
                                                 </div>
                                             </div>
@@ -420,21 +426,22 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                         </section>
 
                                         {/* NET INCOME SUMMARY */}
-                                        <section className={`p-6 rounded-xl border flex items-center justify-between mt-8 ${
+                                        <section className={`p-6 rounded-xl border flex items-center justify-between mt-8 print:bg-transparent print:border-x-0 print:border-t-2 print:border-b-4 print:border-double print:border-gray-900 print:rounded-none print:px-0 print:py-3 print:my-4 ${
                                             Number(plData.netIncome) >= 0 
                                                 ? 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30' 
                                                 : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
                                         }`}>
                                             <div>
-                                                <h3 className={`text-lg font-bold ${Number(plData.netIncome) >= 0 ? 'text-emerald-900 dark:text-emerald-300' : 'text-red-900 dark:text-red-300'}`}>Net Income</h3>
-                                                <p className={`${Number(plData.netIncome) >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-red-700/80 dark:text-red-400/80'} text-xs mt-0.5`}>Gross Profit - Operating Expenses</p>
+                                                <h3 className={`text-lg font-bold ${Number(plData.netIncome) >= 0 ? 'text-emerald-900 dark:text-emerald-300 print:text-black' : 'text-red-900 dark:text-red-300 print:text-black'}`}>Net Income</h3>
+                                                <p className={`text-xs mt-0.5 print:hidden ${Number(plData.netIncome) >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-red-700/80 dark:text-red-400/80'}`}>Gross Profit - Operating Expenses</p>
                                             </div>
                                             <div className="text-right">
-                                                <div className={`text-2xl font-bold ${Number(plData.netIncome) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                                <div className={`text-2xl font-bold ${Number(plData.netIncome) >= 0 ? 'text-emerald-600 dark:text-emerald-400 print:text-black' : 'text-rose-600 dark:text-rose-400 print:text-black'}`}>
                                                     {formatCurrency(Number(plData.netIncome), reportCurrency)}
                                                 </div>
                                             </div>
                                         </section>
+                                        <PrintableFinancialFooter />
                                     </div>
                                 ) : (
                                     <div className="text-center text-gray-400 py-12">Click refresh to load data</div>
@@ -445,9 +452,15 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
 
                     {/* BALANCE SHEET CONTENT */}
                     <TabsContent value="bs">
-                        <Card className="border border-gray-200 dark:border-slate-800 shadow-sm print:shadow-none bg-white dark:bg-slate-950 min-h-[500px]">
-                            <CardContent className="p-3 sm:p-8">
-                                <div className="text-center mb-8 border-b border-gray-100 dark:border-slate-800 pb-4">
+                        <Card className="border border-gray-200 dark:border-slate-800 shadow-sm print:shadow-none print:border-none bg-white dark:bg-slate-950 min-h-[500px]">
+                            <CardContent className="p-3 sm:p-8 print:p-0">
+                                <PrintableFinancialHeader
+                                    business={business}
+                                    title="Balance Sheet"
+                                    periodLabel={`As of ${new Date(asOfDate).toLocaleDateString()}`}
+                                    currency={reportCurrency}
+                                />
+                                <div className="text-center mb-8 border-b border-gray-100 dark:border-slate-800 pb-4 print:hidden">
                                     <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 uppercase">Balance Sheet</h2>
                                     {business?.business_name && (
                                         <p className="text-gray-800 dark:text-gray-200 font-semibold text-base mt-2">{business.business_name}</p>
@@ -465,7 +478,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                 {loading && !bsData ? (
                                     <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
                                 ) : bsData ? (
-                                    <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                                    <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 print:max-w-none print:grid-cols-1">
                                         {/* ASSETS */}
                                         <div className="space-y-8">
                                             <section>
@@ -475,7 +488,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                                         <ReportRow currency={reportCurrency} key={acc.id} label={acc.name} amount={acc.balance} />
                                                     ))}
                                                     <div className="mt-4 pt-2 border-t-2 border-gray-900 dark:border-gray-100">
-                                                        <ReportRow currency={reportCurrency} label="Total Assets" amount={bsData.totalAssets} type="total" />
+                                                        <ReportRow currency={reportCurrency} label="Total Assets" amount={bsData.totalAssets} type="grand-total" />
                                                     </div>
                                                 </div>
                                             </section>
@@ -504,17 +517,20 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                                 </div>
                                             </section>
 
-                                            <div className="pt-4 mt-4 border-t-2 border-gray-900 dark:border-gray-100 bg-gray-50 dark:bg-slate-900/50 p-2 rounded">
+                                            <div className="pt-4 mt-4 border-t-2 border-gray-900 dark:border-gray-100 bg-gray-50 dark:bg-slate-900/50 p-2 rounded print:bg-transparent print:p-0 print:border-t-2 print:border-b-4 print:border-double print:border-gray-900">
                                                 <div className="flex justify-between items-center font-bold text-gray-900 dark:text-gray-100">
                                                     <span>Total Liabilities & Equity</span>
-                                                    <span>{formatCurrency(bsData.totalLiabilitiesAndEquity, reportCurrency)}</span>
+                                                    <span className="font-mono">{formatCurrency(bsData.totalLiabilitiesAndEquity, reportCurrency)}</span>
                                                 </div>
                                                 {!bsData.isBalanced && (
-                                                    <div className="text-xs text-red-500 mt-1 font-medium bg-red-50 dark:bg-red-950/20 p-1 rounded">
+                                                    <div className="text-xs text-red-500 mt-1 font-medium bg-red-50 dark:bg-red-950/20 p-1 rounded print:bg-transparent print:text-black">
                                                         Unbalanced: {formatCurrency(Math.abs(bsData.totalAssets - bsData.totalLiabilitiesAndEquity), reportCurrency)} difference
                                                     </div>
                                                 )}
                                             </div>
+                                        </div>
+                                        <div className="col-span-full">
+                                            <PrintableFinancialFooter />
                                         </div>
                                     </div>
                                 ) : (
@@ -526,9 +542,15 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
 
                     {/* CASH FLOW STATEMENT */}
                     <TabsContent value="cf">
-                        <Card className="border border-gray-200 dark:border-slate-800 shadow-sm print:shadow-none bg-white dark:bg-slate-950 min-h-[500px]">
-                            <CardContent className="p-3 sm:p-8">
-                                <div className="text-center mb-8 border-b border-gray-100 dark:border-slate-800 pb-4">
+                        <Card className="border border-gray-200 dark:border-slate-800 shadow-sm print:shadow-none print:border-none bg-white dark:bg-slate-950 min-h-[500px]">
+                            <CardContent className="p-3 sm:p-8 print:p-0">
+                                <PrintableFinancialHeader
+                                    business={business}
+                                    title="Cash Flow Statement"
+                                    periodLabel={`For the period ${new Date(cfStartDate).toLocaleDateString()} to ${new Date(cfEndDate).toLocaleDateString()} (Indirect Method)`}
+                                    currency={reportCurrency}
+                                />
+                                <div className="text-center mb-8 border-b border-gray-100 dark:border-slate-800 pb-4 print:hidden">
                                     <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 uppercase">Cash Flow Statement</h2>
                                     {business?.business_name && (
                                         <p className="text-gray-800 dark:text-gray-200 font-semibold text-base mt-2">{business.business_name}</p>
@@ -546,7 +568,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                 {loading && !cfData ? (
                                     <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
                                 ) : cfData ? (
-                                    <div className="max-w-3xl mx-auto space-y-8">
+                                    <div className="max-w-3xl mx-auto space-y-8 print:max-w-none">
                                         <section>
                                             <SectionHeader title="Cash from Operating Activities" icon={Banknote} color="bg-green-500" />
                                             <div className="space-y-1">
@@ -566,29 +588,30 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                                             </div>
                                         </section>
 
-                                        <section className={`p-6 rounded-xl border mt-8 space-y-4 ${
+                                        <section className={`p-6 rounded-xl border mt-8 space-y-4 print:bg-transparent print:rounded-none print:px-0 print:py-3 print:my-4 print:border-t-2 print:border-b-4 print:border-double print:border-gray-900 ${
                                             cfData.netChangeInCash >= 0
                                                 ? 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30'
                                                 : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
                                         }`}>
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <h3 className={`text-lg font-semibold ${cfData.netChangeInCash >= 0 ? 'text-emerald-900 dark:text-emerald-300' : 'text-red-900 dark:text-red-300'}`}>Net Change in Cash</h3>
-                                                    <p className={`${cfData.netChangeInCash >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-red-700/80 dark:text-red-400/80'} text-xs mt-0.5`}>From GL cash and bank accounts</p>
+                                                    <h3 className={`text-lg font-semibold ${cfData.netChangeInCash >= 0 ? 'text-emerald-900 dark:text-emerald-300 print:text-black' : 'text-red-900 dark:text-red-300 print:text-black'}`}>Net Change in Cash</h3>
+                                                    <p className={`${cfData.netChangeInCash >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80 print:text-gray-600' : 'text-red-700/80 dark:text-red-400/80 print:text-gray-600'} text-xs mt-0.5`}>From GL cash and bank accounts</p>
                                                 </div>
-                                                <div className={`text-2xl font-semibold ${cfData.netChangeInCash >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                                <div className={`text-2xl font-semibold ${cfData.netChangeInCash >= 0 ? 'text-emerald-600 dark:text-emerald-400 print:text-black' : 'text-rose-600 dark:text-rose-400 print:text-black'}`}>
                                                     {formatCurrency(cfData.netChangeInCash, reportCurrency)}
                                                 </div>
                                             </div>
                                             <div className={`border-t pt-3 flex justify-between text-sm ${cfData.netChangeInCash >= 0 ? 'border-emerald-100/50 dark:border-emerald-900/30' : 'border-red-100/50 dark:border-red-900/30'}`}>
-                                                <span className={cfData.netChangeInCash >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-red-700/80 dark:text-red-400/80'}>Beginning Cash Balance</span>
-                                                <span className={`font-mono ${cfData.netChangeInCash >= 0 ? 'text-emerald-900/90 dark:text-emerald-300/90' : 'text-red-900/90 dark:text-red-300/90'}`}>{formatCurrency(cfData.cashStart, reportCurrency)}</span>
+                                                <span className={cfData.netChangeInCash >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80 print:text-gray-600' : 'text-red-700/80 dark:text-red-400/80 print:text-gray-600'}>Beginning Cash Balance</span>
+                                                <span className={`font-mono ${cfData.netChangeInCash >= 0 ? 'text-emerald-900/90 dark:text-emerald-300/90 print:text-black' : 'text-red-900/90 dark:text-red-300/90 print:text-black'}`}>{formatCurrency(cfData.cashStart, reportCurrency)}</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
-                                                <span className={cfData.netChangeInCash >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-red-700/80 dark:text-red-400/80'}>Ending Cash Balance</span>
-                                                <span className={`font-mono font-semibold ${cfData.netChangeInCash >= 0 ? 'text-emerald-950 dark:text-emerald-200' : 'text-red-950 dark:text-red-200'}`}>{formatCurrency(cfData.cashEnd, reportCurrency)}</span>
+                                                <span className={cfData.netChangeInCash >= 0 ? 'text-emerald-700/80 dark:text-emerald-400/80 print:text-gray-600' : 'text-red-700/80 dark:text-red-400/80 print:text-gray-600'}>Ending Cash Balance</span>
+                                                <span className={`font-mono font-semibold ${cfData.netChangeInCash >= 0 ? 'text-emerald-950 dark:text-emerald-200 print:text-black' : 'text-red-950 dark:text-red-200 print:text-black'}`}>{formatCurrency(cfData.cashEnd, reportCurrency)}</span>
                                             </div>
                                         </section>
+                                        <PrintableFinancialFooter />
                                     </div>
                                 ) : (
                                     <div className="text-center text-gray-400 py-12">Click refresh to load data</div>

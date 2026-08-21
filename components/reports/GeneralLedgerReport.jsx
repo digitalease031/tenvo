@@ -14,6 +14,7 @@ import { BookOpen, Filter, Download } from 'lucide-react';
 import { useBusiness } from '@/lib/context/BusinessContext';
 import { generateFinanceStatementPDF, buildFinancePdfMeta } from '@/lib/pdf/financeStatementPdf';
 import { resolveDisplayCurrency } from '@/lib/utils/businessRegionalContext';
+import { PrintableFinancialHeader, PrintableFinancialFooter } from '@/components/finance/PrintableFinancialHeader';
 
 import Link from 'next/link';
 
@@ -223,8 +224,8 @@ export function GeneralLedgerReport({ businessId }) {
     }, [business, displayCurrency, endDate, entriesWithBalance, isSingleAccount, locale, openingBalance, regionalPack?.taxIdLabel, startDate]);
 
     return (
-        <Card className="w-full min-w-0 overflow-x-hidden border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm print:shadow-none">
-            <CardHeader className="bg-gray-50/50 dark:bg-slate-900/20 border-b border-gray-100 dark:border-slate-850 pb-4">
+        <Card className="w-full min-w-0 overflow-x-hidden border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm print:shadow-none print:border-none">
+            <CardHeader className="bg-gray-50/50 dark:bg-slate-900/20 border-b border-gray-100 dark:border-slate-850 pb-4 print:hidden">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                         <CardTitle className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-gray-100">
@@ -232,10 +233,6 @@ export function GeneralLedgerReport({ businessId }) {
                             General Ledger
                         </CardTitle>
                         <CardDescription className="text-gray-500 dark:text-gray-400">Double-entry accounting records with full audit trail</CardDescription>
-                        <div className="mt-3 hidden text-sm text-gray-700 print:block">
-                            <p className="font-semibold">{business?.business_name || 'Business'}</p>
-                            <p>{startDate} to {endDate}</p>
-                        </div>
                     </div>
                     <div className="flex flex-wrap gap-2 print:hidden">
                     <Button type="button" variant="outline" className="w-full gap-2 sm:w-auto" onClick={handleExportCsv} disabled={entries.length === 0}>
@@ -249,9 +246,6 @@ export function GeneralLedgerReport({ businessId }) {
                         onClick={handleExportPdf}
                     >
                         <Download className="h-4 w-4" /> PDF
-                    </Button>
-                    <Button type="button" variant="outline" className="w-full gap-2 sm:w-auto" onClick={() => window.print()}>
-                        Print
                     </Button>
                     </div>
                 </div>
@@ -293,9 +287,15 @@ export function GeneralLedgerReport({ businessId }) {
                 </div>
             </CardHeader>
 
-            <CardContent className="p-0">
+            <CardContent className="p-0 print:p-0">
+                <PrintableFinancialHeader
+                    business={business}
+                    title="General Ledger"
+                    periodLabel={`Period: ${startDate} to ${endDate}`}
+                    currency={displayCurrency}
+                />
                 {/* Desktop table */}
-                <div className="hidden lg:block">
+                <div className="hidden lg:block print:block">
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-gray-50 dark:bg-slate-900/30 border-b border-gray-100 dark:border-slate-850 hover:bg-transparent">
@@ -436,6 +436,7 @@ export function GeneralLedgerReport({ businessId }) {
                         </>
                     )}
                 </div>
+                <PrintableFinancialFooter />
             </CardContent>
         </Card>
     );

@@ -150,12 +150,13 @@ export function formatCurrency(
 
   // Fallback for PKR if symbol is not ₨
   if (currency === 'PKR') {
+    const isNegative = numericAmount < 0;
     const parts = new Intl.NumberFormat('en-PK', {
       minimumFractionDigits: minD,
       maximumFractionDigits: maxD,
       ...restOptions,
-    }).format(numericAmount);
-    return `₨${parts}`;
+    }).format(Math.abs(numericAmount));
+    return isNegative ? `-₨${parts}` : `₨${parts}`;
   }
 
   return formatter.format(numericAmount);

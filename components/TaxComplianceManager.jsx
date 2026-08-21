@@ -342,7 +342,6 @@ export function TaxComplianceManager({ invoices = [], purchaseOrders = [], posTr
                 actions={[
                     { id: 'csv', label: 'CSV', icon: Download, onClick: () => handleTaxExport('Statement', 'csv') },
                     { id: 'pdf', label: 'Summary', icon: FileText, onClick: () => handleTaxExport('Summary') },
-                    { id: 'print', label: 'Print', icon: Printer, onClick: () => window.print() },
                 ]}
             />
 
@@ -422,10 +421,6 @@ export function TaxComplianceManager({ invoices = [], purchaseOrders = [], posTr
                     <Button onClick={() => handleTaxExport('Summary')} className="h-10 bg-wine hover:bg-wine/90 text-white font-bold text-xs rounded-xl shadow-md shadow-wine/20 px-4 transition-all">
                         <ShieldCheck className="w-4 h-4 mr-1.5" />
                         {standards.taxLabel} Summary PDF
-                    </Button>
-
-                    <Button variant="outline" onClick={() => window.print()} className="h-10 border-gray-200 bg-white text-gray-600 hover:bg-gray-50 font-bold text-xs rounded-xl shadow-2xs">
-                        <Printer className="w-3.5 h-3.5 mr-1 text-gray-500" />
                     </Button>
                 </div>
             </div>

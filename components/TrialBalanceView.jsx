@@ -10,6 +10,7 @@ import { useBusiness } from '@/lib/context/BusinessContext';
 import toast from 'react-hot-toast';
 import { generateFinanceStatementPDF, buildFinancePdfMeta } from '@/lib/pdf/financeStatementPdf';
 import { resolveDisplayCurrency } from '@/lib/utils/businessRegionalContext';
+import { PrintableFinancialHeader, PrintableFinancialFooter } from '@/components/finance/PrintableFinancialHeader';
 
 /**
  * @param {Object} props
@@ -49,10 +50,6 @@ export default function TrialBalanceView({ businessId, currency: currencyProp })
             fetchReport();
         });
     }, [fetchReport]);
-
-    const handlePrint = () => {
-        window.print();
-    };
 
     const handlePdf = () => {
         const rows = [
@@ -95,8 +92,8 @@ export default function TrialBalanceView({ businessId, currency: currencyProp })
     }
 
     return (
-        <Card className="min-w-0 overflow-x-hidden border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm print:shadow-none">
-            <CardHeader className="flex flex-col gap-3 border-b border-gray-100 dark:border-slate-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="min-w-0 overflow-x-hidden border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm print:shadow-none print:border-none">
+            <CardHeader className="flex flex-col gap-3 border-b border-gray-100 dark:border-slate-800 pb-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
                 <div className="min-w-0">
                     <CardTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Trial Balance</CardTitle>
                     <CardDescription className="text-gray-500 dark:text-gray-400">As of {new Date(date).toLocaleDateString()}</CardDescription>
@@ -115,14 +112,17 @@ export default function TrialBalanceView({ businessId, currency: currencyProp })
                         <Download className="mr-2 h-4 w-4" />
                         PDF
                     </Button>
-                    <Button variant="outline" className="flex-1 sm:flex-none" onClick={handlePrint}>
-                        Print
-                    </Button>
                 </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 print:p-0">
+                <PrintableFinancialHeader
+                    business={business}
+                    title="Trial Balance"
+                    periodLabel={`As of ${new Date(date).toLocaleDateString()}`}
+                    currency={currency}
+                />
                 {/* Desktop table */}
-                <div className="hidden overflow-x-auto lg:block">
+                <div className="hidden overflow-x-auto lg:block print:block">
                     <table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-slate-900/50 font-semibold text-gray-650 dark:text-gray-400 border-b border-gray-100 dark:border-slate-800">
                             <tr>
@@ -148,15 +148,15 @@ export default function TrialBalanceView({ businessId, currency: currencyProp })
                                 </tr>
                             ))}
                         </tbody>
-                        <tfoot className="bg-gray-50 dark:bg-slate-900/50 font-bold border-t-2 border-gray-200 dark:border-slate-800">
+                        <tfoot className="bg-gray-50 dark:bg-slate-900/50 font-bold border-t-2 border-gray-200 dark:border-slate-800 accounting-grand-total">
                             <tr>
-                                <td colSpan={3} className="px-6 py-4 text-right uppercase text-xs tracking-wider text-gray-500 dark:text-gray-400">
+                                <td colSpan={3} className="px-6 py-4 text-right uppercase text-xs tracking-wider text-gray-500 dark:text-gray-400 print:text-black font-bold">
                                     Total
                                 </td>
-                                <td className="px-6 py-4 text-right text-base text-gray-900 dark:text-gray-100">
+                                <td className="px-6 py-4 text-right text-base text-gray-900 dark:text-gray-100 font-mono font-bold print:text-black">
                                     {formatCurrency(Number(data.totals.debit), currency)}
                                 </td>
-                                <td className="px-6 py-4 text-right text-base text-gray-900 dark:text-gray-100">
+                                <td className="px-6 py-4 text-right text-base text-gray-900 dark:text-gray-100 font-mono font-bold print:text-black">
                                     {formatCurrency(Number(data.totals.credit), currency)}
                                 </td>
                             </tr>
@@ -214,6 +214,7 @@ export default function TrialBalanceView({ businessId, currency: currencyProp })
                         </div>
                     </div>
                 </div>
+                <PrintableFinancialFooter />
             </CardContent>
         </Card>
     );

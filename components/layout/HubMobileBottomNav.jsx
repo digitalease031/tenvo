@@ -62,7 +62,7 @@ export function HubMobileBottomNav() {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden print:hidden"
         aria-label="Primary navigation"
       >
         <ul className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">

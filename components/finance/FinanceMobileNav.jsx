@@ -106,7 +106,7 @@ export function FinanceMobileNav({
   const groups = groupFinanceTabs(allTabs);
 
   return (
-    <nav aria-label="Finance sections" className={cn('w-full min-w-0', className)}>
+    <nav aria-label="Finance sections" className={cn('w-full min-w-0 print:hidden', className)}>
       {showTiles ? (
         <div className={cn('space-y-4', variant === 'responsive' && 'lg:hidden')}>
           {groups.map(({ group, tabs: groupTabs }) => (

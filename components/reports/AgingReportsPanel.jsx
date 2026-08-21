@@ -13,6 +13,7 @@ import {
     getAccountsPayableAgingAction,
 } from '@/lib/actions/standard/agingReports';
 import { resolveDisplayCurrency } from '@/lib/utils/businessRegionalContext';
+import { PrintableFinancialHeader, PrintableFinancialFooter } from '@/components/finance/PrintableFinancialHeader';
 import toast from 'react-hot-toast';
 
 const BUCKET_COLUMNS = [
@@ -51,7 +52,7 @@ function AgingTable({ rows, currency, type }) {
 
     return (
         <>
-            <div className="hidden overflow-x-auto rounded-lg border lg:block">
+            <div className="hidden overflow-x-auto rounded-lg border lg:block print:block">
                 <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-[10px] font-semibold uppercase text-gray-500 tracking-wider">
                     <tr>
@@ -173,60 +174,56 @@ export function AgingReportsPanel({ businessId, currency: currencyProp }) {
 
     useEffect(() => {
         if (!businessId) return;
-        if (activeTab === 'ar') fetchAr();
-        else fetchAp();
-    }, [businessId, activeTab, fetchAr, fetchAp]);
+        queueMicrotask(() => {
+            if (activeTab === 'ar' && !arData) void fetchAr();
+            else if (activeTab === 'ap' && !apData) void fetchAp();
+        });
+    }, [businessId, activeTab, arData, apData, fetchAr, fetchAp]);
 
     const buildExportRows = (type) => {
-        const isAr = type === 'ar';
-        const rows = isAr ? arData?.invoices : apData?.purchases;
-        return (rows || []).map((r) => ({
-            party: isAr ? r.customer_name : r.vendor_name,
-            document: isAr ? r.invoice_number : r.purchase_number,
-            date: (r.due_date || r.date) ? new Date(r.due_date || r.date).toLocaleDateString() : '',
-            days_overdue: r.days_overdue ?? 0,
-            current: r.current_amount ?? 0,
-            days_1_30: r.days_1_30 ?? 0,
-            days_31_60: r.days_31_60 ?? 0,
-            days_61_90: r.days_61_90 ?? 0,
-            days_over_90: r.days_over_90 ?? 0,
-            balance: r.balance ?? 0,
+        const data = type === 'ar' ? arData : apData;
+        const rows = type === 'ar' ? data?.invoices || [] : data?.purchases || [];
+        return rows.map((r) => ({
+            Entity: type === 'ar' ? r.customer_name : r.vendor_name,
+            Document: type === 'ar' ? r.invoice_number : r.purchase_number,
+            DueDate: r.due_date ? new Date(r.due_date).toLocaleDateString() : '-',
+            DaysOverdue: r.days_overdue ?? 0,
+            Current: r.current_amount || 0,
+            '1-30 Days': r.days_1_30 || 0,
+            '31-60 Days': r.days_31_60 || 0,
+            '61-90 Days': r.days_61_90 || 0,
+            '90+ Days': r.days_over_90 || 0,
+            Balance: r.balance || 0,
         }));
     };
 
-    const agingExportColumns = [
-        { label: 'Party', key: 'party' },
-        { label: 'Document', key: 'document' },
-        { label: 'Due', key: 'date' },
-        { label: 'Days', key: 'days_overdue' },
-        { label: 'Current', key: 'current' },
-        { label: '1-30', key: 'days_1_30' },
-        { label: '31-60', key: 'days_31_60' },
-        { label: '61-90', key: 'days_61_90' },
-        { label: '90+', key: 'days_over_90' },
-        { label: 'Balance', key: 'balance' },
-    ];
-
     const handleExportPdf = (type) => {
+        const data = type === 'ar' ? arData : apData;
         const exportRows = buildExportRows(type);
         if (!exportRows.length) {
             toast.error('No data to export');
             return;
         }
-        const isAr = type === 'ar';
-        const title = isAr ? 'Accounts Receivable Aging' : 'Accounts Payable Aging';
-        const doc = generateReportPDF(title, exportRows, agingExportColumns, {
-            businessName: business?.business_name || business?.name || 'Business',
-            business,
+
+        const title = type === 'ar' ? 'Accounts Receivable Aging' : 'Accounts Payable Aging';
+        const cols = [
+            { key: 'Entity', label: type === 'ar' ? 'Customer' : 'Vendor' },
+            { key: 'Document', label: 'Document' },
+            { key: 'DueDate', label: 'Due Date' },
+            { key: 'DaysOverdue', label: 'Days' },
+            { key: 'Current', label: 'Current' },
+            { key: '1-30 Days', label: '1-30 Days' },
+            { key: '31-60 Days', label: '31-60 Days' },
+            { key: '61-90 Days', label: '61-90 Days' },
+            { key: '90+ Days', label: '90+ Days' },
+            { key: 'Balance', label: 'Balance' },
+        ];
+
+        generateReportPDF(title, exportRows, cols, {
+            businessName: business?.business_name,
             currency,
-            locale: regionalPack?.locale,
-            periodLabel: `As of ${new Date().toISOString().slice(0, 10)}`,
-            footnote: isAr
-                ? 'A/R outstanding from invoice payments ledger; aged on invoice due date'
-                : 'A/P outstanding from purchase allocations; aged on bill date + payment terms',
+            footnote: `Total Outstanding: ${formatCurrency(data?.summary?.total_balance || 0, currency)}`,
         });
-        doc.save(`${title.replace(/\s+/g, '-')}.pdf`);
-        toast.success('Aging PDF exported');
     };
 
     const handleExportCsv = (type) => {
@@ -235,14 +232,14 @@ export function AgingReportsPanel({ businessId, currency: currencyProp }) {
             toast.error('No data to export');
             return;
         }
-        const title = type === 'ar' ? 'Accounts_Receivable_Aging' : 'Accounts_Payable_Aging';
+    const title = type === 'ar' ? 'Accounts_Receivable_Aging' : 'Accounts_Payable_Aging';
         exportToCSV(exportRows, title);
         toast.success('Aging CSV exported');
     };
 
     return (
-        <Card className="border shadow-sm bg-white print:shadow-none">
-            <CardHeader className="pb-4">
+        <Card className="border shadow-sm bg-white dark:bg-slate-950 print:shadow-none print:border-none">
+            <CardHeader className="pb-4 print:hidden">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <CardTitle className="text-lg">A/R & A/P Aging</CardTitle>
@@ -260,35 +257,46 @@ export function AgingReportsPanel({ businessId, currency: currencyProp }) {
                         <Button variant="outline" size="sm" onClick={() => handleExportCsv(activeTab)}>
                             CSV
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => window.print()}>
-                            Print
-                        </Button>
                     </div>
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="print:p-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-4">
+                    <TabsList className="mb-4 print:hidden">
                         <TabsTrigger value="ar">Receivables (A/R)</TabsTrigger>
                         <TabsTrigger value="ap">Payables (A/P)</TabsTrigger>
                     </TabsList>
                     <TabsContent value="ar">
+                        <PrintableFinancialHeader
+                            business={business}
+                            title="Accounts Receivable (A/R) Aging Report"
+                            periodLabel={`As of ${new Date().toLocaleDateString()}`}
+                            currency={currency}
+                        />
                         {loading && !arData ? (
                             <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
                         ) : (
                             <>
                                 <AgingSummaryCards summary={arData?.summary} currency={currency} />
                                 <AgingTable rows={arData?.invoices} currency={currency} type="ar" />
+                                <PrintableFinancialFooter />
                             </>
                         )}
                     </TabsContent>
                     <TabsContent value="ap">
+                        <PrintableFinancialHeader
+                            business={business}
+                            title="Accounts Payable (A/P) Aging Report"
+                            periodLabel={`As of ${new Date().toLocaleDateString()}`}
+                            currency={currency}
+                        />
                         {loading && !apData ? (
                             <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
                         ) : (
                             <>
                                 <AgingSummaryCards summary={apData?.summary} currency={currency} />
                                 <AgingTable rows={apData?.purchases} currency={currency} type="ap" />
+                                <PrintableFinancialFooter />
                             </>
                         )}
                     </TabsContent>

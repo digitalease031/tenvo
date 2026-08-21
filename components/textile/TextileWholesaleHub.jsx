@@ -34,7 +34,26 @@ import {
   Filter,
 } from 'lucide-react';
 
-import { calculateThaanStockSummary } from '@/lib/utils/textileWholesaleHelpers';
+import { 
+  calculateThaanStockSummary,
+  parseThaanBreakdown,
+  exportPartyLedgerToCSV,
+  exportStockSummaryToCSV,
+} from '@/lib/utils/textileWholesaleHelpers';
+
+// Helper to trigger browser CSV file download
+function downloadCSV(csvString, filename = 'export.csv') {
+  if (typeof window === 'undefined') return;
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export function TextileWholesaleHub({ 
   businessId,
@@ -90,8 +109,18 @@ export function TextileWholesaleHub({
 
     const todayRev = todayInvs.reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
 
-    // Mock recent payments (in real app, fetch from invoice_payments)
-    const payments = [];
+    // Extract recent payments from paid/partially-paid invoices or payments list
+    const payments = invoices
+      .filter(inv => (inv.paid_amount || 0) > 0)
+      .map(inv => ({
+        id: inv.id,
+        customer_name: inv.customer_name || inv.customer?.name || 'Party',
+        payment_date: inv.updated_at || inv.created_at || new Date().toISOString(),
+        payment_method: inv.payment_method || inv.payment_terms || 'Cash',
+        amount: Number(inv.paid_amount || 0),
+      }))
+      .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
+      .slice(0, 10);
 
     return {
       pendingInvoices: pending,
@@ -195,8 +224,23 @@ export function TextileWholesaleHub({
         window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'payments' } }));
         break;
       case 'export-ledger':
-        // Export customers
-        window.dispatchEvent(new CustomEvent('open-quick-action', { detail: { actionId: 'export-customers' } }));
+        // Export customers CSV directly
+        try {
+          const csv = exportPartyLedgerToCSV(customers);
+          downloadCSV(csv, `Party_Ledger_${new Date().toISOString().split('T')[0]}.csv`);
+        } catch (e) {
+          console.error('Failed to export party ledger:', e);
+          window.dispatchEvent(new CustomEvent('open-quick-action', { detail: { actionId: 'export-customers' } }));
+        }
+        break;
+      case 'export-stock':
+        // Export stock summary CSV directly
+        try {
+          const csv = exportStockSummaryToCSV(products);
+          downloadCSV(csv, `Stock_Summary_${new Date().toISOString().split('T')[0]}.csv`);
+        } catch (e) {
+          console.error('Failed to export stock summary:', e);
+        }
         break;
       default:
         console.warn('Unhandled textile action:', action);
@@ -264,7 +308,7 @@ export function TextileWholesaleHub({
                   {formatCurrency(totalOutstanding)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {topOutstanding.length} parties
+                  {topOutstanding.length} active parties
                 </p>
               </div>
               <div className="h-12 w-12 rounded-full bg-rose-100 flex items-center justify-center">
@@ -506,7 +550,7 @@ export function TextileWholesaleHub({
         {/* Parties View */}
         <TabsContent value="parties" className="space-y-4">
           <PartyLedgerView
-            customers={topOutstanding}
+            customers={customers}
             formatCurrency={formatCurrency}
             onAction={handleQuickAction}
           />
@@ -515,7 +559,7 @@ export function TextileWholesaleHub({
         {/* Stock View */}
         <TabsContent value="stock" className="space-y-4">
           <StockSummaryView
-            products={topProducts}
+            products={products}
             stockSummary={stockSummary}
             onAction={handleQuickAction}
           />
@@ -535,119 +579,301 @@ export function TextileWholesaleHub({
   );
 }
 
-// Party Ledger Sub-component
-function PartyLedgerView({ customers, formatCurrency, onAction }) {
+// Party Ledger Sub-component (with full search, filter, credit bar, direct actions)
+function PartyLedgerView({ customers = [], formatCurrency, onAction }) {
+  const [partySearch, setPartySearch] = useState('');
+  const [buyerTypeFilter, setBuyerTypeFilter] = useState('all');
+  const [creditFilter, setCreditFilter] = useState('all');
+
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(customer => {
+      const q = partySearch.toLowerCase().trim();
+      const nameMatch = !q || (
+        (customer.name || '').toLowerCase().includes(q) ||
+        (customer.domain_data?.shop_name || '').toLowerCase().includes(q) ||
+        (customer.domain_data?.market_location || '').toLowerCase().includes(q) ||
+        (customer.domain_data?.broker_name || '').toLowerCase().includes(q)
+      );
+
+      const buyerMatch = buyerTypeFilter === 'all' || (customer.domain_data?.buyer_type || 'Retailer') === buyerTypeFilter;
+
+      const usage = customer.credit_limit > 0
+        ? (customer.outstanding_balance / customer.credit_limit) * 100
+        : 0;
+
+      const creditMatch = creditFilter === 'all' ||
+        (creditFilter === 'overdue' && customer.outstanding_balance > 0) ||
+        (creditFilter === 'warning' && usage >= 60 && usage < 80) ||
+        (creditFilter === 'exceeded' && usage >= 80);
+
+      return nameMatch && buyerMatch && creditMatch;
+    });
+  }, [customers, partySearch, buyerTypeFilter, creditFilter]);
+
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <CardTitle>Party Ledger</CardTitle>
-            <CardDescription>Outstanding balances and credit limits</CardDescription>
+            <CardTitle>Party Ledger ({filteredCustomers.length})</CardTitle>
+            <CardDescription>Outstanding balances, credit limits, and buyer details</CardDescription>
           </div>
-          <Button size="sm" onClick={() => onAction?.('export-ledger')}>
-            Export
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button size="sm" variant="outline" onClick={() => onAction?.('export-ledger')}>
+              <FileText className="h-4 w-4 mr-1.5" />
+              Export CSV
+            </Button>
+            <Button size="sm" onClick={() => window.dispatchEvent(new CustomEvent('open-modal', { detail: { modalId: 'customer' } }))}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add Party
+            </Button>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by party, shop, market, broker..."
+              value={partySearch}
+              onChange={(e) => setPartySearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wine-500"
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={buyerTypeFilter}
+              onChange={(e) => setBuyerTypeFilter(e.target.value)}
+              className="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none"
+            >
+              <option value="all">All Buyer Types</option>
+              <option value="Retailer">Retailer</option>
+              <option value="Wholesaler">Wholesaler</option>
+              <option value="Tailor">Tailor</option>
+              <option value="Boutique">Boutique</option>
+            </select>
+            <select
+              value={creditFilter}
+              onChange={(e) => setCreditFilter(e.target.value)}
+              className="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none"
+            >
+              <option value="all">All Credit Status</option>
+              <option value="overdue">With Balance</option>
+              <option value="warning">Warning (60-80%)</option>
+              <option value="exceeded">High Usage (&gt;80%)</option>
+            </select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
-          {customers.map((customer) => {
-            const usage = customer.credit_limit > 0
-              ? (customer.outstanding_balance / customer.credit_limit) * 100
-              : 0;
+        <div className="space-y-3">
+          {filteredCustomers.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-8">
+              No parties found matching criteria
+            </p>
+          ) : (
+            filteredCustomers.map((customer) => {
+              const usage = customer.credit_limit > 0
+                ? (customer.outstanding_balance / customer.credit_limit) * 100
+                : 0;
 
-            return (
-              <div
-                key={customer.id}
-                className="p-4 rounded-lg border hover:bg-gray-50 cursor-pointer"
-                onClick={() => onAction?.('view-party-ledger', customer.id)}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="font-semibold text-gray-900">{customer.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {customer.domain_data?.shop_name || 'Wholesale Party'}
-                      {customer.domain_data?.market_location && 
-                        ` · ${customer.domain_data.market_location}`}
-                    </p>
-                  </div>
-                  <Badge variant={usage > 80 ? 'destructive' : usage > 60 ? 'warning' : 'secondary'}>
-                    {customer.domain_data?.buyer_type || 'Retailer'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Outstanding</p>
-                    <p className="font-semibold text-rose-600">
-                      {formatCurrency(customer.outstanding_balance)}
-                    </p>
-                  </div>
-                  {customer.credit_limit > 0 && (
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">Credit Limit</p>
-                      <p className="font-medium text-gray-900">
-                        {formatCurrency(customer.credit_limit)}
-                      </p>
-                      <div className="w-32 h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
-                        <div
-                          className={`h-full ${
-                            usage > 80 ? 'bg-rose-500' : usage > 60 ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`}
-                          style={{ width: `${Math.min(usage, 100)}%` }}
-                        />
+              return (
+                <div
+                  key={customer.id}
+                  className="p-4 rounded-lg border hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900">{customer.name}</p>
+                        {customer.domain_data?.broker_name && (
+                          <Badge variant="outline" className="text-xs font-normal">
+                            Agent: {customer.domain_data.broker_name}
+                          </Badge>
+                        )}
                       </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {customer.domain_data?.shop_name || 'Wholesale Party'}
+                        {customer.domain_data?.market_location && 
+                          ` · ${customer.domain_data.market_location}`}
+                        {customer.phone && ` · 📞 ${customer.phone}`}
+                      </p>
                     </div>
-                  )}
+                    <div className="flex items-center gap-2">
+                      <Badge variant={usage > 80 ? 'destructive' : usage > 60 ? 'warning' : 'secondary'}>
+                        {customer.domain_data?.buyer_type || 'Retailer'}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onAction?.('view-party-ledger', customer.id)}
+                      >
+                        View Ledger
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                    <div>
+                      <p className="text-xs text-gray-500">Outstanding Balance</p>
+                      <p className="font-semibold text-base text-rose-600">
+                        {formatCurrency(customer.outstanding_balance)}
+                      </p>
+                    </div>
+                    {customer.credit_limit > 0 && (
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">Credit Limit & Utilization</p>
+                        <p className="font-medium text-xs text-gray-900">
+                          {formatCurrency(customer.credit_limit)} ({Math.min(Math.round(usage), 100)}%)
+                        </p>
+                        <div className="w-36 h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                          <div
+                            className={`h-full transition-all ${
+                              usage > 80 ? 'bg-rose-500' : usage > 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(usage, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-// Stock Summary Sub-component
-function StockSummaryView({ products, stockSummary, onAction }) {
+// Stock Summary Sub-component (with search, fabric type filter, thaan breakdown display)
+function StockSummaryView({ products = [], stockSummary, onAction }) {
+  const [stockSearch, setStockSearch] = useState('');
+  const [fabricFilter, setFabricFilter] = useState('all');
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const q = stockSearch.toLowerCase().trim();
+      const nameMatch = !q || (
+        (product.name || '').toLowerCase().includes(q) ||
+        (product.sku || '').toLowerCase().includes(q) ||
+        (product.domain_data?.articleno || '').toLowerCase().includes(q) ||
+        (product.domain_data?.designno || '').toLowerCase().includes(q) ||
+        (product.domain_data?.fabrictype || '').toLowerCase().includes(q) ||
+        (product.domain_data?.colorshade || '').toLowerCase().includes(q)
+      );
+
+      const fabricMatch = fabricFilter === 'all' || (product.domain_data?.fabrictype || '') === fabricFilter;
+
+      return nameMatch && fabricMatch;
+    });
+  }, [products, stockSearch, fabricFilter]);
+
+  // Extract unique fabric types from catalog
+  const fabricTypes = useMemo(() => {
+    const set = new Set();
+    products.forEach(p => {
+      if (p.domain_data?.fabrictype) set.add(p.domain_data.fabrictype);
+    });
+    return Array.from(set);
+  }, [products]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Stock by Article</CardTitle>
-          <CardDescription>Current thaan and meter inventory</CardDescription>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle>Stock by Article ({filteredProducts.length})</CardTitle>
+              <CardDescription>Current thaan rolls and meter inventory</CardDescription>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => onAction?.('export-stock')}>
+              <FileText className="h-4 w-4 mr-1.5" />
+              Export CSV
+            </Button>
+          </div>
+
+          {/* Search & Fabric Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search article, design, fabric, color..."
+                value={stockSearch}
+                onChange={(e) => setStockSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wine-500"
+              />
+            </div>
+            <select
+              value={fabricFilter}
+              onChange={(e) => setFabricFilter(e.target.value)}
+              className="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none"
+            >
+              <option value="all">All Fabric Types</option>
+              {fabricTypes.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className="p-3 rounded-lg border hover:bg-gray-50 cursor-pointer"
-                onClick={() => onAction?.('view-product-stock', product.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-sm text-gray-900">
-                      {product.domain_data?.articleno || product.sku}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {product.domain_data?.designno} · {product.domain_data?.fabrictype}
-                    </p>
+          <div className="space-y-3">
+            {filteredProducts.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-8">
+                No stock articles found
+              </p>
+            ) : (
+              filteredProducts.map((product) => {
+                const breakdownRaw = product.domain_data?.thaan_breakdown || product.domain_data?.thaanbreakdown;
+                const { rolls, totalMeters: rollMeters } = parseThaanBreakdown(breakdownRaw);
+
+                return (
+                  <div
+                    key={product.id}
+                    className="p-3.5 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => onAction?.('view-product-stock', product.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold text-sm text-gray-900">
+                          {product.domain_data?.articleno || product.sku}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {product.domain_data?.designno && `Design #${product.domain_data.designno} · `}
+                          {product.domain_data?.fabrictype || 'Fabric'}
+                          {product.domain_data?.colorshade && ` · ${product.domain_data.colorshade}`}
+                          {product.domain_data?.korafinished && ` (${product.domain_data.korafinished})`}
+                        </p>
+                        {rolls.length > 0 && (
+                          <p className="text-xs text-blue-600 mt-1 font-mono">
+                            Rolls ({rolls.length}): {rolls.map(r => `${r}m`).join(', ')} = {rollMeters}m
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm text-gray-900">
+                          {product.stock || 0} {product.unit || 'pcs'}
+                        </p>
+                        {product.unit === 'thaan' && product.domain_data?.thaanlength && (
+                          <p className="text-xs text-gray-500">
+                            ≈ {(product.stock || 0) * (product.domain_data.thaanlength || 40)}m
+                          </p>
+                        )}
+                        {product.price > 0 && (
+                          <p className="text-xs text-emerald-600 font-medium mt-0.5">
+                            PKR {Number(product.price).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-sm text-gray-900">
-                      {product.stock || 0} {product.unit || 'pcs'}
-                    </p>
-                    {product.unit === 'thaan' && product.domain_data?.thaanlength && (
-                      <p className="text-xs text-gray-500">
-                        ≈ {(product.stock || 0) * (product.domain_data.thaanlength || 40)}m
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>
@@ -703,28 +929,25 @@ function PaymentsCollectionView({ recentPayments, pendingInvoices, formatCurrenc
           <div className="space-y-2">
             {recentPayments.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-8">
-                No recent payments
+                No recent payments recorded
               </p>
             ) : (
               recentPayments.map((payment) => (
                 <div
                   key={payment.id}
-                  className="p-3 rounded-lg border"
+                  className="p-3 rounded-lg border flex items-center justify-between"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm text-gray-900">
-                        {payment.customer_name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(payment.payment_date).toLocaleDateString()} · 
-                        {payment.payment_method}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-emerald-600">
-                      {formatCurrency(payment.amount)}
+                  <div>
+                    <p className="font-medium text-sm text-gray-900">
+                      {payment.customer_name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(payment.payment_date).toLocaleDateString()} · {payment.payment_method}
                     </p>
                   </div>
+                  <p className="font-semibold text-emerald-600">
+                    {formatCurrency(payment.amount)}
+                  </p>
                 </div>
               ))
             )}
@@ -733,9 +956,11 @@ function PaymentsCollectionView({ recentPayments, pendingInvoices, formatCurrenc
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Pending Collections</CardTitle>
-          <CardDescription>Invoices awaiting payment</CardDescription>
+        <CardHeader className="flex items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-base">Pending Collections ({pendingInvoices.length})</CardTitle>
+            <CardDescription>Invoices awaiting payment</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -744,35 +969,33 @@ function PaymentsCollectionView({ recentPayments, pendingInvoices, formatCurrenc
                 All invoices paid
               </p>
             ) : (
-              pendingInvoices.slice(0, 10).map((invoice) => {
+              pendingInvoices.slice(0, 15).map((invoice) => {
                 const dueDate = new Date(invoice.due_date || invoice.created_at);
                 const isOverdue = dueDate < new Date();
 
                 return (
                   <div
                     key={invoice.id}
-                    className="p-3 rounded-lg border hover:bg-gray-50 cursor-pointer"
+                    className="p-3 rounded-lg border hover:bg-gray-50 cursor-pointer flex items-center justify-between"
                     onClick={() => onAction?.('record-payment-for', invoice.id)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-sm text-gray-900">
-                          {invoice.customer_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {invoice.invoice_number} · {dueDate.toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-semibold text-sm ${isOverdue ? 'text-rose-600' : 'text-gray-900'}`}>
-                          {formatCurrency(invoice.grand_total - (invoice.paid_amount || 0))}
-                        </p>
-                        {isOverdue && (
-                          <Badge variant="destructive" className="text-xs mt-1">
-                            Overdue
-                          </Badge>
-                        )}
-                      </div>
+                    <div>
+                      <p className="font-medium text-sm text-gray-900">
+                        {invoice.customer_name || invoice.customer?.name || 'Party'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {invoice.invoice_number} · Due {dueDate.toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-semibold text-sm ${isOverdue ? 'text-rose-600' : 'text-gray-900'}`}>
+                        {formatCurrency(invoice.grand_total - (invoice.paid_amount || 0))}
+                      </p>
+                      {isOverdue && (
+                        <Badge variant="destructive" className="text-xs mt-0.5">
+                          Overdue
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 );

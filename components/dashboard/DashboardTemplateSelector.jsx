@@ -64,6 +64,10 @@ export function DashboardTemplateSelector({
       'bakery-confectionery': 'retail',
       'bookshop-stationery': 'retail',
       'supermarket': 'retail',
+      'lubricant-distribution': 'lubricant',
+      'lubricants': 'lubricant',
+      'engine-oil': 'lubricant',
+      'pakistan-oil': 'lubricant',
       // All other categories use default
     };
 
@@ -73,6 +77,10 @@ export function DashboardTemplateSelector({
   // Load the appropriate template component
   const DashboardComponent = useMemo(() => {
     switch (templateType) {
+      case 'lubricant':
+        const { LubricantDistributionDashboard } = require('./templates/LubricantDistributionDashboard');
+        return LubricantDistributionDashboard;
+
       case 'pharmacy':
         // Lazy load pharmacy dashboard
         const { PharmacyDashboard } = require('./templates/PharmacyDashboard');

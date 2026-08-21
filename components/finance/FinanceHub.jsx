@@ -53,38 +53,72 @@ const FINANCE_TABS = [
     { key: 'exchange', label: 'Exchange Rates', shortLabel: 'FX Rates', icon: Globe, permission: 'finance.exchange_rates', feature: 'exchange_rates', group: 'Close' },
 ];
 
+// --- Category & Label Helpers ------------------------------------------------
+
+/** Formats raw expense category slugs (e.g. warehouse_godown_rent) into human-readable titles */
+function formatCategoryName(category) {
+    if (!category) return 'Uncategorized';
+    if (!category.includes('_') && category !== category.toLowerCase()) {
+        return category;
+    }
+    return category
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
+
+const ACCOUNT_CATEGORY_LABELS = {
+    asset: 'Assets',
+    liability: 'Liabilities',
+    equity: 'Equity',
+    income: 'Income',
+    expense: 'Expenses',
+};
+
 // --- KPI Card ----------------------------------------------------------------
 
 function KPICard({ label, value, icon: Icon, trend, color = 'indigo', loading }) {
-    const colors = {
-        indigo: 'bg-brand-50 text-brand-primary border-brand-100',
-        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-        amber: 'bg-amber-50 text-amber-600 border-amber-100',
-        red: 'bg-red-50 text-red-600 border-red-100',
-        blue: 'bg-brand-50 text-brand-primary border-brand-100',
+    const colorStyles = {
+        indigo: 'border-indigo-100/80 bg-indigo-50/50 text-indigo-950 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:text-indigo-200',
+        emerald: 'border-emerald-100/80 bg-emerald-50/50 text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200',
+        amber: 'border-amber-100/80 bg-amber-50/50 text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200',
+        red: 'border-red-100/80 bg-red-50/50 text-red-950 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200',
+        blue: 'border-blue-100/80 bg-blue-50/50 text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200',
     };
+
+    const iconStyles = {
+        indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300',
+        emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300',
+        amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300',
+        red: 'bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300',
+        blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300',
+    };
+
     return (
-        <div className={cn('rounded-xl border p-4', colors[color])}>
+        <div className={cn('relative overflow-hidden rounded-2xl border p-4 transition-all duration-200 shadow-sm hover:shadow-md', colorStyles[color])}>
             <div className="flex items-center justify-between mb-2">
-                <Icon className="w-5 h-5 opacity-60" />
-                {trend && (
-                    <span className={cn('text-xs font-bold flex items-center gap-0.5',
-                        trend > 0 ? 'text-emerald-600' : 'text-red-500')}>
+                <span className={cn('inline-flex h-8 w-8 items-center justify-center rounded-xl', iconStyles[color])}>
+                    <Icon className="w-4 h-4" strokeWidth={2} />
+                </span>
+                {trend != null && (
+                    <span className={cn('text-xs font-semibold flex items-center gap-0.5 px-2 py-0.5 rounded-full',
+                        trend > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400')}>
                         {trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                         {Math.abs(trend)}%
                     </span>
                 )}
             </div>
             {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin opacity-40" />
+                <div className="h-8 flex items-center">
+                    <Loader2 className="w-4 h-4 animate-spin opacity-40" />
+                </div>
             ) : (
-                <p className="text-2xl font-semibold tracking-tight">{value}</p>
+                <p className="text-2xl font-semibold tracking-tight tabular-nums text-neutral-900 dark:text-neutral-50">{value}</p>
             )}
-            <p className="text-[11px] font-semibold opacity-60 mt-1">{label}</p>
+            <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mt-1">{label}</p>
         </div>
     );
 }
-
 
 // --- Credit Notes Panel ------------------------------------------------------
 
@@ -488,7 +522,7 @@ function FinanceOverview({
 
     return (
         <div className="space-y-4">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">
                 Formal statements read your books (GL). Sales dashboard KPIs may also include operational channels.
             </p>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -499,10 +533,10 @@ function FinanceOverview({
             </div>
 
             {(pendingSf > 0 || pendingRest > 0) && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/30 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shadow-sm">
                     <div>
-                        <p className="text-sm font-semibold text-amber-900">Books coverage gap</p>
-                        <p className="text-xs text-amber-800 mt-0.5">
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Books coverage gap</p>
+                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
                             {pendingSf > 0 && `${pendingSf} paid storefront order${pendingSf === 1 ? '' : 's'} not in GL. `}
                             {pendingRest > 0 && `${pendingRest} paid restaurant order${pendingRest === 1 ? '' : 's'} missing GL.`}
                         </p>
@@ -510,7 +544,7 @@ function FinanceOverview({
                     {pendingSf > 0 && (
                         <Button
                             size="sm"
-                            className="bg-amber-700 hover:bg-amber-800 text-white"
+                            className="bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-xl text-xs"
                             disabled={reconciling}
                             onClick={onReconcileStorefront}
                         >
@@ -522,43 +556,47 @@ function FinanceOverview({
             )}
 
             <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => onNavigate?.('statements', 'pl')}>Run P&amp;L</Button>
-                <Button variant="outline" size="sm" onClick={() => onNavigate?.('statements', 'tb')}>Trial Balance</Button>
-                <Button variant="outline" size="sm" onClick={() => onNavigate?.('statements', 'day-book')}>Day Book</Button>
-                <Button variant="outline" size="sm" onClick={() => onNavigate?.('reconciliation')}>Bank reconciliation</Button>
-                <Button variant="outline" size="sm" onClick={onGoToPayments}>Payments &amp; vouchers</Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onGoToTax}
-                >
-                    Tax / GST
-                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('statements', 'pl')}>Run P&amp;L</Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('statements', 'tb')}>Trial Balance</Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('statements', 'day-book')}>Day Book</Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('reconciliation')}>Bank reconciliation</Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={onGoToPayments}>Payments &amp; vouchers</Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={onGoToTax}>Tax / GST</Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="bg-white rounded-xl border border-gray-100 p-4">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Recent Expenses</h4>
-                    {expenses.slice(0, 5).map(e => (
-                        <div key={e.id} className="flex items-center justify-between py-1.5 text-sm">
-                            <span className="text-gray-600 truncate flex-1">{e.category || 'Uncategorized'}</span>
-                            <span className="text-gray-800 font-semibold shrink-0">{currency} {Number(e.amount).toLocaleString()}</span>
-                        </div>
-                    ))}
-                    {expenses.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No expenses recorded</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-neutral-200/80 dark:border-slate-800 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Recent Expenses</h4>
+                        <button onClick={() => onNavigate?.('expenses')} className="text-xs font-semibold text-brand-primary hover:underline">View All</button>
+                    </div>
+                    <div className="divide-y divide-neutral-100 dark:divide-slate-800/60">
+                        {expenses.slice(0, 5).map(e => (
+                            <div key={e.id} className="flex items-center justify-between py-2 text-sm">
+                                <span className="text-neutral-700 dark:text-neutral-300 font-medium truncate flex-1">{formatCategoryName(e.category)}</span>
+                                <span className="text-neutral-900 dark:text-neutral-100 font-semibold tabular-nums shrink-0">{currency} {Number(e.amount).toLocaleString()}</span>
+                            </div>
+                        ))}
+                    </div>
+                    {expenses.length === 0 && <p className="text-xs text-neutral-400 text-center py-6">No expenses recorded</p>}
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-100 p-4">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Categories</h4>
-                    {['asset', 'liability', 'equity', 'income', 'expense'].map(type => {
-                        const count = accounts.filter(a => a.type === type && a.is_active !== false).length;
-                        return (
-                            <div key={type} className="flex items-center justify-between py-1.5 text-sm">
-                                <span className="text-gray-600 capitalize">{type}s</span>
-                                <span className="text-gray-800 font-semibold">{count} accounts</span>
-                            </div>
-                        );
-                    })}
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-neutral-200/80 dark:border-slate-800 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Account Categories</h4>
+                        <button onClick={() => onNavigate?.('accounts')} className="text-xs font-semibold text-brand-primary hover:underline">Manage COA</button>
+                    </div>
+                    <div className="divide-y divide-neutral-100 dark:divide-slate-800/60">
+                        {['asset', 'liability', 'equity', 'income', 'expense'].map(type => {
+                            const count = accounts.filter(a => a.type === type && a.is_active !== false).length;
+                            return (
+                                <div key={type} className="flex items-center justify-between py-2 text-sm">
+                                    <span className="text-neutral-700 dark:text-neutral-300 font-medium">{ACCOUNT_CATEGORY_LABELS[type] || type}</span>
+                                    <span className="text-neutral-900 dark:text-neutral-100 font-semibold tabular-nums">{count} accounts</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
@@ -861,14 +899,12 @@ export default function FinanceHub({ businessId, initialTab, businessCategory = 
                 );
             case 'journal':
                 return (
-                    <div className="space-y-6">
-                        <JournalEntryList
-                            businessId={effectiveBusinessId}
-                            currency={effectiveCurrency}
-                            accounts={accounts}
-                            onNewEntry={() => setShowJournalForm(true)}
-                        />
-                    </div>
+                    <JournalEntryList
+                        businessId={effectiveBusinessId}
+                        currency={effectiveCurrency}
+                        accounts={accounts}
+                        onNewEntry={() => setShowJournalForm(true)}
+                    />
                 );
             case 'reconciliation':
                 return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     GitMerge, Plus, Loader2, CheckCircle2, XCircle, AlertTriangle,
     ArrowRight, RefreshCw, Download, Trash2, Link as LinkIcon
@@ -56,15 +56,23 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
     const [matchingLineId, setMatchingLineId] = useState(null);
     const [saving, setSaving] = useState(false);
 
-    // Only show bank/cash type accounts
-    const bankAccounts = accounts.filter((a) => {
-        if (a.is_active === false) return false;
-        const code = String(a.code || '');
-        if (BANK_ACCOUNT_CODES.has(code)) return true;
-        const name = String(a.name || '').toLowerCase();
-        const subType = String(a.sub_type || '').toLowerCase();
-        return subType === 'current_asset' && (name.includes('bank') || name.includes('cash'));
-    });
+    // Only show bank/cash type accounts (with safe fallback to all asset accounts)
+    const bankAccounts = useMemo(() => {
+        const matched = accounts.filter((a) => {
+            if (a.is_active === false) return false;
+            const code = String(a.code || '');
+            if (BANK_ACCOUNT_CODES.has(code)) return true;
+            const name = String(a.name || '').toLowerCase();
+            const subType = String(a.sub_type || '').toLowerCase();
+            const type = String(a.type || '').toLowerCase();
+            return (
+                (subType === 'current_asset' || type === 'asset' || subType.includes('cash') || subType.includes('bank')) &&
+                (name.includes('bank') || name.includes('cash') || name.includes('account') || code.startsWith('10') || code.startsWith('11'))
+            );
+        });
+        if (matched.length > 0) return matched;
+        return accounts.filter(a => a.is_active !== false && String(a.type || '').toLowerCase() === 'asset');
+    }, [accounts]);
 
     // -- Load sessions ----------------------------------------------------------
 

@@ -67,7 +67,7 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
         }
     }, [businessId, startDate, endDate, search, accountId]);
 
-    useEffect(() => { load(0); }, [businessId]);
+    useEffect(() => { load(0); }, [businessId, load]);
 
     const handleSearch = () => load(0);
 
@@ -85,19 +85,18 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
 
     return (
         <div className="min-w-0 space-y-4 overflow-x-hidden touch-manipulation">
-            <ResponsiveManagerHeader
-                title="Journal Entries"
-                subtitle={`${total} entr${total === 1 ? 'y' : 'ies'} · double-entry GL posting`}
-                actions={[
-                    {
-                        id: 'new',
-                        label: 'New Entry',
-                        icon: Plus,
-                        className: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20',
-                        onClick: () => onNewEntry?.(),
-                    },
-                ]}
-            />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100">Journal Entries</h3>
+                    <p className="text-xs text-neutral-400 font-medium">{total} entr{total === 1 ? 'y' : 'ies'} · double-entry GL posting</p>
+                </div>
+                <Button
+                    onClick={() => onNewEntry?.()}
+                    className="bg-brand-primary hover:bg-brand-primary-dark text-white rounded-xl font-bold text-xs px-4 h-9 shadow-sm"
+                >
+                    <Plus className="w-4 h-4 mr-1.5" /> New Journal Entry
+                </Button>
+            </div>
 
             {/* Filters */}
             <div className="flex flex-wrap gap-2 items-end">

@@ -170,10 +170,10 @@ export function FinanceMobileNav({
                       onClick={() => onSelect(tab.key)}
                       title={group}
                       className={cn(
-                        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-colors',
+                        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150',
                         isActive
-                          ? 'bg-brand-50 text-brand-primary-dark ring-1 ring-brand-primary/20'
-                          : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-slate-900 dark:hover:text-neutral-100'
+                          ? 'bg-brand-50 text-brand-primary border border-brand-200/80 font-bold shadow-xs dark:bg-brand-950/60 dark:text-brand-300 dark:border-brand-800/60'
+                          : 'text-neutral-600 hover:bg-neutral-100/80 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-slate-900 dark:hover:text-neutral-100'
                       )}
                     >
                       {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden /> : null}

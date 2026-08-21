@@ -1,7 +1,5 @@
-'use client';
-
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Search, Filter, ChevronDown, ChevronRight, Plus, Loader2, RefreshCw, FileText } from 'lucide-react';
+import { BookOpen, Search, Filter, ChevronDown, ChevronRight, Plus, Loader2, RefreshCw, FileText, Undo2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +7,7 @@ import { formatCurrency } from '@/lib/currency';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { ResponsiveManagerHeader } from '@/components/mobile/HubSectionHeader';
+import { reverseJournalAction, postDraftJournalAction } from '@/lib/actions/basic/accounting';
 
 /**
  * JournalEntryList
@@ -24,6 +23,7 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
     const [journals, setJournals] = useState([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [actionLoadingId, setActionLoadingId] = useState(null);
     const [expandedId, setExpandedId] = useState(null);
 
     // Filters
@@ -54,11 +54,15 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
 
             const res = await fetch(`/api/v1/finance/journal-entries?${params}`);
             const data = await res.json();
+            const payload = data.data || data;
 
-            if (!res.ok) throw new Error(data.error || 'Failed to load journal entries');
+            if (!res.ok) {
+                const errMsg = typeof data.error === 'object' ? data.error?.message : data.error;
+                throw new Error(errMsg || 'Failed to load journal entries');
+            }
 
-            setJournals(data.journals || []);
-            setTotal(data.total || 0);
+            setJournals(payload.journals || []);
+            setTotal(payload.total || 0);
             setOffset(newOffset);
         } catch (err) {
             toast.error(err.message || 'Error loading journal entries');
@@ -73,6 +77,50 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
 
     const toggleExpand = (id) => setExpandedId(prev => prev === id ? null : id);
 
+    const handleReverse = async (je) => {
+        const reason = window.prompt(`Reason for reversing ${je.journal_number || 'journal entry'}?`);
+        if (reason === null) return; // User cancelled prompt
+
+        setActionLoadingId(je.id);
+        try {
+            const res = await reverseJournalAction({
+                journalId: je.id,
+                businessId,
+                reason: reason.trim() || 'Manual reversal',
+            });
+            if (res.success) {
+                toast.success(`Reversal posted (${res.reversalJournalNumber})`);
+                load(offset);
+            } else {
+                toast.error(res.error || 'Failed to reverse entry');
+            }
+        } catch (err) {
+            toast.error(err.message || 'Error reversing entry');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const handlePostDraft = async (je) => {
+        setActionLoadingId(je.id);
+        try {
+            const res = await postDraftJournalAction({
+                journalId: je.id,
+                businessId,
+            });
+            if (res.success) {
+                toast.success('Journal entry posted');
+                load(offset);
+            } else {
+                toast.error(res.error || 'Failed to post draft entry');
+            }
+        } catch (err) {
+            toast.error(err.message || 'Error posting draft entry');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
     const REFERENCE_BADGE = {
         manual: 'bg-purple-100 text-purple-700',
         invoice: 'bg-blue-100 text-blue-700',
@@ -81,6 +129,7 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
         payment: 'bg-emerald-100 text-emerald-700',
         expense: 'bg-red-100 text-red-700',
         journal_entry: 'bg-purple-100 text-purple-700',
+        reversal: 'bg-orange-100 text-orange-800',
     };
 
     return (
@@ -154,14 +203,14 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
             {/* Desktop table */}
             <div className="hidden overflow-hidden rounded-2xl border border-gray-100 bg-white lg:block">
                 {/* Column Headers */}
-                <div className="grid grid-cols-[32px_140px_1fr_120px_96px_96px_80px] gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="grid grid-cols-[32px_140px_1fr_120px_96px_96px_110px] gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
                     <span />
                     <span>Journal #</span>
                     <span>Description</span>
                     <span>Date</span>
                     <span className="text-right">Debit</span>
                     <span className="text-right">Credit</span>
-                    <span>Type</span>
+                    <span>Status / Type</span>
                 </div>
 
                 {loading && journals.length === 0 && (
@@ -182,13 +231,15 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
                     const isExpanded = expandedId === je.id;
                     const refType = je.reference_type || 'manual';
                     const badgeCls = REFERENCE_BADGE[refType] || 'bg-gray-100 text-gray-600';
+                    const isReversed = Boolean(je.is_reversed);
+                    const isDraft = je.status === 'draft';
 
                     return (
                         <div key={je.id} className="border-b border-gray-50 last:border-0">
                             {/* Summary Row */}
                             <button
                                 onClick={() => toggleExpand(je.id)}
-                                className="w-full grid grid-cols-[32px_140px_1fr_120px_96px_96px_80px] gap-2 px-4 py-3 hover:bg-gray-50/80 text-left transition-colors items-center"
+                                className={`w-full grid grid-cols-[32px_140px_1fr_120px_96px_96px_110px] gap-2 px-4 py-3 hover:bg-gray-50/80 text-left transition-colors items-center ${isReversed ? 'bg-amber-50/20' : ''}`}
                             >
                                 <span className="text-gray-300">
                                     {isExpanded
@@ -213,16 +264,26 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
                                 <span className="text-xs font-mono font-bold text-gray-800 text-right">
                                     {formatCurrency(Number(je.total_credit), currency)}
                                 </span>
-                                <span>
-                                    <Badge className={`text-[10px] px-1.5 py-0.5 font-semibold rounded-full border-0 ${badgeCls}`}>
-                                        {refType.toUpperCase()}
-                                    </Badge>
+                                <span className="flex items-center gap-1">
+                                    {isReversed ? (
+                                        <Badge className="text-[10px] px-1.5 py-0.5 font-semibold rounded-full border-0 bg-red-100 text-red-700">
+                                            REVERSED
+                                        </Badge>
+                                    ) : isDraft ? (
+                                        <Badge className="text-[10px] px-1.5 py-0.5 font-semibold rounded-full border-0 bg-gray-200 text-gray-700">
+                                            DRAFT
+                                        </Badge>
+                                    ) : (
+                                        <Badge className={`text-[10px] px-1.5 py-0.5 font-semibold rounded-full border-0 ${badgeCls}`}>
+                                            {refType.toUpperCase()}
+                                        </Badge>
+                                    )}
                                 </span>
                             </button>
 
                             {/* Expanded GL Lines */}
                             {isExpanded && (
-                                <div className="bg-gray-50/60 border-t border-gray-100 px-6 py-3">
+                                <div className="bg-gray-50/60 border-t border-gray-100 px-6 py-3 space-y-3">
                                     <table className="w-full text-xs">
                                         <thead>
                                             <tr className="text-gray-400 font-bold uppercase text-[10px]">
@@ -251,12 +312,40 @@ export function JournalEntryList({ businessId, currency, accounts = [], onNewEnt
                                             ))}
                                         </tbody>
                                     </table>
-                                    {je.created_by && (
-                                        <p className="text-[10px] text-gray-400 mt-2 text-right">
-                                            Posted by {je.created_by} ·{' '}
+
+                                    <div className="flex items-center justify-between pt-2 border-t border-gray-200/60 text-[10px] text-gray-400">
+                                        <div>
+                                            {je.created_by && <span>Posted by {je.created_by} · </span>}
                                             {je.created_at ? format(new Date(je.created_at), 'dd MMM yyyy HH:mm') : ''}
-                                        </p>
-                                    )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isDraft && (
+                                                <Button
+                                                    size="sm"
+                                                    disabled={actionLoadingId === je.id}
+                                                    onClick={() => handlePostDraft(je)}
+                                                    className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
+                                                >
+                                                    {actionLoadingId === je.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                                                    Post Entry
+                                                </Button>
+                                            )}
+
+                                            {!isReversed && !isDraft && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={actionLoadingId === je.id}
+                                                    onClick={() => handleReverse(je)}
+                                                    className="h-7 px-3 text-xs rounded-lg border-amber-200 text-amber-700 hover:bg-amber-50"
+                                                >
+                                                    {actionLoadingId === je.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Undo2 className="w-3 h-3 mr-1" />}
+                                                    Reverse Entry
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>

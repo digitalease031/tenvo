@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { DollarSign, TrendingUp, Calculator, Info } from 'lucide-react';
@@ -89,7 +89,7 @@ export function CostingMethodSelector({ businessId, currentMethod = 'FIFO', onUp
         }
 
         if (selectedMethod === currentMethod) {
-            toast.info('No changes to save');
+            toast('No changes to save');
             return;
         }
 

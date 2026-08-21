@@ -15,7 +15,8 @@ import { apiSuccess, apiError } from '@/lib/api/_shared/response';
  * Authentication: Required (withApiAuth middleware)
  */
 export const GET = withApiPermission('finance.view_gl', async (request, { businessId, routeParams }) => {
-    const id = routeParams?.params?.id;
+    const resolvedParams = routeParams?.params ? await routeParams.params : routeParams;
+    const id = resolvedParams?.id || routeParams?.params?.id;
     if (!id) {
         console.error('[bank-reconciliation GET] Missing ID. routeParams:', routeParams);
         return apiError('MISSING_ID', 'Session ID is required', 400);
@@ -63,7 +64,8 @@ export const GET = withApiPermission('finance.view_gl', async (request, { busine
              LEFT JOIN journal_entries je ON je.id = ge.journal_id
              WHERE ge.business_id = $1
                AND ge.account_id  = $2
-               AND ge.transaction_date <= $3
+               AND ge.transaction_date::date <= $3::date
+               AND (je.status IS NULL OR je.status <> 'draft')
              ORDER BY ge.transaction_date DESC
              LIMIT 200`,
             [businessId, session.account_id, session.statement_date]
@@ -86,7 +88,8 @@ export const GET = withApiPermission('finance.view_gl', async (request, { busine
 });
 
 export const PATCH = withApiPermission('finance.manage_accounts', async (request, { businessId, parsedBody, routeParams }) => {
-    const id = routeParams?.params?.id;
+    const resolvedParams = routeParams?.params ? await routeParams.params : routeParams;
+    const id = resolvedParams?.id || routeParams?.params?.id;
     if (!id) {
         console.error('[bank-reconciliation PATCH] Missing ID. routeParams:', routeParams);
         return apiError('MISSING_ID', 'Session ID is required', 400);

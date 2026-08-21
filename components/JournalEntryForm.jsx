@@ -88,18 +88,32 @@ export function JournalEntryForm({ onClose, onSave }) {
             .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
         const difference = Math.abs(totalDebit - totalCredit);
         const isBalanced = difference < 0.01 && totalDebit > 0;
-        return { totalDebit, totalCredit, difference, isBalanced };
+        const isZero = totalDebit === 0 && totalCredit === 0;
+        return { totalDebit, totalCredit, difference, isBalanced, isZero };
     }, [formData.entries]);
 
     // Group accounts by type for the selector
     const groupedAccounts = useMemo(() => {
         const groups = {};
         glAccounts.forEach(acc => {
-            const type = acc.account_type || 'Other';
+            const type = acc.account_type || acc.type || 'Other';
             if (!groups[type]) groups[type] = [];
             groups[type].push(acc);
         });
         return groups;
+    }, [glAccounts]);
+
+    const accountOptions = useMemo(() => {
+        return glAccounts.map(acc => {
+            const code = acc.code || acc.account_code || '';
+            const name = acc.name || acc.account_name || '';
+            const type = acc.type || acc.account_type || 'Other';
+            return {
+                value: String(acc.id),
+                label: code ? `${code} - ${name}` : name,
+                description: type,
+            };
+        });
     }, [glAccounts]);
 
     const addEntry = (type = 'debit') => {
@@ -130,7 +144,7 @@ export function JournalEntryForm({ onClose, onSave }) {
                 if (e.id !== id) return e;
                 const updated = { ...e, [field]: value };
                 if (field === 'account_id' && value) {
-                    const account = glAccounts.find(a => a.id === value);
+                    const account = glAccounts.find(a => String(a.id) === String(value));
                     if (account) updated.account_name = account.account_name || account.name || '';
                 }
                 return updated;
@@ -153,7 +167,7 @@ export function JournalEntryForm({ onClose, onSave }) {
         toast.success(`Template "${template.label}" applied`);
     };
 
-    const handleSave = async () => {
+    const handleSave = async (saveStatus = 'posted') => {
         // Filter out incomplete entries
         const validEntries = formData.entries.filter(e => e.account_id && e.account_id.trim() && parseFloat(e.amount) > 0);
         
@@ -191,12 +205,12 @@ export function JournalEntryForm({ onClose, onSave }) {
 
         setIsSaving(true);
         try {
-            // [HARDENED] Call atomic action instead of looping in the UI
             const result = await createJournalAction({
                 businessId: business?.id,
                 date: formData.date,
                 description: formData.description,
                 referenceNumber: formData.reference,
+                status: saveStatus,
                 entries: validEntries.map(e => ({
                     account_id: e.account_id,
                     debit: e.type === 'debit' ? parseFloat(e.amount) || 0 : 0,
@@ -205,19 +219,16 @@ export function JournalEntryForm({ onClose, onSave }) {
             });
 
             if (!result.success) {
-                // Handle validation errors separately
                 if (isValidationError(result)) {
                     const fieldErrors = formatValidationErrors(result);
                     toast.error('Please fix validation errors');
                     return;
                 }
-                
-                // Show user-friendly error message
                 showActionError(result);
                 return;
             }
 
-            toast.success('Journal entry posted successfully');
+            toast.success(saveStatus === 'draft' ? 'Draft journal saved' : 'Journal entry posted successfully');
             onSave?.();
             onClose?.();
         } catch (error) {
@@ -235,28 +246,30 @@ export function JournalEntryForm({ onClose, onSave }) {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto overscroll-contain">
             <Card className="w-full max-w-5xl max-h-[min(95vh,calc(100dvh-1rem))] my-auto overflow-hidden flex flex-col min-h-0 shadow-2xl border-none rounded-3xl">
                 {/* Header */}
-                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b p-4 sm:p-6 bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white flex-shrink-0">
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-emerald-950 p-4 sm:p-6 bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-950 text-white flex-shrink-0">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50">
+                        <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40">
                             <BookOpen className="w-6 h-6" />
                         </div>
                         <div>
-                            <CardTitle className="text-2xl font-semibold uppercase tracking-tighter">Journal Entry</CardTitle>
-                            <p className="text-xs font-bold text-emerald-300/70 uppercase tracking-widest mt-1">
-                                {business?.name} * Double-Entry Posting
+                            <CardTitle className="text-xl font-bold text-white tracking-tight">Journal Entry</CardTitle>
+                            <p className="text-xs font-semibold text-emerald-300 tracking-wide mt-0.5">
+                                {business?.name ? `${business.name} · ` : ''}Double-Entry Posting
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Balance Indicator */}
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-widest ${totals.isBalanced
+                        <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider ${totals.isBalanced
                                 ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40'
+                                : totals.isZero
+                                ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/40'
                                 : 'bg-red-500/20 text-red-300 ring-1 ring-red-400/40 animate-pulse'
                             }`}>
                             {totals.isBalanced ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                            {totals.isBalanced ? 'BALANCED' : `OFF BY ${formatCurrency(totals.difference, currency)}`}
+                            {totals.isBalanced ? 'BALANCED' : totals.isZero ? 'ENTER AMOUNTS' : `OFF BY ${formatCurrency(totals.difference, currency)}`}
                         </div>
-                        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 text-white/50 hover:text-white">
+                        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 text-gray-300 hover:text-white">
                             <X className="w-5 h-5" />
                         </Button>
                     </div>
@@ -325,11 +338,7 @@ export function JournalEntryForm({ onClose, onSave }) {
                                     <div key={entry.id} className={`flex gap-2 items-start bg-white p-3 rounded-xl border shadow-sm hover:shadow-md transition-shadow group ${isIncomplete ? 'border-red-200 bg-red-50/30' : 'border-blue-100'}`}>
                                         <div className="flex-1 space-y-2">
                                             <Combobox
-                                                options={glAccounts.map(acc => ({
-                                                    value: String(acc.id),
-                                                    label: `${acc.account_code ? `${acc.account_code} -- ` : ''}${acc.account_name || acc.name}`,
-                                                    description: acc.account_type || 'Other'
-                                                }))}
+                                                options={accountOptions}
                                                 value={String(entry.account_id || '')}
                                                 onChange={(val) => updateEntry(entry.id, 'account_id', val)}
                                                 placeholder="Search GL accounts..."
@@ -380,11 +389,7 @@ export function JournalEntryForm({ onClose, onSave }) {
                                     <div key={entry.id} className={`flex gap-2 items-start bg-white p-3 rounded-xl border shadow-sm hover:shadow-md transition-shadow group ${isIncomplete ? 'border-red-200 bg-red-50/30' : 'border-emerald-100'}`}>
                                         <div className="flex-1 space-y-2">
                                             <Combobox
-                                                options={glAccounts.map(acc => ({
-                                                    value: String(acc.id),
-                                                    label: `${acc.account_code ? `${acc.account_code} -- ` : ''}${acc.account_name || acc.name}`,
-                                                    description: acc.account_type || 'Other'
-                                                }))}
+                                                options={accountOptions}
                                                 value={String(entry.account_id || '')}
                                                 onChange={(val) => updateEntry(entry.id, 'account_id', val)}
                                                 placeholder="Search GL accounts..."
@@ -418,15 +423,17 @@ export function JournalEntryForm({ onClose, onSave }) {
                     {/* Balance Summary */}
                     <div className={`p-6 rounded-2xl border-2 ${totals.isBalanced
                             ? 'bg-emerald-50 border-emerald-200'
+                            : totals.isZero
+                            ? 'bg-amber-50 border-amber-200'
                             : 'bg-red-50 border-red-200'
                         }`}>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <Scale className={`w-8 h-8 ${totals.isBalanced ? 'text-emerald-500' : 'text-red-500'}`} />
+                                <Scale className={`w-8 h-8 ${totals.isBalanced ? 'text-emerald-500' : totals.isZero ? 'text-amber-500' : 'text-red-500'}`} />
                                 <div>
                                     <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Balance Check</p>
-                                    <p className={`text-lg font-semibold ${totals.isBalanced ? 'text-emerald-700' : 'text-red-700'}`}>
-                                        {totals.isBalanced ? 'Entry is balanced -- ready to post' : `Difference: ${formatCurrency(totals.difference, currency)}`}
+                                    <p className={`text-lg font-semibold ${totals.isBalanced ? 'text-emerald-700' : totals.isZero ? 'text-amber-800' : 'text-red-700'}`}>
+                                        {totals.isBalanced ? 'Entry is balanced -- ready to post' : totals.isZero ? 'Enter debit and credit amounts to post' : `Difference: ${formatCurrency(totals.difference, currency)}`}
                                     </p>
                                 </div>
                             </div>
@@ -460,14 +467,24 @@ export function JournalEntryForm({ onClose, onSave }) {
                     <Button variant="ghost" onClick={onClose} disabled={isSaving} className="font-semibold text-xs uppercase tracking-widest text-gray-400 hover:text-gray-900">
                         Cancel & Close
                     </Button>
-                    <Button
-                        disabled={isSaving || !totals.isBalanced}
-                        onClick={handleSave}
-                        className="h-12 px-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        Post Journal Entry
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            disabled={isSaving || !totals.isBalanced}
+                            onClick={() => handleSave('draft')}
+                            className="h-12 px-6 rounded-xl font-semibold text-xs uppercase tracking-widest border-gray-200 text-gray-700 hover:bg-gray-100"
+                        >
+                            Save as Draft
+                        </Button>
+                        <Button
+                            disabled={isSaving || !totals.isBalanced}
+                            onClick={() => handleSave('posted')}
+                            className="h-12 px-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Post Journal Entry
+                        </Button>
+                    </div>
                 </div>
             </Card>
         </div>

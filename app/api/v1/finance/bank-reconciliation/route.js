@@ -66,14 +66,39 @@ export const POST = withApiPermission('finance.manage_accounts', async (request,
     try {
         await client.query('BEGIN');
 
-        const sessionRes = await client.query(
-            `INSERT INTO bank_reconciliation_sessions
-                (business_id, account_id, statement_date, statement_closing_balance, status)
-             VALUES ($1, $2, $3, $4, 'in_progress')
-             RETURNING *`,
-            [businessId, account_id, statement_date, statement_closing_balance || 0]
+        // Check if a session already exists for this business, account, and date
+        const existingRes = await client.query(
+            `SELECT * FROM bank_reconciliation_sessions 
+             WHERE business_id = $1 AND account_id = $2 AND statement_date = $3`,
+            [businessId, account_id, statement_date]
         );
-        const session = sessionRes.rows[0];
+
+        let session;
+        let isExisting = false;
+
+        if (existingRes.rows.length > 0) {
+            session = existingRes.rows[0];
+            if (session.status === 'completed') {
+                await client.query('ROLLBACK');
+                return apiError('SESSION_COMPLETED', 'A completed reconciliation session already exists for this account on this date.', 409);
+            }
+            isExisting = true;
+            if (statement_closing_balance != null && statement_closing_balance !== '') {
+                await client.query(
+                    `UPDATE bank_reconciliation_sessions SET statement_closing_balance = $1 WHERE id = $2`,
+                    [statement_closing_balance, session.id]
+                );
+            }
+        } else {
+            const sessionRes = await client.query(
+                `INSERT INTO bank_reconciliation_sessions
+                    (business_id, account_id, statement_date, statement_closing_balance, status)
+                 VALUES ($1, $2, $3, $4, 'in_progress')
+                 RETURNING *`,
+                [businessId, account_id, statement_date, statement_closing_balance || 0]
+            );
+            session = sessionRes.rows[0];
+        }
 
         for (const line of lines) {
             await client.query(
@@ -94,12 +119,15 @@ export const POST = withApiPermission('finance.manage_accounts', async (request,
         }
 
         await client.query('COMMIT');
-        return apiSuccess({ session }, 201);
+        return apiSuccess({ session, isExisting }, isExisting ? 200 : 201);
     } catch (err) {
         await client.query('ROLLBACK');
         if (err.code === '42P01') {
             return apiError('TABLES_MISSING',
                 'Reconciliation tables not yet migrated. Apply the bank reconciliation migration first.', 503);
+        }
+        if (err.code === '23505') {
+            return apiError('SESSION_EXISTS', 'A reconciliation session already exists for this account on this date.', 409);
         }
         console.error('[bank-reconciliation POST]', err);
         return apiError('CREATE_FAILED', 'Internal server error', 500);

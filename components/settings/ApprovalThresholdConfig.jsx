@@ -41,7 +41,7 @@ export function ApprovalThresholdConfig({ businessId, currentThreshold = 10000, 
         }
 
         if (thresholdValue === currentThreshold) {
-            toast.info('No changes to save');
+            toast('No changes to save');
             return;
         }
 

@@ -1,9 +1,7 @@
-'use client';
-
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     GitMerge, Plus, Loader2, CheckCircle2, XCircle, AlertTriangle,
-    ArrowRight, RefreshCw, Download, Trash2, Link as LinkIcon
+    ArrowRight, RefreshCw, Download, Trash2, Link as LinkIcon, Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +16,75 @@ const BANK_ACCOUNT_CODES = new Set([
     ACCOUNT_CODES.PETTY_CASH,
     ACCOUNT_CODES.BANK_ACCOUNTS,
 ]);
+
+function parseCSVStatementLines(csvText, fallbackDate) {
+    const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return [];
+    
+    let startIndex = 0;
+    const firstLine = lines[0].toLowerCase();
+    if (firstLine.includes('date') || firstLine.includes('desc') || firstLine.includes('amount') || firstLine.includes('debit') || firstLine.includes('credit')) {
+        startIndex = 1;
+    }
+
+    const parsed = [];
+    for (let i = startIndex; i < lines.length; i++) {
+        const rawCols = lines[i].split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+        if (rawCols.length < 2) continue;
+
+        let dateStr = fallbackDate;
+        let descStr = '';
+        let debitVal = '';
+        let creditVal = '';
+
+        for (const col of rawCols) {
+            if (!dateStr || dateStr === fallbackDate) {
+                if (/^\d{4}-\d{2}-\d{2}$/.test(col)) {
+                    dateStr = col;
+                    continue;
+                }
+                if (/^\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}$/.test(col)) {
+                    const parts = col.split(/[\/\.-]/);
+                    if (parts.length === 3) {
+                        const y = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+                        const m = parts[0].padStart(2, '0');
+                        const d = parts[1].padStart(2, '0');
+                        dateStr = `${y}-${m}-${d}`;
+                        continue;
+                    }
+                }
+            }
+            const cleanNum = col.replace(/[^0-9.-]/g, '');
+            if (cleanNum && !isNaN(cleanNum) && /[0-9]/.test(col)) {
+                const num = parseFloat(cleanNum);
+                if (num < 0) {
+                    debitVal = Math.abs(num).toString();
+                } else if (num > 0) {
+                    if (!debitVal && !creditVal) {
+                        creditVal = num.toString();
+                    } else if (debitVal && !creditVal) {
+                        creditVal = num.toString();
+                    }
+                }
+                continue;
+            }
+            if (col.length > 1 && !descStr) {
+                descStr = col;
+            }
+        }
+
+        if (descStr || debitVal || creditVal) {
+            parsed.push({
+                id: Date.now() + i + Math.random(),
+                statement_date: dateStr || fallbackDate,
+                description: descStr || 'Statement item',
+                debit: debitVal,
+                credit: creditVal
+            });
+        }
+    }
+    return parsed;
+}
 
 /**
  * BankReconciliation
@@ -51,10 +118,96 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
     const [newLines, setNewLines] = useState([
         { id: Date.now(), statement_date: new Date().toISOString().split('T')[0], description: '', debit: '', credit: '' },
     ]);
+    const fileInputRef = useRef(null);
 
     // Matching state
     const [matchingLineId, setMatchingLineId] = useState(null);
     const [saving, setSaving] = useState(false);
+
+    const handleCsvFileSelected = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const text = event.target?.result;
+                if (typeof text !== 'string') return;
+
+                const parsed = parseCSVStatementLines(text, newSession.statement_date || new Date().toISOString().split('T')[0]);
+                if (parsed.length === 0) {
+                    toast.error('No valid statement lines found in CSV');
+                    return;
+                }
+
+                setNewLines(parsed);
+                toast.success(`Imported ${parsed.length} statement line(s) from CSV`);
+            } catch (err) {
+                toast.error(`Error reading CSV file: ${err.message}`);
+            }
+        };
+        reader.readAsText(file);
+        // Reset file input so user can re-upload if needed
+        e.target.value = '';
+    };
+
+    const handleAutoMatch = async () => {
+        if (!activeSession || !sessionDetail) return;
+        const { lines = [], gl_entries = [] } = sessionDetail;
+        const unmatchedLines = lines.filter(l => l && !l.matched);
+        const unmatchedGLEntries = gl_entries.filter(
+            ge => ge && ge.id && !lines.some(l => l && l.matched && l.gl_entry_id === ge.id)
+        );
+
+        if (unmatchedLines.length === 0 || unmatchedGLEntries.length === 0) {
+            toast('No unmatched pairs available for auto-match');
+            return;
+        }
+
+        const autoMatches = [];
+        const usedGLIds = new Set();
+
+        for (const line of unmatchedLines) {
+            const stmtDebit = Number(line.debit || 0);
+            const stmtCredit = Number(line.credit || 0);
+
+            const match = unmatchedGLEntries.find(ge => {
+                if (usedGLIds.has(ge.id)) return false;
+                const glDebit = Number(ge.debit || 0);
+                const glCredit = Number(ge.credit || 0);
+
+                const isExact = (Math.abs(glDebit - stmtDebit) < 0.01 && Math.abs(glCredit - stmtCredit) < 0.01) ||
+                                (Math.abs(glDebit - stmtCredit) < 0.01 && Math.abs(glCredit - stmtDebit) < 0.01);
+                return isExact;
+            });
+
+            if (match) {
+                autoMatches.push({ line_id: line.id, gl_entry_id: match.id, matched: true });
+                usedGLIds.add(match.id);
+            }
+        }
+
+        if (autoMatches.length === 0) {
+            toast('No exact date & amount matches found');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/v1/finance/bank-reconciliation/${activeSession}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matched_lines: autoMatches }),
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            await openSession(activeSession);
+            toast.success(`Auto-matched ${autoMatches.length} statement line(s)`);
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     // Only show bank/cash type accounts (with safe fallback to all asset accounts)
     const bankAccounts = useMemo(() => {
@@ -82,21 +235,26 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
         try {
             const res = await fetch(`/api/v1/finance/bank-reconciliation?business_id=${businessId}`);
             const data = await res.json();
-            if (data.warning || data.code === 'TABLES_MISSING') {
+            const payload = data.data || data;
+            if (data.warning || data.code === 'TABLES_MISSING' || payload.code === 'TABLES_MISSING') {
                 setSessions([]);
                 setTablesMissing(true);
                 setTablesWarning(
-                    data.warning ||
+                    data.warning || payload.warning ||
                         'Bank reconciliation is not available on this database yet.'
                 );
                 return;
             }
             setTablesMissing(false);
             setTablesWarning('');
-            if (!res.ok) throw new Error(data.error || 'Failed to load sessions');
-            setSessions(data.sessions || []);
+            if (!res.ok) {
+                const errMsg = typeof data.error === 'object' ? data.error?.message : data.error;
+                throw new Error(errMsg || 'Failed to load sessions');
+            }
+            const fetchedSessions = payload.sessions || data.sessions || [];
+            setSessions(fetchedSessions);
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || 'Failed to load sessions');
         } finally {
             setLoadingSessions(false);
         }
@@ -107,16 +265,20 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
     // -- Load session detail ----------------------------------------------------
 
     const openSession = useCallback(async (sessionId) => {
-        if (!businessId) return;
+        if (!businessId || !sessionId) return;
         setActiveSession(sessionId);
         setLoadingDetail(true);
         try {
             const res = await fetch(`/api/v1/finance/bank-reconciliation/${sessionId}?business_id=${businessId}`);
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to load session');
-            setSessionDetail(data);
+            const payload = data.data || data;
+            if (!res.ok) {
+                const errMsg = typeof data.error === 'object' ? data.error?.message : data.error;
+                throw new Error(errMsg || 'Failed to load session');
+            }
+            setSessionDetail(payload);
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || 'Failed to load session details');
         } finally {
             setLoadingDetail(false);
         }
@@ -151,20 +313,31 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                 }),
             });
             const data = await res.json();
+            const payload = data.data || data;
 
-            if (data.code === 'TABLES_MISSING') {
+            if (data.code === 'TABLES_MISSING' || payload.code === 'TABLES_MISSING') {
                 toast.error('Database tables not yet migrated. Apply the migration first.');
                 return;
             }
-            if (!res.ok) throw new Error(data.error || 'Failed to create session');
+            if (!res.ok) {
+                const errMsg = typeof data.error === 'object' ? data.error?.message : data.error;
+                throw new Error(errMsg || 'Failed to create session');
+            }
 
-            toast.success('Reconciliation session started');
+            if (payload.isExisting) {
+                toast('Opened existing reconciliation session for this date', { icon: 'ℹ️' });
+            } else {
+                toast.success('Reconciliation session started');
+            }
             setShowNewSession(false);
             setNewLines([{ id: Date.now(), statement_date: newSession.statement_date, description: '', debit: '', credit: '' }]);
             await loadSessions();
-            openSession(data.session.id);
+            const createdSession = payload.session || data.session;
+            if (createdSession?.id) {
+                openSession(createdSession.id);
+            }
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || 'Failed to create reconciliation session');
         } finally {
             setCreating(false);
         }
@@ -183,7 +356,11 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                     matched_lines: [{ line_id: lineId, gl_entry_id: glEntryId, matched: true }],
                 }),
             });
-            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            if (!res.ok) {
+                const d = await res.json();
+                const errMsg = typeof d.error === 'object' ? d.error?.message : d.error;
+                throw new Error(errMsg || 'Match failed');
+            }
             setMatchingLineId(null);
             await openSession(activeSession);
             toast.success('Line matched');
@@ -205,7 +382,11 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                     matched_lines: [{ line_id: lineId, gl_entry_id: null, matched: false }],
                 }),
             });
-            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            if (!res.ok) {
+                const d = await res.json();
+                const errMsg = typeof d.error === 'object' ? d.error?.message : d.error;
+                throw new Error(errMsg || 'Unmatch failed');
+            }
             await openSession(activeSession);
             toast.success('Match removed');
         } catch (err) {
@@ -226,7 +407,11 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'completed' }),
             });
-            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            if (!res.ok) {
+                const d = await res.json();
+                const errMsg = typeof d.error === 'object' ? d.error?.message : d.error;
+                throw new Error(errMsg || 'Completion failed');
+            }
             toast.success('Reconciliation completed');
             await loadSessions();
             setActiveSession(null);
@@ -260,12 +445,16 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                 </div>
             );
         }
-        if (!sessionDetail) return null;
+        if (!sessionDetail || !sessionDetail.session) return null;
 
         const { session, lines = [], gl_entries = [] } = sessionDetail;
         const unmatchedGLEntries = gl_entries.filter(
             ge => ge && ge.id && !lines.some(l => l && l.matched && l.gl_entry_id === ge.id)
         );
+
+        const formattedDate = session.statement_date
+            ? format(new Date(session.statement_date), 'dd MMM yyyy')
+            : '';
 
         return (
             <div className="space-y-4">
@@ -273,7 +462,7 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                 <div className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                         <h4 className="text-sm font-semibold text-gray-900">
-                            {session.account_name} · {format(new Date(session.statement_date), 'dd MMM yyyy')}
+                            {session.account_name || 'Bank Account'} {formattedDate ? `· ${formattedDate}` : ''}
                         </h4>
                         <p className="text-xs text-gray-400 mt-0.5">
                             Account {session.account_code} ·
@@ -288,6 +477,17 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                         >
                             ← Back
                         </Button>
+                        {session.status !== 'completed' && stats?.unmatched > 0 && (
+                            <Button
+                                variant="outline" size="sm"
+                                disabled={saving}
+                                onClick={handleAutoMatch}
+                                className="rounded-xl text-xs h-8 px-3 border-brand-200 text-brand-primary hover:bg-brand-50"
+                            >
+                                <RefreshCw className={`w-3.5 h-3.5 mr-1 ${saving ? 'animate-spin' : ''}`} />
+                                Auto-Match
+                            </Button>
+                        )}
                         {session.status !== 'completed' && stats?.unmatched === 0 && (
                             <Button
                                 size="sm"
@@ -383,7 +583,10 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                                             <p className="text-[10px] font-bold text-brand-primary uppercase">Select matching GL entry:</p>
                                             <div className="max-h-36 overflow-y-auto space-y-1">
                                                 {unmatchedGLEntries.length === 0 && (
-                                                    <p className="text-[10px] text-gray-400 py-2">No unmatched GL entries found</p>
+                                                    <div className="py-2 text-[10px] text-gray-400 flex flex-col gap-1">
+                                                        <p>No unmatched GL book entries found for account {session.account_code || session.account_name}.</p>
+                                                        <p className="text-gray-500 font-medium">Ensure transactions for this account are posted in Journal Entries on or before {session.statement_date ? format(new Date(session.statement_date), 'dd MMM yyyy') : 'the statement date'}.</p>
+                                                    </div>
                                                 )}
                                                 {unmatchedGLEntries.map(ge => (
                                                     <button
@@ -516,16 +719,32 @@ export function BankReconciliation({ businessId, currency, accounts = [] }) {
                             <div>
                                 <div className="flex items-center justify-between mb-2">
                                     <label className="text-xs font-bold text-gray-600">Statement Lines</label>
-                                    <Button
-                                        variant="ghost" size="sm"
-                                        onClick={() => setNewLines(prev => [
-                                            ...prev,
-                                            { id: Date.now(), statement_date: newSession.statement_date, description: '', debit: '', credit: '' }
-                                        ])}
-                                        className="text-xs h-7 px-3 text-emerald-600"
-                                    >
-                                        <Plus className="w-3 h-3 mr-1" /> Add Line
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            accept=".csv,.txt"
+                                            onChange={handleCsvFileSelected}
+                                            className="hidden"
+                                        />
+                                        <Button
+                                            variant="outline" size="sm"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="text-xs h-7 px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                                        >
+                                            <Upload className="w-3 h-3 mr-1" /> Import CSV
+                                        </Button>
+                                        <Button
+                                            variant="ghost" size="sm"
+                                            onClick={() => setNewLines(prev => [
+                                                ...prev,
+                                                { id: Date.now(), statement_date: newSession.statement_date, description: '', debit: '', credit: '' }
+                                            ])}
+                                            className="text-xs h-7 px-3 text-emerald-600"
+                                        >
+                                            <Plus className="w-3 h-3 mr-1" /> Add Line
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
                                     {newLines.map((line, idx) => (

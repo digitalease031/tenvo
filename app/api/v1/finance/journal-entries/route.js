@@ -27,8 +27,8 @@ export const GET = withApiPermission('finance.view_gl', async (request, { busine
         const params = [businessId];
         let i = 2;
 
-        if (start_date) { conditions.push(`je.transaction_date >= $${i++}`); params.push(start_date); }
-        if (end_date)   { conditions.push(`je.transaction_date <= $${i++}`); params.push(end_date); }
+        if (start_date) { conditions.push(`je.transaction_date::date >= $${i++}::date`); params.push(start_date); }
+        if (end_date)   { conditions.push(`je.transaction_date::date <= $${i++}::date`); params.push(end_date); }
         if (search)     {
             conditions.push(`(je.description ILIKE $${i} OR je.journal_number ILIKE $${i})`);
             params.push(`%${search}%`);

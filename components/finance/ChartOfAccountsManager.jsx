@@ -218,7 +218,7 @@ export function ChartOfAccountsManager({ businessId, accounts, onRefresh }) {
                                 <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full border border-gray-200 dark:border-slate-800">{typeAccounts.length}</span>
                             </div>
                             <div className="divide-y divide-gray-100 dark:divide-slate-800/60">
-                                {typeAccounts.sort((a,b) => a.code.localeCompare(b.code)).map(acc => (
+                                {typeAccounts.sort((a,b) => String(a.code || '').localeCompare(String(b.code || ''))).map(acc => (
                                     <div key={acc.id} className="flex items-center gap-2 p-3 transition-colors hover:bg-gray-50/50 dark:hover:bg-slate-900/10 group">
                                         <div className="w-14 shrink-0 font-mono text-xs font-bold text-gray-500 dark:text-gray-400 sm:w-16">{acc.code}</div>
                                         <div className="min-w-0 flex-1">

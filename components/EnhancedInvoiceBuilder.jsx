@@ -1746,7 +1746,7 @@ export function EnhancedInvoiceBuilder({
                         fullName: invoice.vehicleAgreement?.buyerName || invoice.customer?.name || '',
                         phone: invoice.vehicleAgreement?.buyerPhone || invoice.customer?.phone || '',
                         cnic: invoice.vehicleAgreement?.buyerCnic || invoice.customer?.cnic || invoice.customer?.domain_data?.cnic || '',
-                        address: invoice.customer?.address || '',
+                        address: invoice.vehicleAgreement?.buyerAddress || invoice.customer?.address || '',
                         city: invoice.customer?.city || '',
                         witness1Name: invoice.vehicleAgreement?.witness1Name || '',
                         witness1Phone: invoice.vehicleAgreement?.witness1Phone || '',

@@ -19,6 +19,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { resolveDomainKey } from '@/lib/config/domainKeyAliases';
 
+import { formatBusinessAddressBlock } from '@/lib/pdf/invoiceFormat';
+
 /**
  * Checks if category is an automotive vehicle domain.
  */
@@ -61,6 +63,11 @@ export function VehicleAgreementSection({
   const key = resolveDomainKey(category);
   const isVehicleVertical = isVehicleAgreementVertical(category);
 
+  const defaultBuyerAddress =
+    customer?.address || [customer?.city, customer?.state].filter(Boolean).join(', ') || '';
+  const defaultSellerAddress =
+    (business ? formatBusinessAddressBlock(business).join(', ') : '') || business?.address || '';
+
   const agreementData = {
     transactionMode: value.transactionMode || 'sale', // sale, purchase, rental
     registrationNo: value.registrationNo || '',
@@ -78,9 +85,11 @@ export function VehicleAgreementSection({
     buyerName: value.buyerName || customer?.name || '',
     buyerPhone: value.buyerPhone || customer?.phone || '',
     buyerCnic: value.buyerCnic || customer?.cnic || customer?.domain_data?.cnic || '',
+    buyerAddress: value.buyerAddress || defaultBuyerAddress,
     sellerName: value.sellerName || business?.name || '',
     sellerPhone: value.sellerPhone || business?.phone || business?.phone_number || '',
     sellerCnic: value.sellerCnic || business?.cnic || business?.ntn || '',
+    sellerAddress: value.sellerAddress || defaultSellerAddress,
     witness1Name: value.witness1Name || '',
     witness1Cnic: value.witness1Cnic || '',
     witness1Phone: value.witness1Phone || '',
@@ -111,6 +120,10 @@ export function VehicleAgreementSection({
       patch.buyerCnic = customer.cnic || customer.domain_data?.cnic;
       updated = true;
     }
+    if (defaultBuyerAddress && !agreementData.buyerAddress) {
+      patch.buyerAddress = defaultBuyerAddress;
+      updated = true;
+    }
     if (business?.name && !agreementData.sellerName) { patch.sellerName = business.name; updated = true; }
     if ((business?.phone || business?.phone_number) && !agreementData.sellerPhone) {
       patch.sellerPhone = business.phone || business.phone_number;
@@ -120,11 +133,27 @@ export function VehicleAgreementSection({
       patch.sellerCnic = business.cnic || business.ntn;
       updated = true;
     }
+    if (defaultSellerAddress && !agreementData.sellerAddress) {
+      patch.sellerAddress = defaultSellerAddress;
+      updated = true;
+    }
 
     if (updated) {
       onChange(patch);
     }
-  }, [customer?.name, customer?.phone, customer?.cnic, business?.name, business?.phone, business?.cnic, business?.ntn]);
+  }, [
+    customer?.name,
+    customer?.phone,
+    customer?.cnic,
+    customer?.address,
+    customer?.city,
+    business?.name,
+    business?.phone,
+    business?.cnic,
+    business?.ntn,
+    business?.address,
+    business?.city,
+  ]);
 
   if (!isAutomotiveDomain(category)) return null;
 
@@ -417,6 +446,15 @@ export function VehicleAgreementSection({
                     className={cn("h-8 text-xs font-mono bg-white", missingBuyerCnic && "border-red-300 bg-red-50/30")}
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase">Buyer Residential Address</Label>
+                  <Input
+                    value={agreementData.buyerAddress}
+                    onChange={(e) => updateField('buyerAddress', e.target.value)}
+                    placeholder="Full Address / City"
+                    className="h-8 text-xs bg-white"
+                  />
+                </div>
               </div>
 
               {/* Seller Block */}
@@ -453,6 +491,15 @@ export function VehicleAgreementSection({
                     onChange={(e) => updateField('sellerCnic', e.target.value)}
                     placeholder="35201-9876543-2"
                     className={cn("h-8 text-xs font-mono bg-white", missingSellerCnic && "border-red-300 bg-red-50/30")}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase">Seller / Showroom Address</Label>
+                  <Input
+                    value={agreementData.sellerAddress}
+                    onChange={(e) => updateField('sellerAddress', e.target.value)}
+                    placeholder="Showroom Address / Location"
+                    className="h-8 text-xs bg-white"
                   />
                 </div>
               </div>

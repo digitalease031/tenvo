@@ -2196,11 +2196,99 @@ export function InventoryManager({
 
   return (
     <div className="space-y-4 touch-manipulation max-lg:space-y-3">
-      <div className="hidden lg:block">
-        <InventoryCommandBar
+      {/* Unified Feature Tabs & Command Dock */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-transparent space-y-4">
+        {/* Desktop Enterprise Header Control Bar */}
+        <div className="hidden lg:flex items-center justify-between gap-4 rounded-xl border border-gray-200/80 bg-white p-2 shadow-sm">
+          {/* Left Side: System Navigation Tabs */}
+          <TabsList className="flex h-9 items-center gap-1 bg-gray-100/70 p-1 rounded-lg border border-gray-200/50 shrink-0">
+            <TabsTrigger 
+              value="products" 
+              className="h-7 rounded-md px-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-600 hover:text-gray-900"
+            >
+              <Package className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              Products
+            </TabsTrigger>
+            {showMultiWarehouseUi && (
+              <TabsTrigger 
+                value="locations" 
+                className="h-7 rounded-md px-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-600 hover:text-gray-900"
+              >
+                <Warehouse className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                Locations
+              </TabsTrigger>
+            )}
+            {isManufacturingEnabled && (
+              <TabsTrigger 
+                value="manufacturing" 
+                className="h-7 rounded-md px-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-600 hover:text-gray-900"
+              >
+                <Factory className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                Manufacturing
+              </TabsTrigger>
+            )}
+            <TabsTrigger 
+              value="orders" 
+              className="h-7 rounded-md px-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-600 hover:text-gray-900"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5 text-violet-600" />
+              Orders
+            </TabsTrigger>
+            <TabsTrigger 
+              value="reports" 
+              className="h-7 rounded-md px-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-600 hover:text-gray-900"
+            >
+              <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+              Reports
+            </TabsTrigger>
+            {isVariantEnabled && (
+              <TabsTrigger 
+                value="variants" 
+                className="h-7 rounded-md px-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-600 hover:text-gray-900"
+              >
+                <Layers className="w-3.5 h-3.5 mr-1.5 text-cyan-600" />
+                Variants
+              </TabsTrigger>
+            )}
+            <TabsTrigger 
+              value="pricing" 
+              className="h-7 rounded-md px-3 text-xs font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm text-gray-600 hover:text-gray-900"
+            >
+              <Tag className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
+              Pricing
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Right Side: Command Action Tools Dock */}
+          <div className="flex min-w-0 items-center justify-end overflow-x-auto">
+            <InventoryCommandBar
+              activeTab={activeTab}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+              lastSyncedAt={lastSyncedAt}
+              isRefreshing={loading}
+              onRefresh={refreshInventory}
+              onAiSmartAdd={() => setShowQuickAddModal(true)}
+              onOpenTemplates={() => setShowTemplatesModal(true)}
+              hasQuickAddTemplates={hasQuickAddTemplates}
+              onExcelMode={() => setShowExcelMode(true)}
+              onImport={() => setShowImportModal(true)}
+              onExport={executeExcelExport}
+              onScanBarcode={openBarcodeScanner}
+              onAdjustStock={() => setShowStockAdjustment(true)}
+              onTransferStock={() => setShowStockTransferForm(true)}
+              onShowShortcuts={() => setShowShortcutsHelp(true)}
+              onGoToReports={() => setActiveTab('reports')}
+              capabilities={inventoryWriteCapabilities}
+            />
+          </div>
+        </div>
+
+        {/* Mobile View Hub */}
+        <InventoryMobileHub
           activeTab={activeTab}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
+          onTabChange={setActiveTab}
+          onFocusStock={applyInventoryStockFocus}
           lastSyncedAt={lastSyncedAt}
           isRefreshing={loading}
           onRefresh={refreshInventory}
@@ -2215,155 +2303,130 @@ export function InventoryManager({
           onTransferStock={() => setShowStockTransferForm(true)}
           onShowShortcuts={() => setShowShortcutsHelp(true)}
           onGoToReports={() => setActiveTab('reports')}
+          isMultiLocationEnabled={showMultiWarehouseUi}
+          isManufacturingEnabled={isManufacturingEnabled}
+          isVariantEnabled={isVariantEnabled}
           capabilities={inventoryWriteCapabilities}
+          stats={{
+            totalProducts: products.length,
+            lowStock: lowStockItems.length,
+            inventoryValue: formatCurrency(
+              products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0),
+              standards.currency
+            ),
+            efficiencyClass:
+              abcAnalysis.length > 0
+                ? `Class ${abcStats.A.count >= abcStats.B.count && abcStats.A.count >= abcStats.C.count ? 'A' : abcStats.B.count >= abcStats.C.count ? 'B' : 'C'}`
+                : 'N/A',
+          }}
         />
-      </div>
-
-      <InventoryMobileHub
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onFocusStock={applyInventoryStockFocus}
-        lastSyncedAt={lastSyncedAt}
-        isRefreshing={loading}
-        onRefresh={refreshInventory}
-        onAiSmartAdd={() => setShowQuickAddModal(true)}
-        onOpenTemplates={() => setShowTemplatesModal(true)}
-        hasQuickAddTemplates={hasQuickAddTemplates}
-        onExcelMode={() => setShowExcelMode(true)}
-        onImport={() => setShowImportModal(true)}
-        onExport={executeExcelExport}
-        onScanBarcode={openBarcodeScanner}
-        onAdjustStock={() => setShowStockAdjustment(true)}
-        onTransferStock={() => setShowStockTransferForm(true)}
-        onShowShortcuts={() => setShowShortcutsHelp(true)}
-        onGoToReports={() => setActiveTab('reports')}
-        isMultiLocationEnabled={showMultiWarehouseUi}
-        isManufacturingEnabled={isManufacturingEnabled}
-        isVariantEnabled={isVariantEnabled}
-        capabilities={inventoryWriteCapabilities}
-        stats={{
-          totalProducts: products.length,
-          lowStock: lowStockItems.length,
-          inventoryValue: formatCurrency(
-            products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0),
-            standards.currency
-          ),
-          efficiencyClass:
-            abcAnalysis.length > 0
-              ? `Class ${abcStats.A.count >= abcStats.B.count && abcStats.A.count >= abcStats.C.count ? 'A' : abcStats.B.count >= abcStats.C.count ? 'B' : 'C'}`
-              : 'N/A',
-        }}
-      />
-
-      {/* Feature Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-transparent">
-        <TabsList className="hidden lg:flex h-auto w-full flex-wrap gap-0.5 rounded-lg border border-gray-200 bg-gray-100/60 p-0.5 shadow-inner">
-          <TabsTrigger value="products" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <Package className="w-4 h-4 mr-2" />
-            Products
-          </TabsTrigger>
-          {showMultiWarehouseUi && (
-            <TabsTrigger value="locations" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <Warehouse className="w-4 h-4 mr-2" />
-              Locations
-            </TabsTrigger>
-          )}
-          {isManufacturingEnabled && (
-            <TabsTrigger value="manufacturing" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <Factory className="w-4 h-4 mr-2" />
-              Manufacturing
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="orders" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <FileText className="w-4 h-4 mr-2" />
-            Orders
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Reports
-          </TabsTrigger>
-          {isVariantEnabled && (
-            <TabsTrigger value="variants" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <Layers className="w-4 h-4 mr-2" />
-              Variants
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="pricing" className="h-8 rounded-md px-3 text-xs font-semibold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <Tag className="w-4 h-4 mr-2" />
-            Pricing
-          </TabsTrigger>
-        </TabsList>
 
         {/* Products Tab */}
         <TabsContent value="products" className="min-w-0 space-y-6 overflow-x-hidden max-lg:space-y-3">
 
-          {/* Alerts and Stats - Compact Premium KPI Cards */}
-          {/* KPI cards, desktop only (mobile hub shows mini KPIs) */}
+          {/* Alerts and Stats - Interactive Premium KPI Cards */}
           <div className="hidden lg:grid grid-cols-2 lg:grid-cols-4 gap-3.5">
             {/* Total Products */}
-            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
-              <div className="flex items-center gap-2.5 relative z-10">
-                <div className="w-8 h-8 rounded-lg bg-blue-50/70 flex items-center justify-center shrink-0">
-                  <Package className="w-4 h-4 text-blue-600" />
+            <div 
+              onClick={() => {
+                setActiveDomainFilters({});
+                setSearchTerm('');
+                toast.success('Showing all products', { duration: 1000 });
+              }}
+              className="group bg-white p-3.5 rounded-xl border border-gray-150 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer relative overflow-hidden flex items-center justify-between min-h-[76px]"
+            >
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-9 h-9 rounded-xl bg-blue-50/80 group-hover:bg-blue-100/80 flex items-center justify-center shrink-0 transition-colors">
+                  <Package className="w-4.5 h-4.5 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Products</p>
-                  <p className="text-xl font-bold text-gray-900 mt-0.5 leading-none">{products.length}</p>
+                  <p className="text-xl font-bold text-gray-900 mt-0.5 leading-none tabular-nums">{products.length}</p>
                 </div>
               </div>
               <div className="relative z-10 shrink-0 text-right">
-                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">Units</span>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors">
+                  All Items
+                </span>
               </div>
             </div>
 
             {/* Stock Alerts */}
-            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
-              <div className="flex items-center gap-2.5 relative z-10">
-                <div className="w-8 h-8 rounded-lg bg-red-50/70 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
+            <div 
+              onClick={() => applyInventoryStockFocus('low-stock')}
+              className={cn(
+                "group p-3.5 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer relative overflow-hidden flex items-center justify-between min-h-[76px]",
+                lowStockItems.length > 0 
+                  ? "bg-amber-50/40 border-amber-200/80 hover:border-amber-300" 
+                  : "bg-white border-gray-150 hover:border-gray-300"
+              )}
+            >
+              <div className="flex items-center gap-3 relative z-10">
+                <div className={cn(
+                  "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                  lowStockItems.length > 0 ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
+                )}>
+                  <AlertTriangle className="w-4.5 h-4.5" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Stock Alerts</p>
-                  <p className="text-xl font-bold text-red-600 mt-0.5 leading-none">{lowStockItems.length}</p>
+                  <p className={cn(
+                    "text-xl font-bold mt-0.5 leading-none tabular-nums",
+                    lowStockItems.length > 0 ? "text-amber-700" : "text-gray-900"
+                  )}>
+                    {lowStockItems.length}
+                  </p>
                 </div>
               </div>
               <div className="relative z-10 shrink-0 text-right">
-                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">Replenish</span>
+                <span className={cn(
+                  "text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors",
+                  lowStockItems.length > 0 ? "text-amber-800 bg-amber-100 group-hover:bg-amber-200" : "text-gray-600 bg-gray-100"
+                )}>
+                  {lowStockItems.length > 0 ? "Drill Down" : "Healthy"}
+                </span>
               </div>
             </div>
 
             {/* Inventory Value */}
-            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
-              <div className="flex items-center gap-2.5 relative z-10">
-                <div className="w-8 h-8 rounded-lg bg-green-50/70 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
+            <div className="group bg-white p-3.5 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[76px]">
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50/80 group-hover:bg-emerald-100/80 flex items-center justify-center shrink-0 transition-colors">
+                  <TrendingUp className="w-4.5 h-4.5 text-emerald-600" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Inventory Value</p>
-                  <p className="text-base font-bold text-gray-900 mt-0.5 leading-none">
+                  <p className="text-base font-bold text-gray-900 mt-0.5 leading-none tabular-nums">
                     {formatCurrency(products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0), standards.currency)}
                   </p>
                 </div>
               </div>
+              <div className="relative z-10 shrink-0 text-right">
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                  Asset Total
+                </span>
+              </div>
             </div>
 
             {/* Efficiency Class */}
-            <div className="group bg-white p-3 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[72px]">
-              <div className="flex items-center gap-2.5 relative z-10">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50/70 flex items-center justify-center shrink-0">
-                  <BarChart3 className="w-4 h-4 text-indigo-600" />
+            <div className="group bg-white p-3.5 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex items-center justify-between min-h-[76px]">
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50/80 group-hover:bg-indigo-100/80 flex items-center justify-center shrink-0 transition-colors">
+                  <BarChart3 className="w-4.5 h-4.5 text-indigo-600" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Efficiency Class</p>
                   <p className="text-lg font-bold text-gray-900 mt-0.5 leading-none uppercase">
                     {abcAnalysis.length > 0
                       ? `Class ${abcStats.A.count >= abcStats.B.count && abcStats.A.count >= abcStats.C.count ? 'A' : abcStats.B.count >= abcStats.C.count ? 'B' : 'C'}`
-                      : 'Class, '}
+                      : 'N/A'}
                   </p>
                 </div>
               </div>
               <div className="relative z-10 shrink-0 text-right">
-                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">Optimized</span>
+                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                  ABC Analysis
+                </span>
               </div>
             </div>
           </div>

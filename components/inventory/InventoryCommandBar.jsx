@@ -14,6 +14,7 @@ import {
   Sparkles,
   ChevronDown,
   LayoutGrid,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,9 +27,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const VIEW_MODES = [
-  { id: 'visual', label: 'Visual' },
-  { id: 'busy', label: 'Busy' },
-  { id: 'cards', label: 'Cards' },
+  { id: 'visual', label: 'Visual', icon: Eye },
+  { id: 'busy', label: 'Busy', icon: Table2 },
+  { id: 'cards', label: 'Cards', icon: LayoutGrid },
 ];
 
 const DEFAULT_CAPS = {
@@ -74,7 +75,7 @@ export function InventoryCommandBar({
   const showStockMenu = caps.canScanBarcode || caps.canAdjustStock || caps.canTransferStock;
 
   return (
-    <div className="scrollbar-none flex min-w-0 items-center gap-1.5 overflow-x-auto border-b border-gray-100/80 pb-2.5">
+    <div className="scrollbar-none flex min-w-0 items-center gap-1.5 overflow-x-auto">
       {/* Sync status */}
       <div
         className="flex shrink-0 items-center gap-1.5 rounded-lg border border-green-100 bg-green-50 px-2 py-1"
@@ -106,21 +107,25 @@ export function InventoryCommandBar({
             role="group"
             aria-label="View mode"
           >
-            {VIEW_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => onViewModeChange?.(mode.id)}
-                className={cn(
-                  'rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
-                  viewMode === mode.id
-                    ? 'bg-white text-brand-primary shadow-sm'
-                    : 'text-gray-500 hover:text-gray-900'
-                )}
-              >
-                {mode.label}
-              </button>
-            ))}
+            {VIEW_MODES.map((mode) => {
+              const IconComp = mode.icon;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => onViewModeChange?.(mode.id)}
+                  className={cn(
+                    'flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
+                    viewMode === mode.id
+                      ? 'bg-white text-brand-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
+                  )}
+                >
+                  {IconComp && <IconComp className="h-3 w-3" />}
+                  {mode.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="mx-0.5 h-5 w-px shrink-0 bg-gray-200" aria-hidden />

@@ -72,7 +72,7 @@ export default function DayBookReport({ businessId }) {
           taxIdLabel: regionalPack?.taxIdLabel,
         }),
         title: 'Day Book',
-        periodLabel: `Date: ${date}`,
+        periodLabel: `For ${new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
         balanced: totals.balanced,
       },
       [

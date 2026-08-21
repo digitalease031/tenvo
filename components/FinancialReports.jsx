@@ -154,12 +154,30 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                 taxIdLabel,
                 footnote: taxIdLine || 'Confidential',
             });
+            const formatPdfRange = (s, e) => {
+                try {
+                    const d1 = new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const d2 = new Date(e).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    return `For the period ${d1} to ${d2}`;
+                } catch {
+                    return `For the period ${s} to ${e}`;
+                }
+            };
+            const formatPdfAsOf = (d) => {
+                try {
+                    const dt = new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    return `As of ${dt}`;
+                } catch {
+                    return `As of ${d}`;
+                }
+            };
+
             if (activeTab === 'pl' && plData) {
                 generateSectionedFinancePDF(
                     {
                         ...baseMeta,
                         title: 'Profit & Loss Statement',
-                        periodLabel: `${startDate} to ${endDate}`,
+                        periodLabel: formatPdfRange(startDate, endDate),
                     },
                     [
                         {
@@ -175,13 +193,8 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                             totalAmount: plData.totalCOGS,
                         },
                         {
-                            heading: 'Gross Profit',
-                            rows: [
-                                {
-                                    label: `Gross Margin ${Number(plData.grossMargin || 0).toFixed(1)}%`,
-                                    amount: plData.grossProfit,
-                                },
-                            ],
+                            heading: '',
+                            rows: [],
                             totalLabel: 'Gross Profit',
                             totalAmount: plData.grossProfit,
                         },
@@ -192,7 +205,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                             totalAmount: Number(plData.totalExpense || 0) - Number(plData.totalCOGS || 0),
                         },
                         {
-                            heading: 'Net Income',
+                            heading: '',
                             rows: [],
                             totalLabel: 'Net Income',
                             totalAmount: plData.netIncome,
@@ -205,7 +218,7 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                     {
                         ...baseMeta,
                         title: 'Balance Sheet',
-                        periodLabel: `As of ${asOfDate}`,
+                        periodLabel: formatPdfAsOf(asOfDate),
                         balanced: bsData.isBalanced,
                     },
                     [
@@ -237,25 +250,25 @@ export default function FinancialReports({ businessId, initialReport = 'pl', ref
                 generateFinanceStatementPDF(
                     {
                         ...baseMeta,
-                        title: 'Cash Flow Statement',
-                        periodLabel: `${cfStartDate} to ${cfEndDate}`,
+                        title: 'Statement of Cash Flows',
+                        periodLabel: formatPdfRange(cfStartDate, cfEndDate),
                         footnote: 'Indirect method. Other / reconciling is the residual to match cash movement.',
                     },
                     [
-                        { key: 'label', label: 'Line' },
+                        { key: 'label', label: 'Description' },
                         { key: 'amount', label: 'Amount' },
                     ],
                     [
-                        { label: 'Net Income', amount: cfData.netIncome },
-                        { label: 'Change in AR', amount: cfData.arChange },
-                        { label: 'Change in Inventory', amount: cfData.inventoryChange },
-                        { label: 'Change in AP', amount: cfData.apChange },
-                        { label: 'Change in Tax Payable', amount: cfData.taxChange },
-                        { label: 'Operating Cash Flow', amount: cfData.operatingCashFlow },
-                        { label: 'Other / reconciling items (plug)', amount: cfData.investingFinancingNet },
-                        { label: 'Net Change in Cash', amount: cfData.netChangeInCash },
-                        { label: 'Opening Cash', amount: cfData.cashStart },
-                        { label: 'Closing Cash', amount: cfData.cashEnd },
+                        { label: 'Net Income', amount: cfData.netIncome, _type: 'item' },
+                        { label: '    Change in Accounts Receivable', amount: cfData.arChange, _type: 'item' },
+                        { label: '    Change in Inventory', amount: cfData.inventoryChange, _type: 'item' },
+                        { label: '    Change in Accounts Payable', amount: cfData.apChange, _type: 'item' },
+                        { label: '    Change in Tax Payable', amount: cfData.taxChange, _type: 'item' },
+                        { label: 'Net Cash Provided by Operating Activities', amount: cfData.operatingCashFlow, _type: 'subtotal' },
+                        { label: 'Other / reconciling items (plug)', amount: cfData.investingFinancingNet, _type: 'item' },
+                        { label: 'Net Change in Cash & Cash Equivalents', amount: cfData.netChangeInCash, _type: 'subtotal' },
+                        { label: 'Cash & Cash Equivalents at Beginning of Period', amount: cfData.cashStart, _type: 'item' },
+                        { label: 'Cash & Cash Equivalents at End of Period', amount: cfData.cashEnd, _type: 'grand_total' },
                     ],
                     { filename: `Cash-Flow-${cfStartDate}-${cfEndDate}.pdf` }
                 );

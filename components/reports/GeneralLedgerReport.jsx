@@ -207,7 +207,7 @@ export function GeneralLedgerReport({ businessId }) {
                     taxIdLabel: regionalPack?.taxIdLabel,
                 }),
                 title: 'General Ledger',
-                periodLabel: `${startDate} to ${endDate}`,
+                periodLabel: `For the period ${new Date(startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} to ${new Date(endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
             },
             [
                 { key: 'transaction_date', label: 'Date' },

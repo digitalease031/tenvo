@@ -71,7 +71,7 @@ export default function TrialBalanceView({ businessId, currency: currencyProp })
                     taxIdLabel: regionalPack?.taxIdLabel,
                 }),
                 title: 'Trial Balance',
-                periodLabel: `As of ${date}`,
+                periodLabel: `As of ${new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
                 balanced: data.totals?.balanced,
             },
             [

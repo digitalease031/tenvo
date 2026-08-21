@@ -182,18 +182,18 @@ export function TaxComplianceManager({ invoices = [], purchaseOrders = [], posTr
             invoice_number: inv.invoice_number || inv.number,
             date: formatDisplayDate(inv.date),
             customer_name: inv.customer_name || 'Walk-in',
-            subtotal: inv.subtotal,
-            tax_total: inv.tax_total ?? inv.total_tax,
-            grand_total: inv.grand_total ?? inv.total_amount,
+            subtotal: Number(inv.subtotal) || 0,
+            tax_total: Number(inv.tax_total ?? inv.total_tax) || 0,
+            grand_total: Number(inv.grand_total ?? inv.total_amount) || 0,
             channel: 'Invoice',
         }));
         const posRows = periodPos.map((tx) => ({
             invoice_number: tx.transaction_number || tx.receipt_number || tx.id,
             date: formatDisplayDate(tx.created_at || tx.transaction_date),
             customer_name: tx.customer_name || 'POS',
-            subtotal: tx.subtotal ?? tx.net_amount,
-            tax_total: tx.tax_amount ?? tx.total_tax,
-            grand_total: tx.total_amount,
+            subtotal: Number(tx.subtotal ?? tx.net_amount) || 0,
+            tax_total: Number(tx.tax_amount ?? tx.total_tax) || 0,
+            grand_total: Number(tx.total_amount) || 0,
             channel: 'POS',
         }));
         return [...invRows, ...posRows];
@@ -203,9 +203,9 @@ export function TaxComplianceManager({ invoices = [], purchaseOrders = [], posTr
         purchase_number: po.purchase_number || '-',
         date: formatDisplayDate(po.date),
         vendor_name: po.vendor_name || 'Supplier',
-        subtotal: formatMoney(Number(po.subtotal ?? po.total_amount) || 0),
-        tax_total: formatMoney(Number(po.tax_total) || 0),
-        total_amount: formatMoney(Number(po.total_amount) || 0),
+        subtotal: Number(po.subtotal ?? po.total_amount) || 0,
+        tax_total: Number(po.tax_total) || 0,
+        total_amount: Number(po.total_amount) || 0,
     }));
 
     const handleTaxExport = (type, format = 'pdf') => {

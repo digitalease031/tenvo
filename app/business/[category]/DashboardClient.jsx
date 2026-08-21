@@ -2061,11 +2061,15 @@ function BusinessDashboardContent() {
       const result = await workflowAPI.resolve({
         requestId,
         businessId: business.id,
-        action: 'approved'
+        action: 'approve'
       });
       if (result.success) {
         toast.success('Request approved');
-        await fetchApprovals();
+        await Promise.allSettled([
+          fetchApprovals({ force: true }),
+          fetchPurchases?.({ force: true }),
+          fetchSales?.({ force: true }),
+        ]);
       } else {
         toast.error(result.error || 'Failed to approve');
       }
@@ -2080,11 +2084,15 @@ function BusinessDashboardContent() {
       const result = await workflowAPI.resolve({
         requestId,
         businessId: business.id,
-        action: 'rejected'
+        action: 'reject'
       });
       if (result.success) {
         toast.success('Request rejected');
-        await fetchApprovals();
+        await Promise.allSettled([
+          fetchApprovals({ force: true }),
+          fetchPurchases?.({ force: true }),
+          fetchSales?.({ force: true }),
+        ]);
       } else {
         toast.error(result.error || 'Failed to reject');
       }

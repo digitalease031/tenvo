@@ -1,7 +1,7 @@
-'use client';
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { workflowAPI } from '@/lib/api/workflow';
 import {
     Play, GitBranch, CheckCircle2, XCircle, Bell, Zap, Plus,
     ChevronRight, ArrowDown, Trash2, Settings, Copy, Save,
@@ -147,6 +147,15 @@ export function WorkflowBuilder({ businessId }) {
     const [showNodePicker, setShowNodePicker] = useState(false);
     const [workflowName, setWorkflowName] = useState('');
 
+    useEffect(() => {
+        if (!businessId) return;
+        workflowAPI.getRules(businessId).then(res => {
+            if (res.success && Array.isArray(res.rules) && res.rules.length > 0) {
+                setWorkflows(res.rules);
+            }
+        }).catch(err => console.error('Failed to load rules:', err));
+    }, [businessId]);
+
     const loadWorkflow = (wf) => {
         setActiveWorkflow(wf.id);
         setNodes(wf.nodes);
@@ -184,7 +193,7 @@ export function WorkflowBuilder({ businessId }) {
         if (selectedNode === id) setSelectedNode(null);
     };
 
-    const saveWorkflow = () => {
+    const saveWorkflow = async () => {
         const wf = {
             id: activeWorkflow,
             name: workflowName,
@@ -200,6 +209,19 @@ export function WorkflowBuilder({ businessId }) {
             }
             return [...prev, wf];
         });
+        if (businessId) {
+            const result = await workflowAPI.saveRule(businessId, wf);
+            if (result.success) {
+                toast.success('Workflow saved');
+                if (result.rule?.id) {
+                    setActiveWorkflow(result.rule.id);
+                }
+            } else {
+                toast.error(result.error || 'Failed to save workflow rule');
+            }
+        } else {
+            toast.success('Workflow updated in session');
+        }
     };
 
     const selectedNodeData = nodes.find(n => n.id === selectedNode);
@@ -346,7 +368,7 @@ export function WorkflowBuilder({ businessId }) {
                                                             ? 'bg-indigo-50 border border-indigo-200 text-indigo-700' : 'hover:bg-gray-50'
                                                     )}
                                                 >
-                                                    <t.icon className="w-4 h-4 bg-emerald-600 hover:bg-emerald-700 text-white" />
+                                                    <t.icon className="w-4 h-4 text-emerald-600" />
                                                     {t.label}
                                                 </button>
                                             ))}

@@ -408,7 +408,7 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
       ),
       category
     );
-    return getNavItemAccess(item.key, effectiveRole, planTier, navSettings, business?.platformFeatureOverrides, moduleAccess);
+    return getNavItemAccess(item.key, effectiveRole, planTier, navSettings, business?.platformFeatureOverrides, moduleAccess, category);
   };
 
   return (

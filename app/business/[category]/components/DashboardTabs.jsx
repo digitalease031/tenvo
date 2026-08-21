@@ -15,6 +15,7 @@ import { isWaterHisabRelevant, isRouteHisabRelevant } from '@/lib/storefront/wat
 import { resolvePosVariant } from '@/lib/config/posDomains';
 import { useResolvedBusinessId } from '@/lib/hooks/useResolvedBusinessId';
 import { isTextileWholesale } from '@/lib/utils/textileWholesaleDomainFilter';
+import { isWholesaleDomain } from '@/lib/utils/wholesaleDomain';
 
 const DomainDashboard = lazyHubTab(() => import('./tabs/DomainDashboard').then(mod => mod.DomainDashboard));
 const InventoryTab = lazyHubTab(() => import('./tabs/InventoryTab').then(mod => mod.InventoryTab));
@@ -28,6 +29,7 @@ const VendorManager = lazyHubTab(() => import('@/components/VendorManager').then
 const PaymentManager = lazyHubTab(() => import('@/components/payment/PaymentManager'));
 const QuotationOrderChallanManager = lazyHubTab(() => import('@/components/QuotationOrderChallanManager').then(mod => mod.QuotationOrderChallanManager));
 const AdvancedAnalytics = lazyHubTab(() => import('@/components/AdvancedAnalytics').then(mod => mod.AdvancedAnalytics));
+const WholesaleOilReportingHub = lazyHubTab(() => import('@/components/reports/WholesaleOilReportingHub').then(mod => mod.WholesaleOilReportingHub));
 const DemandForecast = lazyHubTab(() => import('@/components/DemandForecast').then(mod => mod.DemandForecast));
 const TaxComplianceManager = lazyHubTab(() => import('@/components/TaxComplianceManager').then(mod => mod.TaxComplianceManager));
 const SettingsManager = lazyHubTab(() => import('@/components/SettingsManager').then(mod => mod.SettingsManager));
@@ -345,6 +347,8 @@ export function DashboardTabs({
         handleNewRestaurantOrder,
         handleKitchenStatusUpdate,
     } = handlers;
+
+    const isWholesale = isWholesaleDomain(category);
 
     const tabVariants = {
         initial: { opacity: 0 },
@@ -892,64 +896,78 @@ export function DashboardTabs({
                 {!constructionDomain && (
                     <TabsContent value="reports" forceMount={shouldForceMount('reports')} className="data-[state=inactive]:hidden space-y-4 outline-none">
                         {wrapTab(
-                            <TabGuard tabKey="reports" role={role} planTier={planTier} featureName="Analytics & AI" onUpgrade={() => handleTabChange('settings')}>
-                                <div className="min-w-0 space-y-4 overflow-x-hidden">
-                                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                                        <h2 className="hidden shrink-0 text-sm font-semibold tracking-tight text-gray-900 sm:block">
-                                            Reports
-                                        </h2>
-                                        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-gray-100 p-1 scrollbar-none snap-x snap-mandatory">
-                                            {[
-                                                { key: 'analytics', label: 'Analytics', short: 'Analytics' },
-                                                { key: 'forecast', label: 'Demand Forecast', short: 'Forecast' },
-                                                { key: 'ai', label: 'AI Insights', short: 'AI' },
-                                                { key: 'builder', label: 'Report Builder', short: 'Builder' },
-                                            ].map(v => (
-                                                <button
-                                                    key={v.key}
-                                                    type="button"
-                                                    onClick={() => setReportsView(v.key)}
-                                                    className={`shrink-0 snap-start rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all sm:px-3 sm:text-xs ${reportsView === v.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                                >
-                                                    <span className="sm:hidden">{v.short}</span>
-                                                    <span className="hidden sm:inline">{v.label}</span>
-                                                </button>
-                                            ))}
+                            <TabGuard tabKey="reports" role={role} planTier={planTier} requiredPlan={isWholesale ? "enterprise" : undefined} featureName="Analytics & Reports" onUpgrade={() => handleTabChange('settings')}>
+                                {isWholesale ? (
+                                    <WholesaleOilReportingHub
+                                        businessId={activeBusinessId}
+                                        category={category}
+                                        currency={currency}
+                                        invoices={invoices}
+                                        purchaseOrders={purchaseOrders}
+                                        products={products}
+                                        customers={customers}
+                                        business={business}
+                                        dateRange={dateRange}
+                                    />
+                                ) : (
+                                    <div className="min-w-0 space-y-4 overflow-x-hidden">
+                                        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                                            <h2 className="hidden shrink-0 text-sm font-semibold tracking-tight text-gray-900 sm:block">
+                                                Reports
+                                            </h2>
+                                            <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-gray-100 p-1 scrollbar-none snap-x snap-mandatory">
+                                                {[
+                                                    { key: 'analytics', label: 'Analytics', short: 'Analytics' },
+                                                    { key: 'forecast', label: 'Demand Forecast', short: 'Forecast' },
+                                                    { key: 'ai', label: 'AI Insights', short: 'AI' },
+                                                    { key: 'builder', label: 'Report Builder', short: 'Builder' },
+                                                ].map(v => (
+                                                    <button
+                                                        key={v.key}
+                                                        type="button"
+                                                        onClick={() => setReportsView(v.key)}
+                                                        className={`shrink-0 snap-start rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all sm:px-3 sm:text-xs ${reportsView === v.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                                    >
+                                                        <span className="sm:hidden">{v.short}</span>
+                                                        <span className="hidden sm:inline">{v.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
+                                        {shouldShowReportsView('analytics') ? (
+                                            <div
+                                                className={reportsView === 'analytics' ? 'space-y-4' : 'hidden'}
+                                                aria-hidden={reportsView !== 'analytics'}
+                                            >
+                                                <AdvancedAnalytics businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
+                                            </div>
+                                        ) : null}
+                                        {shouldShowReportsView('forecast') ? (
+                                            <div
+                                                className={reportsView === 'forecast' ? 'space-y-4' : 'hidden'}
+                                                aria-hidden={reportsView !== 'forecast'}
+                                            >
+                                                <DemandForecast businessId={activeBusinessId} category={category} products={products} invoices={invoices} domainKnowledge={domainKnowledge} dateRange={dateRange} />
+                                            </div>
+                                        ) : null}
+                                        {shouldShowReportsView('ai') ? (
+                                            <div
+                                                className={reportsView === 'ai' ? 'space-y-4' : 'hidden'}
+                                                aria-hidden={reportsView !== 'ai'}
+                                            >
+                                                <AIInsightsPanel businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
+                                            </div>
+                                        ) : null}
+                                        {shouldShowReportsView('builder') ? (
+                                            <div
+                                                className={reportsView === 'builder' ? 'space-y-4' : 'hidden'}
+                                                aria-hidden={reportsView !== 'builder'}
+                                            >
+                                                <ReportBuilder businessId={activeBusinessId} currency={currency} dateRange={dateRange} />
+                                            </div>
+                                        ) : null}
                                     </div>
-                                    {shouldShowReportsView('analytics') ? (
-                                        <div
-                                            className={reportsView === 'analytics' ? 'space-y-4' : 'hidden'}
-                                            aria-hidden={reportsView !== 'analytics'}
-                                        >
-                                            <AdvancedAnalytics businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
-                                        </div>
-                                    ) : null}
-                                    {shouldShowReportsView('forecast') ? (
-                                        <div
-                                            className={reportsView === 'forecast' ? 'space-y-4' : 'hidden'}
-                                            aria-hidden={reportsView !== 'forecast'}
-                                        >
-                                            <DemandForecast businessId={activeBusinessId} category={category} products={products} invoices={invoices} domainKnowledge={domainKnowledge} dateRange={dateRange} />
-                                        </div>
-                                    ) : null}
-                                    {shouldShowReportsView('ai') ? (
-                                        <div
-                                            className={reportsView === 'ai' ? 'space-y-4' : 'hidden'}
-                                            aria-hidden={reportsView !== 'ai'}
-                                        >
-                                            <AIInsightsPanel businessId={activeBusinessId} category={category} currency={currency} dateRange={dateRange} />
-                                        </div>
-                                    ) : null}
-                                    {shouldShowReportsView('builder') ? (
-                                        <div
-                                            className={reportsView === 'builder' ? 'space-y-4' : 'hidden'}
-                                            aria-hidden={reportsView !== 'builder'}
-                                        >
-                                            <ReportBuilder businessId={activeBusinessId} currency={currency} dateRange={dateRange} />
-                                        </div>
-                                    ) : null}
-                                </div>
+                                )}
                             </TabGuard>
                         )}
                     </TabsContent>
@@ -957,7 +975,7 @@ export function DashboardTabs({
 
                 <TabsContent value="campaigns" forceMount={shouldForceMount('campaigns')} className="data-[state=inactive]:hidden space-y-6 outline-none">
                     {wrapTab(
-                        <TabGuard tabKey="campaigns" role={role} planTier={planTier} domainCheck={campaignRelevant} domainTitle="Campaigns & Marketing not relevant for this domain" domainMessage="Marketing automations are enabled for customer-facing retail and service domains." requiredPlan="business" featureName="Campaigns & Marketing" onUpgrade={() => handleTabChange('settings')}>
+                        <TabGuard tabKey="campaigns" role={role} planTier={planTier} domainCheck={campaignRelevant} domainTitle="Campaigns & Marketing not relevant for this domain" domainMessage="Marketing automations are enabled for customer-facing retail and service domains." requiredPlan={isWholesale ? "enterprise" : "business"} featureName="Campaigns & Marketing" onUpgrade={() => handleTabChange('settings')}>
                             <CampaignsManager
                                 businessId={activeBusinessId}
                                 currency={currency}
@@ -1045,6 +1063,7 @@ export function DashboardTabs({
                             tabKey="orders"
                             role={role}
                             planTier={planTier}
+                            requiredPlan={isWholesale ? "enterprise" : undefined}
                             featureName="Orders Management"
                             onUpgrade={() => handleTabChange('settings')}
                         >
@@ -1065,6 +1084,7 @@ export function DashboardTabs({
                             tabKey="inquiries"
                             role={role}
                             planTier={planTier}
+                            requiredPlan={isWholesale ? "enterprise" : undefined}
                             featureName="Customer Inquiries"
                             onUpgrade={() => handleTabChange('settings')}
                         >
@@ -1297,7 +1317,7 @@ export function DashboardTabs({
 
                 <TabsContent value="loyalty" forceMount={shouldForceMount('loyalty')} className="data-[state=inactive]:hidden space-y-6 outline-none">
                     {wrapTab(
-                        <TabGuard tabKey="loyalty" role={role} planTier={planTier} domainCheck={posRelevant} domainTitle="Loyalty & CRM not relevant for this domain" domainMessage="Loyalty and POS CRM are available for customer-facing retail and hospitality domains." requiredPlan="starter" featureName="Loyalty & CRM" onUpgrade={() => handleTabChange('settings')}>
+                        <TabGuard tabKey="loyalty" role={role} planTier={planTier} domainCheck={posRelevant} domainTitle="Loyalty & CRM not relevant for this domain" domainMessage="Loyalty and POS CRM are available for customer-facing retail and hospitality domains." requiredPlan="enterprise" featureName="Loyalty & CRM" onUpgrade={() => handleTabChange('settings')}>
                             <StorefrontTabShell activeTab="loyalty">
                             <div className="space-y-6 lg:space-y-8">
                                 <CustomerLoyaltyPortal businessId={activeBusinessId} currency={currency} />
@@ -1315,7 +1335,7 @@ export function DashboardTabs({
 
                 <TabsContent value="memberships" forceMount={shouldForceMount('memberships')} className="data-[state=inactive]:hidden space-y-6 outline-none">
                     {wrapTab(
-                        <TabGuard tabKey="memberships" role={role} planTier={planTier} domainCheck={membershipRelevant} domainTitle="Memberships not relevant for this domain" domainMessage="Membership management is available for gym, spa, salon, and similar service verticals." requiredPlan="professional" featureName="Membership Management" onUpgrade={() => handleTabChange('settings')}>
+                        <TabGuard tabKey="memberships" role={role} planTier={planTier} domainCheck={membershipRelevant} domainTitle="Memberships not relevant for this domain" domainMessage="Membership management is available for gym, spa, salon, and similar service verticals." requiredPlan="enterprise" featureName="Membership Management" onUpgrade={() => handleTabChange('settings')}>
                             <StorefrontTabShell activeTab="memberships">
                             <MembershipManager businessId={activeBusinessId} category={category} />
                             </StorefrontTabShell>
@@ -1389,7 +1409,7 @@ export function DashboardTabs({
                 {/* --- Store Settings Tab --- */}
                 <TabsContent value="store-settings" forceMount={shouldForceMount('store-settings')} className="data-[state=inactive]:hidden space-y-6 outline-none">
                     {wrapTab(
-                        <TabGuard tabKey="store-settings" role={role} planTier={planTier} featureName="Store Settings" onUpgrade={() => handleTabChange('settings')}>
+                        <TabGuard tabKey="store-settings" role={role} planTier={planTier} requiredPlan={isWholesale ? "enterprise" : undefined} featureName="Store Settings" onUpgrade={() => handleTabChange('settings')}>
                             <StorefrontTabShell activeTab="store-settings">
                             <StoreSettingsManager business={business} category={category} />
                             </StorefrontTabShell>

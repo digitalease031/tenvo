@@ -298,30 +298,36 @@ export function CustomerForm({
 
     return (
         <Card className={cn(
-            'flex w-full flex-col overflow-hidden border-wine/15 shadow-xl',
-            embedded ? 'border-none shadow-none rounded-none' : 'max-w-6xl rounded-2xl max-h-[min(92vh,900px)]'
+            'flex w-full flex-col overflow-hidden border-none shadow-2xl rounded-2xl bg-white',
+            embedded ? 'shadow-none rounded-none' : 'max-w-4xl max-h-[min(92vh,900px)]'
         )}>
-            <CardHeader className="shrink-0 space-y-1 border-b border-wine/10 bg-wine/[0.03] px-4 py-3 sm:px-6 sm:py-3.5">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-0.5">
-                        <CardTitle className="flex flex-wrap items-center gap-2 text-base font-bold text-wine">
-                            <UsersIcon className="h-4 w-4 shrink-0" />
-                            {initialData ? 'Edit Customer' : 'Add New Customer'}
-                            {!initialData && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleFillDemo}
-                                    className="h-7 px-2 text-[10px] font-semibold uppercase tracking-tight border-wine/20 text-wine hover:bg-wine/5"
-                                >
-                                    <Sparkles className="mr-1 h-3 w-3" /> Magic Fill
-                                </Button>
-                            )}
-                        </CardTitle>
-                        <CardDescription className="text-xs text-wine/60">
-                            Press Tab to move between fields • Only name is required
-                        </CardDescription>
+            <CardHeader className="shrink-0 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-slate-50 px-4 py-4 sm:px-6 sm:py-4">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2.5 rounded-xl bg-emerald-100/80 text-emerald-700 ring-1 ring-emerald-200 shrink-0">
+                            <UsersIcon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                                <CardTitle className="text-lg font-bold text-gray-900 tracking-tight">
+                                    {initialData ? 'Edit Customer' : 'Add New Customer'}
+                                </CardTitle>
+                                {!initialData && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleFillDemo}
+                                        className="h-7 px-2.5 text-xs font-semibold bg-emerald-100/60 text-emerald-800 border-emerald-200 hover:bg-emerald-200/80 hover:text-emerald-900 transition-all shadow-sm"
+                                    >
+                                        <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-600" /> Magic Fill
+                                    </Button>
+                                )}
+                            </div>
+                            <CardDescription className="text-xs text-gray-600 font-medium">
+                                Press Tab to navigate fields · Only customer name is required
+                            </CardDescription>
+                        </div>
                     </div>
                     {onClose && (
                         <Button
@@ -329,7 +335,7 @@ export function CustomerForm({
                             variant="ghost"
                             size="icon"
                             onClick={onClose}
-                            className="h-8 w-8 shrink-0 rounded-lg hover:bg-red-50 hover:text-red-500"
+                            className="h-8 w-8 shrink-0 rounded-full text-gray-400 hover:bg-gray-200/60 hover:text-gray-700"
                             aria-label="Close"
                         >
                             <X className="h-4 w-4" />
@@ -338,7 +344,7 @@ export function CustomerForm({
                 </div>
             </CardHeader>
 
-            <CardContent className={MOBILE_FORM_BODY}>
+            <CardContent className={cn(MOBILE_FORM_BODY, 'overflow-x-hidden')}>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     {!isWaterRoute && (
                         <TabsList className={cn(
@@ -368,14 +374,14 @@ export function CustomerForm({
                     )}
 
                     <TabsContent value="basic" className="mt-0 space-y-5">
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
                             <div className="space-y-1.5 md:col-span-2">
                                 <Label className={cn(MOBILE_LABEL_CLASS, 'font-semibold text-gray-700')}>Customer Name *</Label>
                                 <Input 
                                     value={formData.name || ''} 
                                     onChange={(e) => handleInputChange('name', e.target.value)} 
                                     placeholder="Enter full name or company name" 
-                                    className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px]')}
+                                    className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500', errors?.name && 'border-red-500 focus:ring-red-500')}
                                     autoFocus
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
@@ -411,11 +417,11 @@ export function CustomerForm({
                                     />
                                 </div>
                             ) : null}
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 md:col-span-1">
                                 <Label className={cn(MOBILE_LABEL_CLASS, 'font-semibold text-gray-700')}>Phone</Label>
                                 <div className="flex gap-2">
                                     <Select value={countryCode} onValueChange={setCountryCode}>
-                                        <SelectTrigger className="h-10 w-[100px] rounded-lg text-sm">
+                                        <SelectTrigger className="h-10 w-[96px] shrink-0 rounded-lg text-sm border-gray-200 bg-white">
                                             <SelectValue placeholder="Code" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -424,14 +430,14 @@ export function CustomerForm({
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <div className="relative flex-1">
-                                        <Smartphone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                    <div className="relative flex-1 min-w-0">
+                                        <Smartphone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                         <Input 
                                             name="phone-local"
                                             value={localPhone} 
                                             onChange={(e) => setLocalPhone(e.target.value.replace(/[^\d\s-]/g, ''))} 
                                             placeholder="300 1234567" 
-                                            className={cn(MOBILE_INPUT_CLASS, 'pl-9 h-10 text-[15px]')}
+                                            className={cn(MOBILE_INPUT_CLASS, 'pl-9 h-10 text-[15px] w-full focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
                                                     e.preventDefault();
@@ -443,14 +449,14 @@ export function CustomerForm({
                                 </div>
                                 {errors?.phone && <FormError message={errors.phone} />}
                             </div>
-                            <div className="space-y-1.5 md:col-span-2">
+                            <div className="space-y-1.5 md:col-span-1">
                                 <Label className={cn(MOBILE_LABEL_CLASS, 'font-semibold text-gray-700')}>Email</Label>
                                 <Input 
                                     type="email"
                                     value={formData.email || ''} 
                                     onChange={(e) => handleInputChange('email', e.target.value)} 
                                     placeholder="customer@example.com" 
-                                    className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px]')}
+                                    className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             e.preventDefault();
@@ -461,7 +467,7 @@ export function CustomerForm({
                                 />
                                 {errors?.email && <FormError message={errors.email} />}
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 md:col-span-1">
                                 <CityAutocomplete 
                                     value={formData.city} 
                                     onChange={(val) => handleInputChange('city', val)} 
@@ -469,7 +475,7 @@ export function CustomerForm({
                                 />
                                 {errors?.city && <FormError message={errors.city} />}
                             </div>
-                            <div className="space-y-1.5 md:col-span-3">
+                            <div className="space-y-1.5 md:col-span-1">
                                 <MarketLocationSelector 
                                     value={formData.market_location} 
                                     onChange={(val) => handleInputChange('market_location', val)} 
@@ -478,13 +484,13 @@ export function CustomerForm({
                                     language="en" 
                                 />
                             </div>
-                            <div className="space-y-1.5 md:col-span-3">
+                            <div className="space-y-1.5 md:col-span-2">
                                 <Label className={cn(MOBILE_LABEL_CLASS, 'font-semibold text-gray-700')}>Billing Address</Label>
                                 <Input 
                                     value={formData.address || ''} 
                                     onChange={(e) => handleInputChange('address', e.target.value)} 
                                     placeholder="Shop #, Market, Area, Street" 
-                                    className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px]')}
+                                    className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && !isEasyMode && !isWaterRoute) {
                                             e.preventDefault();
@@ -573,7 +579,7 @@ export function CustomerForm({
 
                     {!isWaterRoute && (
                         <TabsContent value="tax" className="mt-0 space-y-5">
-                            <div className="grid grid-cols-1 gap-x-6 gap-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-5 md:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-x-5 gap-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-5 md:grid-cols-3">
                                 {isPakistanMarket ? (
                                     <>
                                         <div className="space-y-1.5">
@@ -582,7 +588,7 @@ export function CustomerForm({
                                                 value={formData.cnic || ''} 
                                                 onChange={handleCNICChange} 
                                                 placeholder="42201-1234567-1" 
-                                                className={cn(MOBILE_INPUT_CLASS, 'font-mono h-10 text-[15px]')} 
+                                                className={cn(MOBILE_INPUT_CLASS, 'font-mono h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')} 
                                                 maxLength={15}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
@@ -600,7 +606,7 @@ export function CustomerForm({
                                                 value={formData.ntn || ''} 
                                                 onChange={handleNTNChange} 
                                                 placeholder="1234567-8" 
-                                                className={cn(MOBILE_INPUT_CLASS, 'font-mono h-10 text-[15px]')} 
+                                                className={cn(MOBILE_INPUT_CLASS, 'font-mono h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')} 
                                                 maxLength={9}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
@@ -618,7 +624,7 @@ export function CustomerForm({
                                                 value={formData.srn || ''} 
                                                 onChange={(e) => handleInputChange('srn', e.target.value)} 
                                                 placeholder="12-34-5678-910-1" 
-                                                className={cn(MOBILE_INPUT_CLASS, 'font-mono h-10 text-[15px]')}
+                                                className={cn(MOBILE_INPUT_CLASS, 'font-mono h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
@@ -631,7 +637,7 @@ export function CustomerForm({
                                             <Label className={cn(MOBILE_LABEL_CLASS, 'font-semibold text-gray-700')}>FBR Filer Status</Label>
                                             <select 
                                                 name="filer-status"
-                                                className={cn(MOBILE_INPUT_CLASS, 'w-full border border-input bg-background px-3 h-10 text-[15px]')} 
+                                                className={cn(MOBILE_INPUT_CLASS, 'w-full border border-gray-200 rounded-lg bg-white px-3 h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')} 
                                                 value={formData.filer_status || 'none'} 
                                                 onChange={(e) => handleInputChange('filer_status', e.target.value)}
                                                 onKeyDown={(e) => {
@@ -654,7 +660,7 @@ export function CustomerForm({
                                             value={formData.ntn || ''} 
                                             onChange={(e) => handleInputChange('ntn', e.target.value)} 
                                             placeholder={`${taxIdLabel} / registration number`} 
-                                            className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px]')}
+                                            className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
                                                     e.preventDefault();
@@ -667,7 +673,7 @@ export function CustomerForm({
                                 )}
                                 <div className="space-y-1.5">
                                     <Label className={cn(MOBILE_LABEL_CLASS, 'font-semibold text-gray-700 flex items-center gap-1.5')}>
-                                        <Wallet className="h-3.5 w-3.5" />
+                                        <Wallet className="h-3.5 w-3.5 text-emerald-600" />
                                         Credit Limit ({currency})
                                     </Label>
                                     <Input 
@@ -676,7 +682,7 @@ export function CustomerForm({
                                         value={formData.credit_limit || ''} 
                                         onChange={(e) => handleInputChange('credit_limit', e.target.value)} 
                                         placeholder="0" 
-                                        className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] tabular-nums')}
+                                        className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] tabular-nums focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 e.preventDefault();
@@ -693,7 +699,7 @@ export function CustomerForm({
                                         value={formData.opening_balance || ''} 
                                         onChange={(e) => handleInputChange('opening_balance', e.target.value)} 
                                         placeholder="0" 
-                                        className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] tabular-nums')}
+                                        className={cn(MOBILE_INPUT_CLASS, 'h-10 text-[15px] tabular-nums focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500')}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 e.preventDefault();

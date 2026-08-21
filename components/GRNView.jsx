@@ -68,9 +68,35 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
     const canReceive = isReceivablePurchaseStatus(purchase.status);
     const vendorAddress = [purchase.vendor_address, purchase.vendor_city].filter(Boolean).join(', ');
 
+    // Normalize item array from purchase object
+    const rawItems = purchase.items || purchase.purchase_items || purchase.lines || purchase.po_items || [];
+    const items = Array.isArray(rawItems) ? rawItems : [];
+
+    // Calculate bulletproof financial totals
+    const calculatedSubtotal = items.reduce((sum, item) => {
+        const qty = Number(item.quantity ?? item.qty ?? 0);
+        const cost = Number(item.unit_cost ?? item.unitCost ?? item.cost ?? 0);
+        const itemTotal = Number(item.total_amount ?? item.total ?? (qty * cost));
+        return sum + (itemTotal > 0 ? itemTotal : qty * cost);
+    }, 0);
+
+    const taxTotal = Number(purchase.tax_total ?? purchase.total_tax ?? 0);
+    const grandTotal = Number(purchase.total_amount ?? purchase.total ?? 0) || (calculatedSubtotal + taxTotal);
+    const subtotal = Number(purchase.subtotal) > 0 
+        ? Number(purchase.subtotal) 
+        : (calculatedSubtotal > 0 ? calculatedSubtotal : (grandTotal > taxTotal ? grandTotal - taxTotal : grandTotal));
+
+    const normalizedPurchase = {
+        ...purchase,
+        items,
+        subtotal,
+        tax_total: taxTotal,
+        total_amount: grandTotal,
+    };
+
     const handleDownloadPdf = () => {
         try {
-            downloadPurchaseOrderPdf({ purchase, business, currency });
+            downloadPurchaseOrderPdf({ purchase: normalizedPurchase, business, currency });
             toast.success('Purchase Order PDF downloaded');
         } catch (err) {
             console.error('Failed to generate PO PDF:', err);
@@ -256,34 +282,31 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                     </div>
                 </div>
 
-                <div className="text-right space-y-6">
+                <div className="text-right space-y-4">
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-semibold uppercase text-gray-400">Date Issued</Label>
-                        <p className="font-bold text-gray-800">{purchase.date ? new Date(purchase.date).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '-'}</p>
+                        <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-wider">Date Issued</Label>
+                        <p className="font-bold text-gray-800 text-sm">{purchase.date ? new Date(purchase.date).toLocaleDateString('en-PK', { dateStyle: 'long' }) : '-'}</p>
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-semibold uppercase text-gray-500">Status</Label>
+                        <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-wider">Status</Label>
                         <div>
-                            <span className="inline-block px-3 py-1 border-2 border-gray-900 text-gray-900 font-bold uppercase text-[10px] rounded-md">
+                            <span className="inline-block px-3 py-1 border border-emerald-600 bg-emerald-50 text-emerald-800 font-bold uppercase text-[11px] rounded-md tracking-wider">
                                 {getPurchaseStatusLabel(purchase.status)}
                             </span>
+                            {isReceived && (
+                                <p className="text-[10px] font-medium text-gray-500 mt-1">
+                                    Received on {new Date(purchase.updated_at || purchase.date || Date.now()).toLocaleDateString('en-PK', { dateStyle: 'medium' })}
+                                </p>
+                            )}
                         </div>
                     </div>
-                    {isReceived && (
-                        <div className="pt-4 flex justify-end">
-                            <div className="p-2 border-2 border-gray-900 rounded-lg flex flex-col items-center justify-center w-32">
-                                <span className="text-xs font-semibold text-gray-900 uppercase">Received</span>
-                                <span className="text-[10px] font-bold text-gray-600">{new Date().toLocaleDateString()}</span>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
 
             {/* Item Table */}
             <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
-                    <thead className="bg-gray-100 border-b border-gray-200 font-semibold text-[10px] uppercase text-gray-600 tracking-widest">
+                    <thead className="bg-slate-100 border-b border-gray-200 font-semibold text-[10px] uppercase text-gray-600 tracking-widest">
                         <tr>
                             <th className="px-6 py-3 text-left">Item Description</th>
                             <th className="px-4 py-3 text-center">SKU</th>
@@ -294,27 +317,43 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 text-gray-900">
-                        {purchase.items?.map((item) => (
-                            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-3">
-                                    <p className="font-bold">{item.product_name || item.description}</p>
+                        {items.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-8 text-center text-gray-500 font-medium bg-gray-50/50">
+                                    No line items recorded for this purchase transaction.
                                 </td>
-                                <td className="px-4 py-3 text-center">
-                                    <span className="font-mono text-[10px]">{item.product_sku || 'N/A'}</span>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                    {item.batch_number ? (
-                                        <div className="flex flex-col text-[10px] font-bold">
-                                            <span>B# {item.batch_number}</span>
-                                            {item.expiry_date && <span>Exp: {new Date(item.expiry_date).toLocaleDateString()}</span>}
-                                        </div>
-                                    ) : '-'}
-                                </td>
-                                <td className="px-4 py-3 text-center font-bold">{item.quantity}</td>
-                                <td className="px-4 py-3 text-right font-mono">{formatCurrency(item.unit_cost, currency)}</td>
-                                <td className="px-6 py-3 text-right font-semibold">{formatCurrency(item.total_amount, currency)}</td>
                             </tr>
-                        ))}
+                        ) : (
+                            items.map((item, idx) => {
+                                const itemName = item.product_name || item.name || item.description || `Item #${idx + 1}`;
+                                const sku = item.product_sku || item.sku || 'N/A';
+                                const qty = Number(item.quantity ?? item.qty ?? 0);
+                                const cost = Number(item.unit_cost ?? item.unitCost ?? item.cost ?? 0);
+                                const itemTotal = Number(item.total_amount ?? item.total ?? (qty * cost));
+
+                                return (
+                                    <tr key={item.id || idx} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-3">
+                                            <p className="font-bold text-gray-900">{itemName}</p>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className="text-[11px] font-medium text-gray-600">{sku}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {item.batch_number ? (
+                                                <div className="flex flex-col text-[10px] font-bold">
+                                                    <span>B# {item.batch_number}</span>
+                                                    {item.expiry_date && <span>Exp: {new Date(item.expiry_date).toLocaleDateString()}</span>}
+                                                </div>
+                                            ) : '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-center font-bold">{qty}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-gray-800">{formatCurrency(cost, currency)}</td>
+                                        <td className="px-6 py-3 text-right tabular-nums font-bold text-gray-900">{formatCurrency(itemTotal, currency)}</td>
+                                    </tr>
+                                );
+                            })
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -328,18 +367,18 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                     </div>
                 </div>
                 <div className="w-80 space-y-3 pt-2">
-                    <div className="flex justify-between text-sm font-bold text-gray-500">
+                    <div className="flex justify-between text-sm font-medium text-gray-600">
                         <span>Subtotal</span>
-                        <span className="font-mono">{formatCurrency(purchase.subtotal, currency)}</span>
+                        <span className="tabular-nums font-semibold text-gray-800">{formatCurrency(subtotal, currency)}</span>
                     </div>
-                    <div className="flex justify-between text-sm font-bold text-gray-500">
+                    <div className="flex justify-between text-sm font-medium text-gray-600">
                         <span>GST / Tax Total</span>
-                        <span className="font-mono">{formatCurrency(purchase.tax_total, currency)}</span>
+                        <span className="tabular-nums font-semibold text-gray-800">{formatCurrency(taxTotal, currency)}</span>
                     </div>
                     <div className="border-t border-gray-200 pt-3">
                         <div className="flex justify-between text-xl font-bold text-gray-900">
                             <span>Net Payable</span>
-                            <span style={{ color: brandColorHex }}>{formatCurrency(purchase.total_amount, currency)}</span>
+                            <span className="tabular-nums font-bold" style={{ color: brandColorHex }}>{formatCurrency(grandTotal, currency)}</span>
                         </div>
                     </div>
                 </div>

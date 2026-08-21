@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/currency';
 export function PakistaniTaxCalculator({
   amount = 0,
   category = 'retail-standard',
-  province = 'punjab',
+  province = 'sindh',
   domain = 'retail-shop',
   onCalculate,
 }) {
@@ -25,8 +25,8 @@ export function PakistaniTaxCalculator({
   const [selectedProvince, setSelectedProvince] = useState(province);
 
   const provinces = [
-    { value: 'punjab', label: 'Punjab' },
     { value: 'sindh', label: 'Sindh' },
+    { value: 'punjab', label: 'Punjab' },
     { value: 'kp', label: 'Khyber Pakhtunkhwa' },
     { value: 'balochistan', label: 'Balochistan' },
     { value: 'islamabad', label: 'Islamabad (Federal)' },

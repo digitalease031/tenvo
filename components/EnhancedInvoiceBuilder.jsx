@@ -98,11 +98,11 @@ export function EnhancedInvoiceBuilder({
   const isTextileDomain = category === 'textile-wholesale' || category === 'textile';
   const defaultLineUnit = isTextileDomain ? 'thaan' : 'pcs';
 
-  const normalizeProvince = (value = 'punjab') => {
+  const normalizeProvince = (value = 'sindh') => {
     const raw = String(value || '').trim().toLowerCase();
     const map = {
-      punjab: 'punjab',
       sindh: 'sindh',
+      punjab: 'punjab',
       kp: 'kp',
       kpk: 'kp',
       'khyber pakhtunkhwa': 'kp',
@@ -110,7 +110,7 @@ export function EnhancedInvoiceBuilder({
       'islamabad (federal)': 'islamabad',
       islamabad: 'islamabad',
     };
-    return map[raw] || 'punjab';
+    return map[raw] || 'sindh';
   };
 
   const mapPreferredPaymentMethod = (value) => {

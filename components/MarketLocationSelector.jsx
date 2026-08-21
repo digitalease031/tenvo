@@ -25,13 +25,9 @@ export function MarketLocationSelector({
 }) {
     // Get city-specific markets or all markets if no city selected
     const suggestions = useMemo(() => {
-        if (city) {
-            const markets = getMarketsForCity(city);
-            // Extract market names based on language
-            return markets.map(m => language === 'ur' ? m.ur : m.en);
-        }
-        const allMarkets = getAllMarkets();
-        return allMarkets.map(m => language === 'ur' ? m.ur : m.en);
+        const targetCity = city || 'Karachi';
+        const markets = getMarketsForCity(targetCity);
+        return markets.map(m => language === 'ur' ? m.ur : m.en);
     }, [city, language]);
 
     const handleChange = (e) => {
@@ -55,7 +51,7 @@ export function MarketLocationSelector({
                 value={value || ''}
                 onChange={handleChange}
                 placeholder={displayPlaceholder}
-                className="h-9 rounded-lg border-gray-200 text-sm"
+                className="h-10 rounded-lg border-gray-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                 required={required}
                 dir={language === 'ur' ? 'rtl' : 'ltr'}
             />
@@ -67,14 +63,15 @@ export function MarketLocationSelector({
             </datalist>
 
             {value && !suggestions.includes(value) && (
-                <p className="text-xs text-gray-500 font-medium">
-                    {language === 'ur' ? 'حسب ضرورت مقام' : 'Custom location'}: "{value}"
+                <p className="text-[11px] text-emerald-700 font-medium flex items-center gap-1 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    {language === 'ur' ? 'حسب ضرورت مقام:' : 'Custom market location:'} <strong className="text-gray-800 font-semibold">"{value}"</strong>
                 </p>
             )}
 
-            {city && (
-                <p className="text-xs text-gray-400 font-medium">
-                    {language === 'ur' ? `${city} میں ${suggestions.length} مارکیٹیں` : `${suggestions.length} markets in ${city}`}
+            {city && suggestions.length > 0 && (
+                <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                    {language === 'ur' ? `${city} میں ${suggestions.length} مارکیٹیں` : `${suggestions.length} markets in ${city} (type any custom location)`}
                 </p>
             )}
         </div>

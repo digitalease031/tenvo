@@ -296,11 +296,24 @@ export default function PaymentManager({
                                 ...filteredReferences.map(doc => ({
                                     value: String(doc.id),
                                     label: doc.invoice_number || doc.purchase_number || String(doc.id),
-                                    description: formatCurrency(doc.grand_total || doc.total_amount, currency)
+                                    description: formatCurrency(doc.grand_total || doc.total_amount || doc.total, currency)
                                 }))
                             ]}
                             value={String(formData.referenceId || 'none')}
-                            onChange={(val) => setFormData({ ...formData, referenceId: val === 'none' ? '' : val })}
+                            onChange={(val) => {
+                                const selectedId = val === 'none' ? '' : val;
+                                let autoAmount = formData.amount;
+                                if (selectedId) {
+                                    const doc = filteredReferences.find(d => String(d.id) === selectedId);
+                                    if (doc) {
+                                        const docAmt = doc.grand_total || doc.total_amount || doc.total;
+                                        if (docAmt && (!formData.amount || Number(formData.amount) === 0)) {
+                                            autoAmount = String(docAmt);
+                                        }
+                                    }
+                                }
+                                setFormData(prev => ({ ...prev, referenceId: selectedId, amount: autoAmount }));
+                            }}
                             placeholder={`Link to ${paymentType === 'receipt' ? 'Invoice' : 'Purchase Order'}`}
                             emptyText="No outstanding documents found"
                         />
@@ -448,22 +461,44 @@ export default function PaymentManager({
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-brand-50 to-brand-100/50 border-brand-100 shadow-sm hover:shadow-md transition-all">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-xs font-semibold text-brand-primary uppercase tracking-widest">Net Cash Flow</CardTitle>
-                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-primary shadow-inner">
-                            <RefreshCcw className="w-4 h-4" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-semibold text-brand-primary tracking-tight">
-                            {formatCurrency(
-                                payments.reduce((sum, p) => sum + (isReceiptType(p.payment_type) ? Number(p.amount) : -Number(p.amount)), 0),
-                                currency
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                {(() => {
+                    const totalReceipts = payments.filter(p => isReceiptType(p.payment_type)).reduce((sum, p) => sum + Number(p.amount), 0);
+                    const totalPayments = payments.filter(p => !isReceiptType(p.payment_type)).reduce((sum, p) => sum + Number(p.amount), 0);
+                    const netCashFlow = totalReceipts - totalPayments;
+                    const isPositive = netCashFlow >= 0;
+
+                    return (
+                        <Card className={cn(
+                            "border shadow-sm hover:shadow-md transition-all",
+                            isPositive
+                                ? "bg-gradient-to-br from-slate-50 via-blue-50/40 to-emerald-50/40 border-blue-100"
+                                : "bg-gradient-to-br from-amber-50 to-red-100/50 border-red-100"
+                        )}>
+                            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                                <CardTitle className={cn(
+                                    "text-xs font-semibold uppercase tracking-widest",
+                                    isPositive ? "text-blue-900" : "text-red-700"
+                                )}>
+                                    Net Cash Flow
+                                </CardTitle>
+                                <div className={cn(
+                                    "w-8 h-8 rounded-full flex items-center justify-center shadow-inner",
+                                    isPositive ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-600"
+                                )}>
+                                    {isPositive ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className={cn(
+                                    "text-3xl font-semibold tracking-tight",
+                                    isPositive ? "text-blue-900" : "text-red-700"
+                                )}>
+                                    {formatCurrency(netCashFlow, currency)}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })()}
             </div>
 
             <Card className="hidden lg:block">
@@ -482,7 +517,7 @@ export default function PaymentManager({
                             </div>
                             <h3 className="text-base font-semibold text-gray-900 mb-1 tracking-tight">No Transactions Yet</h3>
                             <p className="text-sm text-gray-500 max-w-sm mx-auto mb-6">Record your first customer receipt or vendor payment to start tracking your cash flow.</p>
-                            <Button onClick={() => setShowPaymentDialog(true)} className="bg-wine hover:bg-wine/90 text-white rounded-xl shadow-lg shadow-wine/20 font-bold px-6">
+                            <Button onClick={() => setShowPaymentDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 font-bold px-6">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Record First Transaction
                             </Button>
@@ -549,16 +584,19 @@ export default function PaymentManager({
                                     header: 'Actions',
                                     cell: ({ row }) => (
                                         row.original.source === 'invoice_payment' ? (
-                                            <span className="text-[10px] text-gray-400 font-medium">Invoice pay</span>
+                                            <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-600 border-slate-200 font-medium py-1 px-2">
+                                                Invoice Payment
+                                            </Badge>
                                         ) : (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl"
-                                            onClick={() => handleDeletePayment(row.original.id)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                                                onClick={() => handleDeletePayment(row.original.id)}
+                                                title="Delete transaction record"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
                                         )
                                     )
                                 }

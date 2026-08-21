@@ -28,7 +28,7 @@ import {
   isExpiryTrackingEnabled,
   isSerialTrackingEnabled,
 } from '@/lib/utils/domainHelpers';
-import { resolveTextileLineQty, autoFillTextileLineOnUnitChange } from '@/lib/utils/invoiceHelpers';
+import { resolveTextileLineQty, autoFillTextileLineOnUnitChange, resolveProductPrice } from '@/lib/utils/invoiceHelpers';
 import { ExpertActionPanel } from '@/components/domain/ExpertActionPanel';
 import { BarcodeScanTrigger } from '@/components/inventory/BarcodeScanTrigger';
 import { QuickCalculatorModal } from './QuickCalculatorModal';
@@ -268,6 +268,16 @@ export function DomainMultiRowLineItems({
           const stock = matchedProduct?.stock;
           const conversionHint = resolveDomainConversionHint(item, category, currency);
 
+          // Auto-sync rate if item rate is 0 but product has resolved price
+          if (matchedProduct && rate === 0) {
+            const resolvedPrice = resolveProductPrice(matchedProduct);
+            if (resolvedPrice > 0) {
+              setTimeout(() => {
+                updateItem(item.id, 'rate', resolvedPrice);
+              }, 0);
+            }
+          }
+
           const isLastRow = index === items.length - 1;
 
           return (
@@ -292,9 +302,9 @@ export function DomainMultiRowLineItems({
                         value: String(p.id),
                         label: p.name,
                         description: p.sku
-                          ? `SKU: ${p.sku} | ${p.price ? formatCurrency(p.price, currency) : ''}`
-                          : p.price
-                            ? formatCurrency(p.price, currency)
+                          ? `SKU: ${p.sku}${resolveProductPrice(p) > 0 ? ` | ${formatCurrency(resolveProductPrice(p), currency)}` : ''}`
+                          : resolveProductPrice(p) > 0
+                            ? formatCurrency(resolveProductPrice(p), currency)
                             : '',
                       }))}
                       value={String(item.productId || '')}

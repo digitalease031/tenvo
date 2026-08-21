@@ -100,11 +100,14 @@ export function VendorManager({ vendors = [], onAdd, onUpdate, onDelete, categor
     {
       accessorKey: 'outstanding_balance',
       header: 'Payables',
-      cell: ({ row }) => (
-        <span className={`font-semibold ${Number(row.original.outstanding_balance) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-          {formatCurrency(row.original.outstanding_balance || 0, currency)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const bal = Number(row.original.outstanding_balance) || 0;
+        return (
+          <span className={cn('font-bold', bal > 0 ? 'text-red-600' : 'text-emerald-600')}>
+            {formatCurrency(bal, currency)}
+          </span>
+        );
+      },
     },
     {
       accessorKey: 'city',
@@ -406,6 +409,7 @@ export function VendorManager({ vendors = [], onAdd, onUpdate, onDelete, categor
                 <StakeholderLedger
                   entityId={vendorToView?.id}
                   entityType="vendor"
+                  entityName={vendorToView?.name}
                   businessId={businessId}
                   currency={currency}
                   colors={colors}

@@ -12,7 +12,11 @@ import { paymentAPI } from '@/lib/api/payments';
 import { useBusiness } from '@/lib/context/BusinessContext';
 import { Loader2 } from 'lucide-react';
 
-export default function StakeholderLedger({ entityId, entityType, businessId, currency = 'PKR', colors }) {
+import { toast } from 'react-hot-toast';
+import { generateFinanceStatementPDF, buildFinancePdfMeta } from '@/lib/pdf/financeStatementPdf';
+
+export default function StakeholderLedger({ entityId, entityType, entityName, businessId, currency = 'PKR', colors }) {
+    const { business } = useBusiness();
     const [ledger, setLedger] = useState([]);
     const [loading, setLoading] = useState(true);
     const [summary, setSummary] = useState({ totalDebit: 0, totalCredit: 0, balance: 0 });
@@ -20,21 +24,28 @@ export default function StakeholderLedger({ entityId, entityType, businessId, cu
     const fetchLedger = async () => {
         setLoading(true);
         try {
+            const effectiveBusinessId = businessId || business?.id;
             const result = entityType === 'customer'
-                ? await paymentAPI.getCustomerLedger(entityId, businessId)
-                : await paymentAPI.getVendorLedger(entityId, businessId);
+                ? await paymentAPI.getCustomerLedger(entityId, effectiveBusinessId)
+                : await paymentAPI.getVendorLedger(entityId, effectiveBusinessId);
 
             if (result.success) {
-                setLedger(result.ledger || []);
+                const fetchedLedger = result.ledger || [];
+                setLedger(fetchedLedger);
 
-                const totals = (result.ledger || []).reduce((acc, curr) => ({
+                const totals = fetchedLedger.reduce((acc, curr) => ({
                     totalDebit: acc.totalDebit + (Number(curr.debit) || 0),
                     totalCredit: acc.totalCredit + (Number(curr.credit) || 0)
                 }), { totalDebit: 0, totalCredit: 0 });
 
+                const rawCurrentBalance = Number(result.currentBalance);
+                const computedBalance = Number.isFinite(rawCurrentBalance) && rawCurrentBalance !== 0
+                    ? rawCurrentBalance
+                    : (fetchedLedger.length > 0 ? Number(fetchedLedger[0]?.balance ?? (totals.totalDebit - totals.totalCredit)) : (totals.totalDebit - totals.totalCredit));
+
                 setSummary({
                     ...totals,
-                    balance: result.currentBalance || 0
+                    balance: computedBalance
                 });
             }
         } catch (error) {
@@ -44,11 +55,56 @@ export default function StakeholderLedger({ entityId, entityType, businessId, cu
         }
     };
 
+    const handleDownloadPDF = () => {
+        if (!ledger || ledger.length === 0) {
+            toast.error('No transactions available to generate PDF statement');
+            return;
+        }
+
+        const title = entityType === 'customer' ? 'Customer Account Statement' : 'Supplier Account Statement';
+        const meta = buildFinancePdfMeta(business, {
+            title,
+            subtitle: `Account Statement for ${entityName || (entityType === 'customer' ? 'Customer' : 'Supplier')}`,
+            currency,
+            periodLabel: `Generated on ${format(new Date(), 'dd MMM yyyy')}`,
+        });
+
+        const columns = [
+            { key: 'formattedDate', label: 'Date' },
+            { key: 'txnType', label: 'Transaction' },
+            { key: 'refNo', label: 'Ref #' },
+            { key: 'debitFormatted', label: 'Debit (+)' },
+            { key: 'creditFormatted', label: 'Credit (-)' },
+            { key: 'balanceFormatted', label: 'Balance' },
+        ];
+
+        const rows = ledger.map((txn) => {
+            const typeLabel = txn.transaction_type === 'invoice' ? 'Sales Invoice' :
+                txn.transaction_type === 'purchase' ? 'Purchase Bill' :
+                    txn.transaction_type === 'payment' ? (entityType === 'customer' ? 'Receipt' : 'Payment') :
+                        txn.transaction_type;
+            const refNo = txn.invoice_number || txn.purchase_number || txn.reference_id?.slice(0, 8) || 'N/A';
+            return {
+                formattedDate: format(new Date(txn.date), 'dd-MM-yyyy'),
+                txnType: typeLabel + (txn.payment_mode ? ` (${txn.payment_mode})` : ''),
+                refNo,
+                debitFormatted: txn.debit > 0 ? formatCurrency(txn.debit, currency) : '-',
+                creditFormatted: txn.credit > 0 ? formatCurrency(txn.credit, currency) : '-',
+                balanceFormatted: formatCurrency(txn.balance, currency),
+            };
+        });
+
+        generateFinanceStatementPDF(meta, columns, rows, {
+            filename: `${(entityName || 'Statement').replace(/[^a-zA-Z0-9]/g, '_')}_Account_Statement.pdf`,
+        });
+        toast.success('Account statement PDF downloaded');
+    };
+
     useEffect(() => {
-        if (entityId && businessId) {
+        if (entityId) {
             fetchLedger();
         }
-    }, [entityId, businessId]);
+    }, [entityId, businessId, business?.id]);
 
     return (
         <div className="min-w-0 space-y-4 overflow-x-hidden touch-manipulation sm:space-y-6">
@@ -62,7 +118,7 @@ export default function StakeholderLedger({ entityId, entityType, businessId, cu
                         <RefreshCcw className="w-3.5 h-3.5 mr-2" />
                         Sync
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
                         <Download className="w-3.5 h-3.5 mr-2" />
                         PDF
                     </Button>

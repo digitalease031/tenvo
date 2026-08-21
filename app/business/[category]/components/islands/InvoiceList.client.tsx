@@ -65,7 +65,7 @@ export function InvoiceList({
             const paid = Math.max(0, total - balance);
             const paymentStatus = String((inv as any).payment_status || '').toLowerCase();
             const status = String(inv.status || '').toLowerCase();
-            const isPaid = paymentStatus === 'paid' || status === 'paid' || (total > 0 && balance <= 0.009);
+            const isPaid = paymentStatus === 'paid' || status === 'paid' || (total > 0 && balance <= 0.009) || total === 0;
 
             acc.total += 1;
             acc.totalAmount += total;
@@ -81,18 +81,20 @@ export function InvoiceList({
                 acc.unpaid += 1;
             }
 
-            // Overdue calculation
-            if (inv.due_date && !isPaid && status !== 'voided' && status !== 'cancelled') {
-                const dueDate = new Date(inv.due_date);
-                const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-                
-                if (daysOverdue > 0) {
+            // Overdue calculation & Aging Buckets for Outstanding Balances
+            if (!isPaid && status !== 'voided' && status !== 'cancelled' && balance > 0) {
+                if (inv.due_date && new Date(inv.due_date) < now) {
                     acc.overdue += 1;
-                    if (daysOverdue <= 30) acc.aging1_30 += balance;
-                    else if (daysOverdue <= 60) acc.aging31_60 += balance;
-                    else if (daysOverdue <= 90) acc.aging61_90 += balance;
-                    else acc.agingOver90 += balance;
                 }
+
+                // Age of outstanding invoice
+                const refDate = inv.date ? new Date(inv.date) : (inv.due_date ? new Date(inv.due_date) : now);
+                const ageDays = Math.max(0, Math.floor((now.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+                if (ageDays <= 30) acc.aging1_30 += balance;
+                else if (ageDays <= 60) acc.aging31_60 += balance;
+                else if (ageDays <= 90) acc.aging61_90 += balance;
+                else acc.agingOver90 += balance;
             }
 
             // Status counts
@@ -221,9 +223,10 @@ export function InvoiceList({
 
         const isFullyPaid =
             invoice.payment_status === 'paid' ||
+            invoice.status === 'paid' ||
             (balance <= 0.01 && total > 0) ||
-            percentage >= 100 ||
-            (invoice.status === 'paid' && balance <= 0.01);
+            total === 0 ||
+            percentage >= 100;
 
         const isPartial =
             !isFullyPaid &&
@@ -248,7 +251,7 @@ export function InvoiceList({
             );
         }
 
-        if (invoice.due_date && new Date(invoice.due_date) < new Date()) {
+        if (invoice.due_date && new Date(invoice.due_date) < new Date() && balance > 0.01) {
             return (
                 <Badge className={cn('bg-red-100 text-red-800 hover:bg-red-200', badgeClass)}>
                     {!compact && <AlertCircle className="w-3 h-3 mr-1" />}
@@ -289,7 +292,11 @@ export function InvoiceList({
     };
 
     const calculateAging = (invoice: Invoice) => {
-        if (!invoice.due_date || invoice.status === 'paid' || invoice.status === 'voided') {
+        const total = Number(invoice.grand_total) || 0;
+        const rawBalance = (invoice as any).balance;
+        const balance = rawBalance !== undefined && rawBalance !== null ? Number(rawBalance) : total;
+
+        if (!invoice.due_date || invoice.status === 'paid' || invoice.status === 'voided' || balance <= 0.01) {
             return null;
         }
 
@@ -475,12 +482,12 @@ export function InvoiceList({
             </div>
 
             {/* Aging Summary (desktop; mobile uses stat strip) */}
-            {stats.overdue > 0 && (
+            {stats.totalBalance > 0 && (
                 <Card className="hidden border-red-200 bg-red-50/50 lg:block">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-bold text-red-700 flex items-center gap-2">
                             <AlertCircle className="w-4 h-4" />
-                            Aging Summary - Outstanding Balance
+                            Aging Summary - Outstanding Balance ({formatCurrency(stats.totalBalance, currency as any)})
                         </CardTitle>
                     </CardHeader>
                     <CardContent>

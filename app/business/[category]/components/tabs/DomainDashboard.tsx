@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -27,6 +27,8 @@ import { QuickActionTiles } from '../islands/portlets/QuickActionTiles.client';
 import { RemindersPortlet } from '../islands/portlets/RemindersPortlet.client';
 import { RecentActivityFeed } from '../islands/portlets/RecentActivityFeed.client';
 import { AnalyticsDashboard } from '../islands/AnalyticsDashboard.client';
+import { resolveDomainKey } from '@/lib/config/domainKeyAliases';
+import { LubricantDistributionDashboard } from '@/components/dashboard/templates/LubricantDistributionDashboard';
 import { MergedActionInsights } from '../islands/MergedActionInsights.client';
 import NetsuiteDashboard from '../islands/NetsuiteDashboard.client';
 import { DashboardMobileHub } from '@/components/dashboard/mobile/DashboardMobileHub';
@@ -1473,6 +1475,23 @@ export function DomainDashboard({
                     <div className="h-4 w-48 bg-slate-200/60 rounded mx-auto animate-pulse" />
                 </div>
             </div>
+        );
+    }
+
+    const canonicalCategory = resolveDomainKey(category);
+    if (canonicalCategory === 'lubricant-distribution') {
+        const receivablesValue = advancedDashboardSnapshot?.finance?.receivables ?? null;
+        return (
+            <LubricantDistributionDashboard
+                businessId={businessId}
+                category={category}
+                onQuickAction={onQuickAction}
+                invoices={invoices}
+                products={products}
+                customers={customers}
+                currency={resolvedCurrency}
+                receivablesValue={receivablesValue}
+            />
         );
     }
 

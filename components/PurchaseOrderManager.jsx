@@ -334,7 +334,14 @@ export function PurchaseOrderManager({ purchaseOrders = [], onCreate, onUpdateSt
                 variant="outline"
                 size="sm"
                 className="h-8"
-                onClick={() => window.print()}
+                onClick={() => {
+                  const printBtn = document.querySelector('#printable-grn button[onClick]');
+                  if (printBtn) {
+                    printBtn.click();
+                  } else {
+                    window.print();
+                  }
+                }}
               >
                 <Printer className="w-4 h-4 mr-1" />
                 Print

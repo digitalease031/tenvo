@@ -78,6 +78,134 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
         }
     };
 
+    const handlePrintDocument = () => {
+        try {
+            const elem = document.getElementById('printable-grn');
+            if (!elem) {
+                window.print();
+                return;
+            }
+
+            const clone = elem.cloneNode(true);
+            const noPrints = clone.querySelectorAll('.no-print');
+            noPrints.forEach((el) => el.remove());
+
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            iframe.style.opacity = '0';
+            iframe.style.pointerEvents = 'none';
+            document.body.appendChild(iframe);
+
+            const doc = iframe.contentWindow.document;
+            const docTitle = isReceived ? `GRN_${purchase.purchase_number}` : `PO_${purchase.purchase_number}`;
+
+            doc.open();
+            doc.write(`
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <title>${docTitle}</title>
+                        <style>
+                            @page {
+                                size: A4 portrait;
+                                margin: 10mm 12mm;
+                            }
+                            * {
+                                box-sizing: border-box;
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
+                            html, body {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                background: #ffffff !important;
+                                color: #111827 !important;
+                                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                                font-size: 12px;
+                                line-height: 1.5;
+                            }
+                            .no-print {
+                                display: none !important;
+                            }
+                            table {
+                                border-collapse: collapse !important;
+                                width: 100% !important;
+                            }
+                            th, td {
+                                border: 1px solid #e5e7eb !important;
+                                padding: 6px 10px !important;
+                            }
+                            thead th {
+                                background-color: #f3f4f6 !important;
+                                color: #374151 !important;
+                                text-transform: uppercase !important;
+                                font-size: 10px !important;
+                                letter-spacing: 0.05em !important;
+                            }
+                        </style>
+                        ${Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+                            .map((el) => el.outerHTML)
+                            .join('\n')}
+                        <style>
+                            @media print {
+                                @page {
+                                    size: A4 portrait;
+                                    margin: 10mm 12mm;
+                                }
+                                html, body {
+                                    visibility: visible !important;
+                                    opacity: 1 !important;
+                                    background: #ffffff !important;
+                                    margin: 0 !important;
+                                    padding: 0 !important;
+                                }
+                                body * {
+                                    visibility: visible !important;
+                                    opacity: 1 !important;
+                                }
+                                .no-print, .no-print * {
+                                    display: none !important;
+                                    visibility: hidden !important;
+                                }
+                            }
+                            body * {
+                                visibility: visible !important;
+                                opacity: 1 !important;
+                            }
+                            .no-print {
+                                display: none !important;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div id="printable-grn" style="padding: 12px; background: white;">
+                            ${clone.innerHTML}
+                        </div>
+                    </body>
+                </html>
+            `);
+            doc.close();
+
+            setTimeout(() => {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(() => {
+                    if (document.body.contains(iframe)) {
+                        document.body.removeChild(iframe);
+                    }
+                }, 1000);
+            }, 300);
+        } catch (err) {
+            console.error('Print iframe error:', err);
+            window.print();
+        }
+    };
+
     return (
         <div id="printable-grn" className="space-y-8 animate-in fade-in duration-500 bg-white p-2 text-gray-900">
             {/* Top Brand Strip */}
@@ -235,7 +363,7 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
                 <Button variant="outline" className="rounded-xl h-11 px-5 font-bold" onClick={handleDownloadPdf}>
                     <Download className="w-4 h-4 mr-2" /> Download PDF
                 </Button>
-                <Button variant="outline" className="rounded-xl h-11 px-6 font-bold" onClick={() => window.print()}>
+                <Button variant="outline" className="rounded-xl h-11 px-6 font-bold" onClick={handlePrintDocument}>
                     <Printer className="w-4 h-4 mr-2" /> Print Document
                 </Button>
                 {canReceive && (
@@ -252,22 +380,21 @@ export default function GRNView({ poId, businessId, business, onUpdateStatus, co
             <style jsx global>{`
                 @media print {
                     @page {
-                        size: A4;
-                        margin: 12mm;
-                    }
-                    body * {
-                        visibility: hidden !important;
+                        size: A4 portrait;
+                        margin: 10mm 12mm;
                     }
                     #printable-grn, #printable-grn * {
                         visibility: visible !important;
                     }
                     #printable-grn {
-                        position: absolute !important;
-                        left: 0 !important;
+                        position: relative !important;
                         top: 0 !important;
+                        left: 0 !important;
                         width: 100% !important;
-                        padding: 0 !important;
                         margin: 0 !important;
+                        padding: 0 !important;
+                        box-shadow: none !important;
+                        border: none !important;
                         background: white !important;
                     }
                     .no-print {

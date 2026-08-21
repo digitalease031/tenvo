@@ -1,7 +1,7 @@
 // This file usually uses formatCurrency, but checking for hardcoded symbols
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Download, Printer, Save, Calculator, FileText, Loader2, Scan, Keyboard, AlertCircle, ShoppingCart, WandSparkles, Send, Clock3, CheckCircle2, XCircle, ShieldCheck, MoreHorizontal } from 'lucide-react';
+import { X, Plus, Trash2, Download, Printer, Save, Calculator, FileText, Loader2, Scan, Keyboard, AlertCircle, ShoppingCart, WandSparkles, Send, Clock3, CheckCircle2, XCircle, ShieldCheck, MoreHorizontal, User, Edit2, ChevronDown, ChevronUp, Building2, Calendar, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { PakistaniTaxCalculator } from '@/components/tax/PakistaniTaxCalculator'
 import { calculatePakistaniTax, generateFBRInvoice, formatNTN, getTaxCategoryForDomain } from '@/lib/tax/pakistaniTax';
 import { getDomainKnowledge } from '@/lib/domainKnowledge';
 import { getDomainDefaults, getDomainUnits, getDomainUnits as getUnits, getDomainProductFields, getDomainInvoiceColumns } from '@/lib/utils/domainHelpers';
-import { resolveTextileLineQty, autoFillTextileLineOnUnitChange } from '@/lib/utils/invoiceHelpers';
+import { resolveTextileLineQty, autoFillTextileLineOnUnitChange, resolveProductPrice } from '@/lib/utils/invoiceHelpers';
 import { getDomainConfig } from '@/lib/config/domains';
 import { getDomainColors } from '@/lib/domainColors';
 import { formatCurrency } from '@/lib/utils/formatting';
@@ -313,6 +313,7 @@ export function EnhancedInvoiceBuilder({
   const [barcodeInput, setBarcodeInput] = useState('');
   const [showKeyboardHints, setShowKeyboardHints] = useState(false);
   const [approvalHistory, setApprovalHistory] = useState([]);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(() => !initialData?.customer?.name && !initialData?.customer_name);
 
   const approvalStatus = String(invoice.approval_status || 'none').toLowerCase();
   const canSubmitForApproval = Boolean(
@@ -386,7 +387,7 @@ export function EnhancedInvoiceBuilder({
             if (product) {
               updated.name = product.name;
               updated.hsn = product.hsn || product.hsnCode || '';
-              updated.rate = Number(product.price) || 0;
+              updated.rate = resolveProductPrice(product);
               updated.taxPercent = showTaxUi
                 ? (Number(product.taxPercent) || (isPakistaniDomain ? lineDefaultTaxRate : 0))
                 : 0;
@@ -580,12 +581,12 @@ export function EnhancedInvoiceBuilder({
         hsn: product.hsn || product.hsnCode || product.hsn_code || '',
         quantity: 1,
         unit: product.unit || 'pcs',
-        rate: product.price,
+        rate: resolveProductPrice(product),
         discount: 0,
         taxPercent: showTaxUi
           ? (product.taxPercent || product.tax_percent || (isPakistaniDomain ? lineDefaultTaxRate : 0))
           : 0,
-        amount: product.price,
+        amount: resolveProductPrice(product),
         taxCategory: isPakistaniDomain ? getTaxCategoryForDomain(category) : 'retail-standard',
       };
       setInvoice((prev) => ({ ...prev, items: [...prev.items, newItem] }));
@@ -1193,210 +1194,303 @@ export function EnhancedInvoiceBuilder({
 
   return (
     <div className={cn(MOBILE_OVERLAY, 'animate-in fade-in duration-300')}>
-      <Card className={cn(MOBILE_OVERLAY_CARD, 'max-w-6xl shadow-2xl')}>
-        <CardHeader className="relative shrink-0 flex flex-col gap-2 border-b bg-slate-50/50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8 sm:py-5">
+      <Card className={cn(MOBILE_OVERLAY_CARD, 'max-w-6xl shadow-2xl border-0 overflow-hidden flex flex-col')}>
+        {/* Header Bar - Light & Theme-Aware */}
+        <CardHeader className="relative shrink-0 flex flex-col gap-2 border-b border-slate-200/80 bg-slate-50/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
           <div className="min-w-0 space-y-1 pr-10 sm:pr-0">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-base font-semibold tracking-tight text-slate-800 sm:text-2xl">
+              <CardTitle className="text-lg font-extrabold tracking-tight text-slate-900 sm:text-2xl flex items-center gap-2">
+                <FileText className="w-5.5 h-5.5" style={{ color: brandAccent }} />
                 {initialData ? 'Edit Invoice' : 'New Invoice'}
               </CardTitle>
-              <Badge variant="outline" className="text-[11px] font-medium bg-white text-slate-600 border-slate-200 shadow-sm">
+              <Badge variant="outline" className="text-[11px] font-semibold bg-white text-slate-700 border-slate-200 shadow-2xs">
                 {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </Badge>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className={cn('text-[10px] font-semibold uppercase tracking-wider shadow-sm border', activeApprovalStatus.className)}>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Badge className={cn('text-[10px] font-bold uppercase tracking-wider border shadow-2xs', activeApprovalStatus.className)}>
                 <activeApprovalStatus.icon className="w-3.5 h-3.5 mr-1" />
                 {activeApprovalStatus.label}
               </Badge>
               {currentSeason && (
-                <Badge variant="outline" className="text-[10px] font-semibold text-orange-600 border-orange-200 bg-orange-50 shadow-sm uppercase tracking-wider">
+                <Badge variant="outline" className="text-[10px] font-bold text-orange-700 border-orange-200 bg-orange-50 uppercase tracking-wider">
                   {currentSeason.name.en} ({currentSeason.discountPercent}% OFF)
                 </Badge>
               )}
             </div>
           </div>
+
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-            <div className="hidden items-center gap-2 rounded-md border border-slate-200 bg-slate-100/80 px-2.5 py-1.5 text-slate-500 transition-colors hover:bg-slate-200 sm:flex cursor-help" onClick={() => setShowKeyboardHints(!showKeyboardHints)}>
-              <Keyboard className="w-3.5 h-3.5" />
+            <div
+              className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-2xs"
+              onClick={() => setShowKeyboardHints(!showKeyboardHints)}
+              title="Toggle Hotkeys"
+            >
+              <Keyboard className="w-3.5 h-3.5 text-slate-500" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Hotkeys</span>
             </div>
-            <div className="text-right hidden md:block border-l pl-4 border-slate-200">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Invoice Number</p>
-              <p className="font-mono text-sm font-semibold text-slate-700 bg-white border border-slate-200 px-2.5 py-0.5 rounded shadow-sm">{invoice.invoiceNumber}</p>
+            <div className="text-right hidden md:block border-l border-slate-200 pl-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Invoice Number</p>
+              <p className="font-mono text-xs font-bold text-slate-800 bg-white border border-slate-200 px-2.5 py-0.5 rounded shadow-2xs">
+                {invoice.invoiceNumber || 'AUTO-GEN'}
+              </p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="absolute right-2 top-2 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors sm:static sm:ml-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="absolute right-2 top-2.5 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors sm:static sm:ml-2"
+            >
               <X className="w-5 h-5" />
             </Button>
           </div>
         </CardHeader>
+
         {showKeyboardHints && (
-          <div className="border-b border-slate-700 bg-slate-800 px-3 py-2 text-[10px] font-medium text-slate-200 shadow-inner sm:px-8 sm:text-[11px]">
-            <div className="flex flex-wrap gap-3 sm:gap-6">
-            <span className="flex items-center gap-1.5"><kbd className="bg-slate-700 border border-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px] shadow-sm">CTRL+S</kbd> Save</span>
-            <span className="flex items-center gap-1.5"><kbd className="bg-slate-700 border border-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px] shadow-sm">CTRL+B</kbd> Barcode Focus</span>
-            <span className="flex items-center gap-1.5"><kbd className="bg-slate-700 border border-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px] shadow-sm">ENTER</kbd> New Row</span>
-            <span className="flex items-center gap-1.5"><kbd className="rounded border border-slate-600 bg-slate-700 px-1.5 py-0.5 font-mono text-[10px] shadow-sm">ESC</kbd> Close</span>
+          <div className="border-b border-slate-200 bg-slate-800 px-4 py-2 text-[10px] font-medium text-slate-200 shadow-inner sm:px-6 sm:text-[11px]">
+            <div className="flex flex-wrap gap-4 sm:gap-6">
+              <span className="flex items-center gap-1.5"><kbd className="bg-slate-700 border border-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px] text-indigo-300 shadow-2xs">CTRL+S</kbd> Save Invoice</span>
+              <span className="flex items-center gap-1.5"><kbd className="bg-slate-700 border border-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px] text-indigo-300 shadow-2xs">CTRL+B</kbd> Barcode Focus</span>
+              <span className="flex items-center gap-1.5"><kbd className="bg-slate-700 border border-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px] text-indigo-300 shadow-2xs">ENTER</kbd> New Item Line</span>
+              <span className="flex items-center gap-1.5"><kbd className="bg-slate-700 border border-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px] text-indigo-300 shadow-2xs">ESC</kbd> Close</span>
             </div>
           </div>
         )}
-        <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-white p-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:space-y-6 sm:p-8 sm:pb-8">
-          {/* Business Header - Your Brand */}
+
+        <CardContent className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-slate-50/50 p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:space-y-6 sm:p-6 sm:pb-6">
+          {/* Business Header Info (if configured) */}
           {business?.name && (
-            <div className="pb-2 mb-2 flex items-start justify-between">
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-slate-800 mb-1">
-                  {business.name}
-                </h1>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                  {business.address && <span>{business.address}</span>}
-                  {business.ntn && <span><span className="font-semibold text-slate-600">NTN:</span> {business.ntn}</span>}
-                  {business.srn && <span><span className="font-semibold text-slate-600">SRN:</span> {business.srn}</span>}
-                  {business.phone && <span><span className="font-semibold text-slate-600">Tel:</span> {business.phone}</span>}
-                  {business.email && <span><span className="font-semibold text-slate-600">Email:</span> {business.email}</span>}
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg shrink-0">
+                  {business.name.charAt(0)}
+                </div>
+                <div>
+                  <h1 className="text-base font-bold text-slate-900 leading-tight">
+                    {business.name}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 mt-0.5">
+                    {business.address && <span>{business.address}</span>}
+                    {business.ntn && <span><span className="font-semibold text-slate-700">NTN:</span> {business.ntn}</span>}
+                    {business.phone && <span><span className="font-semibold text-slate-700">Tel:</span> {business.phone}</span>}
+                  </div>
                 </div>
               </div>
+              <Badge variant="outline" className="self-start sm:self-auto text-[10px] font-mono font-semibold text-slate-600 bg-slate-50 border-slate-200">
+                Tenant ID: {business.id?.slice(0, 8)}
+              </Badge>
             </div>
           )}
 
-          <div className={cn('rounded-xl border border-slate-100 bg-slate-50 p-3 sm:p-5', MOBILE_GRID_FIELDS, 'lg:grid-cols-4')}>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-500">Invoice Number</Label>
-              <Input value={invoice.invoiceNumber} readOnly className="bg-slate-100/50 border-slate-200 shadow-none h-9 text-sm text-slate-700" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-500">Date *</Label>
-              <Input
-                type="date"
-                value={invoice.date || ''}
-                onChange={(e) => setInvoice({ ...invoice, date: e.target.value })}
-                required
-                className="h-9 text-sm shadow-sm border-slate-200"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-500">Due Date</Label>
-              <Input
-                type="date"
-                value={invoice.dueDate || ''}
-                onChange={(e) => {
-                  setIsDueDateManuallyEdited(true);
-                  setInvoice({ ...invoice, dueDate: e.target.value });
-                }}
-                className="h-9 text-sm shadow-sm border-slate-200"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-500">Document Type</Label>
-              <Combobox
-                options={[
-                  { value: 'retail', label: domainInvoiceLabel },
-                  { value: 'tax', label: `${standards.taxLabel} Invoice` },
-                  { value: 'export', label: 'Export Invoice' },
-                ]}
-                value={invoice.invoiceType || 'retail'}
-                onChange={(val) => setInvoice({ ...invoice, invoiceType: val })}
-                placeholder="Select type..."
-                className="h-9 text-sm shadow-sm border-slate-200"
-              />
-            </div>
-          </div>
+          {/* Top Document Header Grid: Split View (Customer Card + Invoice Meta Card) */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            {/* Left Card: Customer & Bill-To (lg:col-span-7) */}
+            <div className="lg:col-span-7 rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-indigo-600" />
+                  Customer & Billing Details
+                </h3>
+                {customers.length > 0 && (
+                  <Combobox
+                    options={customers.map(c => ({
+                      value: String(c.id),
+                      label: c.name,
+                      description: c.phone || c.email || (c.ntn ? `NTN: ${c.ntn}` : '')
+                    }))}
+                    value={String(invoice.customer?.id || '')}
+                    onChange={(val) => {
+                      const customer = customers.find(c => String(c.id) === String(val));
+                      if (customer) {
+                        setSelectedCustomer(customer);
+                        applyCustomerProfile(customer, isDueDateManuallyEdited);
+                      }
+                    }}
+                    placeholder="Search customers..."
+                    emptyText="No customer found"
+                    className="h-8 text-xs w-full sm:w-[240px] shadow-2xs"
+                  />
+                )}
+              </div>
 
-          {/* Customer Selection */}
-          <div className="rounded-xl border border-slate-100 p-3 sm:p-5">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-base font-semibold sm:text-lg">Customer Details</h3>
-              {customers.length > 0 && (
-                <Combobox
-                  options={customers.map(c => ({
-                    value: String(c.id),
-                    label: c.name,
-                    description: c.phone || c.email || ''
-                  }))}
-                  value={String(invoice.customer?.id || '')}
-                  onChange={(val) => {
-                    const customer = customers.find(c => String(c.id) === String(val));
-                    if (customer) {
-                      setSelectedCustomer(customer);
-                      applyCustomerProfile(customer, isDueDateManuallyEdited);
-                    }
-                  }}
-                  placeholder="Search customers..."
-                  emptyText="No customers found"
-                  className="h-9 w-full shadow-sm sm:w-[300px]"
-                />
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-600">Customer Name *</Label>
-                <Input
-                  value={invoice.customer.name || ''}
-                  onChange={(e) => setInvoice({
-                    ...invoice,
-                    customer: { ...invoice.customer, name: e.target.value }
-                  })}
-                  required
-                />
-              </div>
-              {/* Conditional tax fields */}
-              <div>
-                <Label>{standards.taxIdLabel}</Label>
-                <Input
-                  value={invoice.customer.taxId || ''}
-                  onChange={(e) => setInvoice({
-                    ...invoice,
-                    customer: { ...invoice.customer, taxId: e.target.value }
-                  })}
-                  onBlur={() => {
-                    const entered = String(invoice.customer.taxId || '').trim().toLowerCase();
-                    if (!entered || selectedCustomer) return;
-                    const matched = customers.find(c => {
-                      const candidate = String(c.tax_id || c.ntn || c.gstin || '').trim().toLowerCase();
-                      return candidate && candidate === entered;
-                    });
-                    if (matched) {
-                      setSelectedCustomer(matched);
-                      applyCustomerProfile(matched, isDueDateManuallyEdited);
-                      toast.success('Customer auto-filled from tax ID');
-                    }
-                  }}
-                  placeholder={`${standards.taxIdLabel} Number`}
-                  className="h-9 text-sm shadow-sm border-slate-200"
-                />
-              </div>
-              {standards.countryCode === 'PK' && (
-                <div className="space-y-1.5 flex flex-col justify-center mt-1">
-                  <Label className="text-xs font-semibold text-slate-600">Province</Label>
-                  <select
-                    value={invoice.customer.province}
-                    onChange={(e) => setInvoice({
-                      ...invoice,
-                      customer: { ...invoice.customer, province: e.target.value }
-                    })}
-                    className="bg-transparent border border-slate-200 rounded-lg px-2 py-2 text-xs font-semibold text-slate-700 focus:ring-1 focus:ring-slate-300 cursor-pointer"
+              {/* Compact Customer Summary View when selected and collapsed */}
+              {!showCustomerDetails && invoice.customer.name ? (
+                <div className="rounded-lg border border-slate-200/80 bg-slate-50 p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-800 text-sm">{invoice.customer.name}</span>
+                      {invoice.customer.taxId && (
+                        <Badge variant="outline" className="text-[10px] font-mono bg-white text-slate-700 border-slate-200">
+                          {standards.taxIdLabel}: {invoice.customer.taxId}
+                        </Badge>
+                      )}
+                      {invoice.customer.province && standards.countryCode === 'PK' && (
+                        <Badge variant="outline" className="text-[10px] uppercase font-semibold bg-white text-slate-600 border-slate-200">
+                          {invoice.customer.province}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                      {invoice.customer.phone && <span>Tel: {invoice.customer.phone}</span>}
+                      {invoice.customer.email && <span>Email: {invoice.customer.email}</span>}
+                      {invoice.customer.address && <span className="truncate max-w-[280px]">Addr: {invoice.customer.address}</span>}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCustomerDetails(true)}
+                    className="h-7 px-2 text-[11px] font-semibold text-slate-700 border-slate-200 hover:bg-slate-100 shrink-0"
                   >
-                    <option value="punjab">Punjab</option>
-                    <option value="sindh">Sindh</option>
-                    <option value="kp">Khyber Pakhtunkhwa</option>
-                    <option value="balochistan">Balochistan</option>
-                    <option value="islamabad">Islamabad (Federal)</option>
-                  </select>
+                    <Edit2 className="w-3 h-3 mr-1 text-slate-500" />
+                    Edit
+                  </Button>
+                </div>
+              ) : (
+                /* Full Customer Details Input Grid */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Customer Name *</Label>
+                      <Input
+                        value={invoice.customer.name || ''}
+                        onChange={(e) => setInvoice({
+                          ...invoice,
+                          customer: { ...invoice.customer, name: e.target.value }
+                        })}
+                        required
+                        placeholder="Enter customer name..."
+                        className="h-8.5 text-xs shadow-2xs border-slate-200 focus:border-indigo-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">{standards.taxIdLabel}</Label>
+                      <Input
+                        value={invoice.customer.taxId || ''}
+                        onChange={(e) => setInvoice({
+                          ...invoice,
+                          customer: { ...invoice.customer, taxId: e.target.value }
+                        })}
+                        onBlur={() => {
+                          const entered = String(invoice.customer.taxId || '').trim().toLowerCase();
+                          if (!entered || selectedCustomer) return;
+                          const matched = customers.find(c => {
+                            const candidate = String(c.tax_id || c.ntn || c.gstin || '').trim().toLowerCase();
+                            return candidate && candidate === entered;
+                          });
+                          if (matched) {
+                            setSelectedCustomer(matched);
+                            applyCustomerProfile(matched, isDueDateManuallyEdited);
+                            toast.success('Customer auto-filled from tax ID');
+                          }
+                        }}
+                        placeholder={`${standards.taxIdLabel} Number`}
+                        className="h-8.5 text-xs shadow-2xs border-slate-200 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {standards.countryCode === 'PK' && (
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Province</Label>
+                        <select
+                          value={invoice.customer.province}
+                          onChange={(e) => setInvoice({
+                            ...invoice,
+                            customer: { ...invoice.customer, province: e.target.value }
+                          })}
+                          className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs focus:border-indigo-500 cursor-pointer h-8.5"
+                        >
+                          <option value="punjab">Punjab</option>
+                          <option value="sindh">Sindh</option>
+                          <option value="kp">Khyber Pakhtunkhwa</option>
+                          <option value="balochistan">Balochistan</option>
+                          <option value="islamabad">Islamabad (Federal)</option>
+                        </select>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Email</Label>
+                      <Input
+                        type="email"
+                        value={invoice.customer.email || ''}
+                        onChange={(e) => setInvoice({
+                          ...invoice,
+                          customer: { ...invoice.customer, email: e.target.value }
+                        })}
+                        placeholder="customer@domain.com"
+                        className="h-8.5 text-xs shadow-2xs border-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Phone</Label>
+                      <Input
+                        value={invoice.customer.phone || ''}
+                        onChange={(e) => setInvoice({
+                          ...invoice,
+                          customer: { ...invoice.customer, phone: e.target.value }
+                        })}
+                        onBlur={() => {
+                          const entered = String(invoice.customer.phone || '').replace(/\D/g, '');
+                          if (!entered || selectedCustomer) return;
+                          const matched = customers.find(c => String(c.phone || '').replace(/\D/g, '') === entered);
+                          if (matched) {
+                            setSelectedCustomer(matched);
+                            applyCustomerProfile(matched, isDueDateManuallyEdited);
+                            toast.success('Customer auto-filled from phone');
+                          }
+                        }}
+                        placeholder="0300-1234567"
+                        className="h-8.5 text-xs shadow-2xs border-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Billing / Delivery Address</Label>
+                    <Input
+                      value={invoice.customer.address || ''}
+                      onChange={(e) => setInvoice({
+                        ...invoice,
+                        customer: { ...invoice.customer, address: e.target.value }
+                      })}
+                      placeholder="Street address, city..."
+                      className="h-8.5 text-xs shadow-2xs border-slate-200"
+                    />
+                  </div>
+
+                  {invoice.customer.name && (
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowCustomerDetails(false)}
+                        className="h-6 text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
+                      >
+                        <ChevronUp className="w-3 h-3 mr-1" /> Collapse Customer Form
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* Customer Discount & Credit Banners */}
               {customerDiscountStats && (
-                <div className="col-span-full mb-2 flex flex-col sm:flex-row items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/70 p-2.5 text-indigo-900 shadow-2xs">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 rounded-lg border border-indigo-100 bg-indigo-50/80 p-2 text-indigo-900 text-xs">
                   <div className="flex items-center gap-2">
                     <WandSparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <div className="text-xs">
-                      <span className="font-bold">Customer Discount Profile:</span>{' '}
+                    <div>
+                      <span className="font-bold">Discount Profile:</span>{' '}
                       <span className="font-semibold text-indigo-700 font-mono">
                         {formatCurrency(customerDiscountStats.historyTotal, currency)}
                       </span>{' '}
-                      Total Discounts Availed
+                      availed
                       {customerDiscountStats.preferredPct > 0 && (
-                        <span className="ml-1 text-[11px] text-indigo-600 font-medium">
-                          ({customerDiscountStats.preferredPct}% Preferred Tier)
+                        <span className="ml-1 text-[11px] text-indigo-600 font-semibold">
+                          ({customerDiscountStats.preferredPct}% Tier)
                         </span>
                       )}
                     </div>
@@ -1412,229 +1506,162 @@ export function EnhancedInvoiceBuilder({
                           discount: customerDiscountStats.preferredPct,
                           discountType: 'percent',
                         }));
-                        toast.success(`Applied ${customerDiscountStats.preferredPct}% preferred customer discount`);
+                        toast.success(`Applied ${customerDiscountStats.preferredPct}% customer discount`);
                       }}
-                      className="h-7 px-2.5 rounded-lg text-xs font-bold text-indigo-700 border-indigo-300 bg-white hover:bg-indigo-100 shadow-2xs"
+                      className="h-6 px-2 rounded-md text-[10px] font-bold text-indigo-700 border-indigo-300 bg-white hover:bg-indigo-100 shadow-2xs shrink-0"
                     >
-                      Apply {customerDiscountStats.preferredPct}% Discount
+                      Apply {customerDiscountStats.preferredPct}%
                     </Button>
                   )}
                 </div>
               )}
+
               {invoice.customer.credit_limit > 0 && (
                 <div className={cn(
-                  "col-span-full mb-2 flex flex-col gap-2 rounded-lg border p-2.5 sm:flex-row sm:items-center sm:justify-between",
+                  "flex flex-col gap-1.5 rounded-lg border p-2 text-xs sm:flex-row sm:items-center sm:justify-between",
                   totals.total + (invoice.customer.outstanding_balance || 0) > invoice.customer.credit_limit
                     ? "bg-red-50 border-red-200 text-red-700"
                     : "bg-slate-50 border-slate-200 text-slate-700"
                 )}>
-                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                    <div className="flex items-center gap-2">
-                      <ShoppingCart className="w-4 h-4 shrink-0 text-slate-400" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Credit Profile</span>
-                    </div>
-                    <span className="text-xs font-medium">Limit: {formatCurrency(invoice.customer.credit_limit, currency)} <span className="text-slate-300 mx-1">|</span> Balance: {formatCurrency(invoice.customer.outstanding_balance || 0, currency)}</span>
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4 shrink-0 text-slate-400" />
+                    <span className="font-semibold">Credit Limit: {formatCurrency(invoice.customer.credit_limit, currency)}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>Balance: {formatCurrency(invoice.customer.outstanding_balance || 0, currency)}</span>
                   </div>
                   {totals.total + (invoice.customer.outstanding_balance || 0) > invoice.customer.credit_limit && (
-                    <div className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider bg-red-100 px-2 py-0.5 rounded text-red-600">
+                    <div className="flex items-center gap-1 font-bold text-[10px] uppercase tracking-wider bg-red-100 px-2 py-0.5 rounded text-red-600 shrink-0">
                       <AlertCircle className="w-3 h-3" />
                       Limit Exceeded
                     </div>
                   )}
                 </div>
               )}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-600">Email</Label>
-                <Input
-                  type="email"
-                  value={invoice.customer.email || ''}
-                  onChange={(e) => setInvoice({
-                    ...invoice,
-                    customer: { ...invoice.customer, email: e.target.value }
-                  })}
-                  className="h-9 text-sm shadow-sm border-slate-200"
-                />
+            </div>
+
+            {/* Right Card: Invoice Metadata (lg:col-span-5) */}
+            <div className="lg:col-span-5 rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                Invoice Metadata & Terms
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Invoice Ref #</Label>
+                  <Input
+                    value={invoice.invoiceNumber || ''}
+                    readOnly
+                    placeholder="Auto-generated"
+                    className="h-8.5 text-xs bg-slate-50 border-slate-200 font-mono font-semibold text-slate-700 shadow-2xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Document Type</Label>
+                  <Combobox
+                    options={[
+                      { value: 'retail', label: domainInvoiceLabel },
+                      { value: 'tax', label: `${standards.taxLabel} Invoice` },
+                      { value: 'export', label: 'Export Invoice' },
+                    ]}
+                    value={invoice.invoiceType || 'retail'}
+                    onChange={(val) => setInvoice({ ...invoice, invoiceType: val })}
+                    placeholder="Select document type..."
+                    className="h-8.5 text-xs shadow-2xs border-slate-200"
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-600">Phone</Label>
-                <Input
-                  value={invoice.customer.phone || ''}
-                  onChange={(e) => setInvoice({
-                    ...invoice,
-                    customer: { ...invoice.customer, phone: e.target.value }
-                  })}
-                  onBlur={() => {
-                    const entered = String(invoice.customer.phone || '').replace(/\D/g, '');
-                    if (!entered || selectedCustomer) return;
-                    const matched = customers.find(c => String(c.phone || '').replace(/\D/g, '') === entered);
-                    if (matched) {
-                      setSelectedCustomer(matched);
-                      applyCustomerProfile(matched, isDueDateManuallyEdited);
-                      toast.success('Customer auto-filled from phone');
-                    }
-                  }}
-                  className="h-9 text-sm shadow-sm border-slate-200"
-                />
-              </div>
-              <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-600">Billing Address</Label>
-                <Input
-                  value={invoice.customer.address || ''}
-                  onChange={(e) => setInvoice({
-                    ...invoice,
-                    customer: { ...invoice.customer, address: e.target.value }
-                  })}
-                  className="h-9 text-sm shadow-sm border-slate-200"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Invoice Date *</Label>
+                  <Input
+                    type="date"
+                    value={invoice.date || ''}
+                    onChange={(e) => setInvoice({ ...invoice, date: e.target.value })}
+                    required
+                    className="h-8.5 text-xs shadow-2xs border-slate-200 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Payment Due Date</Label>
+                  <Input
+                    type="date"
+                    value={invoice.dueDate || ''}
+                    onChange={(e) => {
+                      setIsDueDateManuallyEdited(true);
+                      setInvoice({ ...invoice, dueDate: e.target.value });
+                    }}
+                    className="h-8.5 text-xs shadow-2xs border-slate-200 font-mono"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Payment Method - Pakistani domains only */}
-          {isPakistaniDomain && (
-            <div className="border-t pt-4">
-              <PakistaniPaymentSelector
-                selectedGateway={invoice.paymentMethod}
-                onSelect={(gatewayId) => setInvoice({ ...invoice, paymentMethod: gatewayId })}
-                amount={totals.total}
-                showCOD={true}
-                showHeader={false}
-                compact={true}
-              />
-            </div>
-          )}
-
-          {/* Vehicle Agreement & Specification Section (Automotive Domains) */}
-          {isAutomotiveDomain(category) && (
-            <VehicleAgreementSection
-              value={invoice.vehicleAgreement || {}}
-              onChange={(val) => setInvoice((prev) => ({ ...prev, vehicleAgreement: val }))}
-              category={category}
-              customer={invoice.customer}
-              business={business}
-              onPrintReceipt={() => {
-                printVehicleBuyerSellerReceiptHtml(
-                  { ...invoice, items, totals },
-                  business,
-                  category
-                );
-              }}
-              onDownloadPdf={() => {
-                try {
-                  generateInvoicePDF(
-                    { ...invoice, items, category, vehicleAgreement: invoice.vehicleAgreement },
-                    totals,
-                    business
-                  );
-                  toast.success('Vehicle Buyer-Seller Receipt PDF downloaded');
-                } catch (e) {
-                  toast.error('Failed to generate PDF');
-                }
-              }}
-              onDownloadInstallmentForm={() => {
-                try {
-                  const itemsList = items || [];
-                  const selectedVehicle =
-                    invoice.vehicleAgreement?.makeModel || (itemsList[0]?.name || itemsList[0]?.product_name) || 'Vehicle / Product';
-                  const productPrice = Number(totals.total || 0);
-                  const downPaymentPct = Number(invoice.vehicleAgreement?.downPaymentPct || 20);
-                  const downPaymentAmount = Number(
-                    invoice.vehicleAgreement?.downPaymentAmount || Math.round(productPrice * (downPaymentPct / 100))
-                  );
-                  const durationMonths = Number(invoice.vehicleAgreement?.durationMonths || 24);
-                  const monthlyInstallment = Number(
-                    invoice.vehicleAgreement?.monthlyInstallment ||
-                      Math.round(((productPrice - downPaymentAmount) * 1.25) / durationMonths)
-                  );
-
-                  void generateInstallmentFormPdf({
-                    storeName: business?.name || business?.business_name || 'Showroom',
-                    selectedVehicle,
-                    productPrice,
-                    downPaymentAmount,
-                    downPaymentPct,
-                    durationMonths,
-                    monthlyInstallment,
-                    applicant: {
-                      fullName: invoice.vehicleAgreement?.buyerName || invoice.customer?.name || '',
-                      phone: invoice.vehicleAgreement?.buyerPhone || invoice.customer?.phone || '',
-                      cnic: invoice.vehicleAgreement?.buyerCnic || invoice.customer?.cnic || invoice.customer?.domain_data?.cnic || '',
-                      address: invoice.customer?.address || '',
-                      city: invoice.customer?.city || '',
-                      witness1Name: invoice.vehicleAgreement?.witness1Name || '',
-                      witness1Phone: invoice.vehicleAgreement?.witness1Phone || '',
-                      witness1Cnic: invoice.vehicleAgreement?.witness1Cnic || '',
-                      witness2Name: invoice.vehicleAgreement?.witness2Name || '',
-                      witness2Phone: invoice.vehicleAgreement?.witness2Phone || '',
-                      witness2Cnic: invoice.vehicleAgreement?.witness2Cnic || '',
-                    },
-                    contact: {
-                      phone: business?.phone || business?.phone_number || '',
-                      email: business?.email || '',
-                    },
-                    category,
-                    business,
-                  }).then((doc) => {
-                    doc.save(`Installment-Application-Form-${invoice.invoiceNumber || 'Draft'}.pdf`);
-                    toast.success('Installment Application Form downloaded');
-                  });
-                } catch (e) {
-                  toast.error('Failed to generate Installment Form PDF');
-                }
-              }}
-            />
-          )}
-
-          {/* Items Section */}
-          <div className="pt-2">
-            <div className="mb-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <ShoppingCart className="w-4 h-4 text-slate-500" />
+          {/* Line Items Section (HERO TABLE AREA) */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <ShoppingCart className="w-4.5 h-4.5 text-indigo-600" />
                 Line Items
+                <Badge variant="secondary" className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700">
+                  {invoice.items.length} {invoice.items.length === 1 ? 'item' : 'items'}
+                </Badge>
               </h3>
-                <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
-                <div className="relative group w-full sm:w-48 flex gap-1">
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative group w-full sm:w-52 flex gap-1">
                   <Scan className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 z-10" />
                   <Input
                     id="barcode-sniffer"
-                    placeholder="Scan barcode"
+                    placeholder="Scan barcode..."
                     value={barcodeInput}
                     onChange={(e) => setBarcodeInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleBarcodeScan(barcodeInput);
                     }}
-                    className="h-9 w-full rounded-md border-dashed border-slate-300 bg-white pl-8 font-mono text-xs shadow-sm transition-all focus:bg-white sm:h-8"
+                    className="h-8 w-full rounded-lg border-dashed border-slate-300 bg-slate-50 pl-8 font-mono text-xs shadow-2xs transition-all focus:bg-white focus:border-indigo-500"
                   />
                   <BarcodeScanTrigger
                     business={business}
                     onScan={handleBarcodeScan}
-                    className="h-9 w-9 shrink-0 sm:h-8"
+                    className="h-8 w-8 shrink-0"
                     title="Camera scan"
                   />
                 </div>
-                <div className="flex gap-2">
+
                 {isPakistaniDomain && showTaxUi && (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowTaxCalculator(!showTaxCalculator)}
-                    className="h-9 flex-1 rounded-md border-slate-200 text-xs shadow-sm sm:h-8 sm:flex-none"
+                    className="h-8 text-xs font-semibold border-slate-200 shadow-2xs"
                   >
-                    <Calculator className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-                    Tax
+                    <Calculator className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                    Tax Calc
                   </Button>
                 )}
-                <Button onClick={addItem} size="sm" className="h-9 flex-1 rounded-md text-xs font-medium text-white shadow-sm transition-all hover:opacity-90 sm:h-8 sm:flex-none" style={{ backgroundColor: brandAccent }}>
-                  <Plus className="w-3.5 h-3.5 mr-1.5" />
-                  Add line
+
+                <Button
+                  type="button"
+                  onClick={addItem}
+                  size="sm"
+                  className="h-8 text-xs font-bold text-white shadow-xs transition-all hover:opacity-95"
+                  style={{ backgroundColor: brandAccent }}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Add Line Item
                 </Button>
-                </div>
               </div>
             </div>
 
-            {/* Tax Calculator - Pakistani domains */}
+            {/* Tax Calculator popup banner */}
             {isPakistaniDomain && showTaxUi && showTaxCalculator && (
-              <div className="mb-4">
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 shadow-2xs">
                 <PakistaniTaxCalculator
                   amount={totals.subtotal}
                   category={getTaxCategoryForDomain(category)}
@@ -1645,6 +1672,7 @@ export function EnhancedInvoiceBuilder({
               </div>
             )}
 
+            {/* Line items component */}
             <div className="space-y-3">
               <DomainMultiRowLineItems
                 items={invoice.items}
@@ -1662,230 +1690,334 @@ export function EnhancedInvoiceBuilder({
             </div>
           </div>
 
-          {/* Totals */}
-          <div className="border-t pt-4">
-            <div className="flex justify-stretch lg:justify-end">
-              <div className="w-full space-y-2 lg:w-80">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span className="font-semibold">{formatCurrency(totals.rawSubtotal ?? totals.subtotal, currency)}</span>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="text-xs font-semibold uppercase text-gray-400">Total Discount:</span>
-                    <select
-                      className="h-auto cursor-pointer border-0 bg-transparent p-0 text-[10px] font-bold text-wine focus:ring-0"
-                      value={invoice.discountType}
-                      onChange={(e) => setInvoice({ ...invoice, discountType: e.target.value })}
-                    >
-                      <option value="percent">% Ratio</option>
-                      <option value="amount">Fixed {standards.currencySymbol}</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-end gap-2">
-                    <Input
-                      type="number"
-                      value={invoice.discount || 0}
-                      onChange={(e) => setInvoice({ ...invoice, discount: parseFloat(e.target.value) || 0 })}
-                      className="h-6 w-16 text-right text-xs p-1 rounded border-gray-200"
-                    />
-                    <span className="font-semibold text-red-600">-{formatCurrency(totals.discount, currency)}</span>
-                  </div>
-                </div>
-                {/* Seasonal Discount Display */}
-                {totals.seasonalDiscount > 0 && currentSeason && (
-                  <div className="flex flex-col gap-2 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-pink-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold uppercase text-orange-600">{currentSeason.name.en} Discount</span>
-                      <Badge className="bg-orange-500 text-white text-[10px] font-semibold">
-                        {currentSeason.discountPercent}% OFF
-                      </Badge>
-                    </div>
-                    <span className="shrink-0 font-semibold text-orange-600">-{formatCurrency(totals.seasonalDiscount, currency)}</span>
-                  </div>
-                )}
-                {/* Render dynamic tax breakdown from strategy */}
-                {showTaxUi && Object.entries(totals.taxDetails || {}).map(([label, detail]) => {
-                  // detail.amount is already the computed tax amount (not a base)
-                  const taxVal = Number(detail?.amount ?? 0);
-                  if (taxVal <= 0) return null;
-                  return (
-                    <div key={label} className="flex justify-between text-sm text-slate-600">
-                      <span>{label} ({((detail?.rate ?? 0) * 100).toFixed(0)}%):</span>
-                      <span>{formatCurrency(taxVal, currency || 'PKR')}</span>
-                    </div>
+          {/* Vehicle Agreement Section (Automotive Domains) */}
+          {isAutomotiveDomain(category) && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              <VehicleAgreementSection
+                value={invoice.vehicleAgreement || {}}
+                onChange={(val) => setInvoice((prev) => ({ ...prev, vehicleAgreement: val }))}
+                category={category}
+                customer={invoice.customer}
+                business={business}
+                onPrintReceipt={() => {
+                  printVehicleBuyerSellerReceiptHtml(
+                    { ...invoice, items: invoice.items, totals },
+                    business,
+                    category
                   );
-                })}
-                {showTaxUi && Number(totals.totalTax || 0) > 0 && !Object.keys(totals.taxDetails || {}).length && (
-                  <div className="flex justify-between text-sm text-slate-600">
-                    <span>{regionalTaxLabel || 'Tax'}:</span>
-                    <span>{formatCurrency(totals.totalTax, currency || 'PKR')}</span>
-                  </div>
-                )}
-                {totals.roundOff !== 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Round Off:</span>
-                    <span>{totals.roundOff > 0 ? '+' : ''}{formatCurrency(totals.roundOff, currency)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-lg border-t pt-2 text-wine">
-                  <span>Total:</span>
-                  <span>{formatCurrency(totals.total, currency)}</span>
-                </div>
-                <div className={cn(
-                  'flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg border',
-                  postingHealth.balanced ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'
-                )}>
-                  <span className="font-bold uppercase tracking-wider">Posting Health</span>
-                  <span className="font-semibold">{postingHealth.balanced ? 'Balanced' : `Diff ${postingHealth.difference.toFixed(2)}`}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+                }}
+                onDownloadPdf={() => {
+                  try {
+                    generateInvoicePDF(
+                      { ...invoice, items: invoice.items, category, vehicleAgreement: invoice.vehicleAgreement },
+                      totals,
+                      business
+                    );
+                    toast.success('Vehicle Buyer-Seller Receipt PDF downloaded');
+                  } catch (e) {
+                    toast.error('Failed to generate PDF');
+                  }
+                }}
+                onDownloadInstallmentForm={() => {
+                  try {
+                    const itemsList = invoice.items || [];
+                    const selectedVehicle =
+                      invoice.vehicleAgreement?.makeModel || (itemsList[0]?.name || itemsList[0]?.product_name) || 'Vehicle / Product';
+                    const productPrice = Number(totals.total || 0);
+                    const downPaymentPct = Number(invoice.vehicleAgreement?.downPaymentPct || 20);
+                    const downPaymentAmount = Number(
+                      invoice.vehicleAgreement?.downPaymentAmount || Math.round(productPrice * (downPaymentPct / 100))
+                    );
+                    const durationMonths = Number(invoice.vehicleAgreement?.durationMonths || 24);
+                    const monthlyInstallment = Number(
+                      invoice.vehicleAgreement?.monthlyInstallment ||
+                        Math.round(((productPrice - downPaymentAmount) * 1.25) / durationMonths)
+                    );
 
-          {/* Additional Fields */}
-          <div className="grid grid-cols-1 gap-4 border-t pt-4 lg:grid-cols-2">
-            {!isPakistaniDomain && (
-              <>
-                <div>
-                  <Label>E-Way Bill No.</Label>
-                  <Input
-                    value={invoice.ewayBill || ''}
-                    onChange={(e) => setInvoice({ ...invoice, ewayBill: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Place of Supply</Label>
-                  <Input
-                    value={invoice.placeOfSupply || ''}
-                    onChange={(e) => setInvoice({ ...invoice, placeOfSupply: e.target.value })}
-                  />
-                </div>
-              </>
-            )}
-            <div>
-              <Label>Notes</Label>
-              <textarea
-                className="w-full min-h-[80px] px-3 py-2 border rounded-lg"
-                value={invoice.notes || ''}
-                onChange={(e) => setInvoice({ ...invoice, notes: e.target.value })}
-                placeholder="Additional notes..."
+                    void generateInstallmentFormPdf({
+                      storeName: business?.name || business?.business_name || 'Showroom',
+                      selectedVehicle,
+                      productPrice,
+                      downPaymentAmount,
+                      downPaymentPct,
+                      durationMonths,
+                      monthlyInstallment,
+                      applicant: {
+                        fullName: invoice.vehicleAgreement?.buyerName || invoice.customer?.name || '',
+                        phone: invoice.vehicleAgreement?.buyerPhone || invoice.customer?.phone || '',
+                        cnic: invoice.vehicleAgreement?.buyerCnic || invoice.customer?.cnic || invoice.customer?.domain_data?.cnic || '',
+                        address: invoice.customer?.address || '',
+                        city: invoice.customer?.city || '',
+                        witness1Name: invoice.vehicleAgreement?.witness1Name || '',
+                        witness1Phone: invoice.vehicleAgreement?.witness1Phone || '',
+                        witness1Cnic: invoice.vehicleAgreement?.witness1Cnic || '',
+                        witness2Name: invoice.vehicleAgreement?.witness2Name || '',
+                        witness2Phone: invoice.vehicleAgreement?.witness2Phone || '',
+                        witness2Cnic: invoice.vehicleAgreement?.witness2Cnic || '',
+                      },
+                      contact: {
+                        phone: business?.phone || business?.phone_number || '',
+                        email: business?.email || '',
+                      },
+                      category,
+                      business,
+                    }).then((doc) => {
+                      doc.save(`Installment-Application-Form-${invoice.invoiceNumber || 'Draft'}.pdf`);
+                      toast.success('Installment Application Form downloaded');
+                    });
+                  } catch (e) {
+                    toast.error('Failed to generate Installment Form PDF');
+                  }
+                }}
               />
             </div>
-            <div>
-              <Label>Terms & Conditions</Label>
-              <textarea
-                className="w-full min-h-[80px] px-3 py-2 border rounded-lg"
-                value={invoice.terms || ''}
-                onChange={(e) => setInvoice({ ...invoice, terms: e.target.value })}
-                placeholder="Payment terms..."
-              />
-            </div>
-          </div>
+          )}
 
-          <div className="border-t pt-4">
-            <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-              <div className="flex min-w-0 items-start gap-2 text-sm text-slate-700 sm:items-center">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                <span className="font-semibold shrink-0">Workflow:</span>
-                <span className="min-w-0">{activeApprovalStatus.helper}</span>
+          {/* Bottom Split Section: Payment & Notes (Left) | Order Summary & Totals (Right) */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+            {/* Left Box: Payment Gateway, Notes, Workflow (lg:col-span-7) */}
+            <div className="lg:col-span-7 space-y-4">
+              {/* Payment Gateway Selector */}
+              {isPakistaniDomain && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-indigo-600" />
+                    Payment Settlement Method
+                  </h4>
+                  <PakistaniPaymentSelector
+                    selectedGateway={invoice.paymentMethod}
+                    onSelect={(gatewayId) => setInvoice({ ...invoice, paymentMethod: gatewayId })}
+                    amount={totals.total}
+                    showCOD={true}
+                    showHeader={false}
+                    compact={true}
+                  />
+                </div>
+              )}
+
+              {/* Notes & Terms */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Customer Notes</Label>
+                    <textarea
+                      className="w-full min-h-[70px] px-3 py-2 text-xs border border-slate-200 rounded-lg shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      value={invoice.notes || ''}
+                      onChange={(e) => setInvoice({ ...invoice, notes: e.target.value })}
+                      placeholder="Add custom notes visible to customer..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Terms & Conditions</Label>
+                    <textarea
+                      className="w-full min-h-[70px] px-3 py-2 text-xs border border-slate-200 rounded-lg shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      value={invoice.terms || ''}
+                      onChange={(e) => setInvoice({ ...invoice, terms: e.target.value })}
+                      placeholder="Specify payment or warranty terms..."
+                    />
+                  </div>
+                </div>
               </div>
-              <span className="shrink-0 text-xs font-medium text-slate-500">Ref: {invoice.invoiceNumber}</span>
+
+              {/* Workflow & Approvals */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-2">
+                <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between text-xs">
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span className="font-bold">Workflow:</span>
+                    <span>{activeApprovalStatus.helper}</span>
+                  </div>
+                  <span className="text-[11px] font-mono font-semibold text-slate-500">Ref: {invoice.invoiceNumber || 'Draft'}</span>
+                </div>
+
+                {approvalHistory.length > 0 && (
+                  <div className="pt-2 border-t border-slate-100 space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Approval Audit Log</p>
+                    {approvalHistory.slice(0, 2).map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between text-[11px] text-slate-600">
+                        <span className="font-semibold capitalize">{entry.approval_status}</span>
+                        <span className="text-slate-400">{new Date(entry.created_at).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {approvalHistory.length > 0 && (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Recent Approval Activity</p>
-                <div className="space-y-2">
-                  {approvalHistory.slice(0, 3).map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-slate-700 capitalize">{entry.approval_status}</span>
-                      <span className="text-slate-500">{new Date(entry.created_at).toLocaleString()}</span>
+            {/* Right Box: Order Summary & Financial Totals (lg:col-span-5) */}
+            <div className="lg:col-span-5">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3 sticky top-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
+                  Financial Summary
+                </h4>
+
+                <div className="space-y-2.5 text-xs text-slate-700">
+                  {/* Subtotal */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600 font-medium">Subtotal:</span>
+                    <span className="font-mono font-bold text-sm text-slate-900">
+                      {formatCurrency(totals.rawSubtotal ?? totals.subtotal, currency)}
+                    </span>
+                  </div>
+
+                  {/* Discount row */}
+                  <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-600 font-medium">Discount:</span>
+                      <select
+                        className="h-6 border border-slate-200 bg-slate-50 px-1 py-0 text-[10px] font-bold text-indigo-700 rounded focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                        value={invoice.discountType}
+                        onChange={(e) => setInvoice({ ...invoice, discountType: e.target.value })}
+                      >
+                        <option value="percent">% Ratio</option>
+                        <option value="amount">Fixed {standards.currencySymbol}</option>
+                      </select>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        value={invoice.discount || 0}
+                        onChange={(e) => setInvoice({ ...invoice, discount: parseFloat(e.target.value) || 0 })}
+                        className="h-6 w-16 text-right text-xs p-1 font-mono rounded border-slate-200"
+                      />
+                      <span className="font-mono font-bold text-rose-600">
+                        -{formatCurrency(totals.discount, currency)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Seasonal Discount (if active) */}
+                  {totals.seasonalDiscount > 0 && currentSeason && (
+                    <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50/70 p-2 text-xs">
+                      <span className="font-bold text-orange-700">{currentSeason.name.en} Discount ({currentSeason.discountPercent}%):</span>
+                      <span className="font-mono font-bold text-orange-700">-{formatCurrency(totals.seasonalDiscount, currency)}</span>
+                    </div>
+                  )}
+
+                  {/* Regional Tax Breakdown */}
+                  {showTaxUi && Object.entries(totals.taxDetails || {}).map(([label, detail]) => {
+                    const taxVal = Number(detail?.amount ?? 0);
+                    if (taxVal <= 0) return null;
+                    return (
+                      <div key={label} className="flex justify-between items-center text-slate-600 border-t border-slate-100 pt-1.5">
+                        <span>{label} ({((detail?.rate ?? 0) * 100).toFixed(0)}%):</span>
+                        <span className="font-mono font-semibold">{formatCurrency(taxVal, currency || 'PKR')}</span>
+                      </div>
+                    );
+                  })}
+
+                  {showTaxUi && Number(totals.totalTax || 0) > 0 && !Object.keys(totals.taxDetails || {}).length && (
+                    <div className="flex justify-between items-center text-slate-600 border-t border-slate-100 pt-1.5">
+                      <span>{regionalTaxLabel || 'Tax'}:</span>
+                      <span className="font-mono font-semibold">{formatCurrency(totals.totalTax, currency || 'PKR')}</span>
+                    </div>
+                  )}
+
+                  {/* Round off adjustment */}
+                  {totals.roundOff !== 0 && (
+                    <div className="flex justify-between items-center text-slate-500 text-xs border-t border-slate-100 pt-1.5">
+                      <span>Round Off:</span>
+                      <span className="font-mono">{totals.roundOff > 0 ? '+' : ''}{formatCurrency(totals.roundOff, currency)}</span>
+                    </div>
+                  )}
+
+                  {/* Grand Total */}
+                  <div className="flex justify-between items-baseline border-t-2 border-slate-900 pt-3 text-slate-900">
+                    <span className="text-base font-extrabold tracking-tight">Grand Total:</span>
+                    <span className="font-mono text-xl font-black text-emerald-600">
+                      {formatCurrency(totals.total, currency)}
+                    </span>
+                  </div>
+
+                  {/* Posting Health Balance Check */}
+                  <div className={cn(
+                    'flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg border font-semibold mt-2',
+                    postingHealth.balanced ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+                  )}>
+                    <span className="uppercase tracking-wider">Posting Balance Check</span>
+                    <span>{postingHealth.balanced ? 'Balanced ✓' : `Diff ${postingHealth.difference.toFixed(2)}`}</span>
+                  </div>
                 </div>
               </div>
-            )}
-
-            {duplicateItemSignals.length > 0 && (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Review Needed</p>
-                <p className="text-xs text-amber-700">
-                  Possible duplicate rows detected. Merge similar items when possible to reduce posting errors.
-                </p>
-              </div>
-            )}
+            </div>
           </div>
         </CardContent>
 
-        <div className={cn(MOBILE_FORM_FOOTER, 'shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]')}>
-          <div className="flex flex-col gap-3">
-            <div className="hidden gap-2 overflow-x-auto pb-0.5 scrollbar-none sm:flex sm:flex-wrap">
-              <Button type="button" variant="outline" onClick={() => applySmartDraft('items')} className="h-9 shrink-0 rounded-md border-indigo-200 px-3 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-50">
-                <WandSparkles className="mr-1.5 h-3.5 w-3.5" /> Smart Items
-              </Button>
-              <Button type="button" variant="outline" onClick={() => applySmartDraft('full')} className="h-9 shrink-0 rounded-md border-violet-200 px-3 text-xs font-medium text-violet-700 shadow-sm hover:bg-violet-50">
-                <WandSparkles className="mr-1.5 h-3.5 w-3.5" /> Smart Full
-              </Button>
-              <Button type="button" variant="outline" onClick={() => toast.success('Link generated for WhatsApp message')} className="h-9 shrink-0 rounded-md border-emerald-200 px-3 text-xs font-medium text-emerald-700 shadow-sm hover:bg-emerald-50">
-                WhatsApp
-              </Button>
-            </div>
-            {smartDraftMeta && (
-              <div className="hidden rounded-md border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] text-indigo-600 sm:block">
-                <span className="font-semibold text-indigo-800">Smart Draft:</span>{' '}
-                {smartDraftMeta.scope === 'full' ? `Customer ${smartDraftMeta.customerLabel}` : (smartDraftMeta.customerMode === 'preserved' ? 'Customer preserved' : 'Customer unchanged')}; items {smartDraftMeta.productLabels.join(', ')}
+        {/* Sticky Action Dock (Footer) */}
+        <div className={cn(MOBILE_FORM_FOOTER, 'border-t border-slate-200 bg-white px-4 py-3 sm:px-6 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]')}>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* Utility actions (Left) */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applySmartDraft('items')}
+                  className="h-8.5 rounded-lg border-indigo-200 px-3 text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-50"
+                >
+                  <WandSparkles className="mr-1.5 h-3.5 w-3.5 text-indigo-500" /> Smart Items
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applySmartDraft('full')}
+                  className="h-8.5 rounded-lg border-violet-200 px-3 text-xs font-semibold text-violet-700 shadow-2xs hover:bg-violet-50"
+                >
+                  <WandSparkles className="mr-1.5 h-3.5 w-3.5 text-violet-500" /> Smart Full
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toast.success('Link generated for WhatsApp message')}
+                  className="h-8.5 rounded-lg border-emerald-200 px-3 text-xs font-semibold text-emerald-700 shadow-2xs hover:bg-emerald-50"
+                >
+                  WhatsApp Share
+                </Button>
               </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-9 rounded-md border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-sm sm:hidden"
-                  >
-                    <MoreHorizontal className="mr-1.5 h-4 w-4" />
-                    More
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuItem onClick={() => applySmartDraft('items')}>
-                    <WandSparkles className="mr-2 h-4 w-4" />
-                    Smart items
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => applySmartDraft('full')}>
-                    <WandSparkles className="mr-2 h-4 w-4" />
-                    Smart full draft
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast.success('Link generated for WhatsApp message')}>
-                    WhatsApp share
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handlePrintThermal} disabled={isSaving || isExporting}>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Thermal receipt
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportPDF} disabled={isSaving || isExporting}>
-                    <Download className="mr-2 h-4 w-4" />
-                    A4 invoice PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button type="button" variant="ghost" onClick={onClose} className="h-9 flex-1 rounded-md px-4 text-sm font-medium text-slate-500 hover:bg-slate-100 sm:flex-none">
-                Cancel
-              </Button>
-              <Button type="button" variant="outline" onClick={handlePrintThermal} disabled={isSaving || isExporting} className="hidden h-9 rounded-md border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-sm sm:inline-flex">
-                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4 text-slate-500" />}
-                Thermal
-              </Button>
-              <Button type="button" variant="outline" onClick={handleExportPDF} disabled={isSaving || isExporting} className="hidden h-9 rounded-md border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-sm sm:inline-flex">
-                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4 text-slate-500" />}
-                A4 PDF
-              </Button>
-              <Button type="button" disabled={isSaving || isSubmittingApproval} onClick={handleSave} className="h-9 flex-1 rounded-md bg-emerald-600 px-5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 sm:flex-none">
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Invoice
-              </Button>
+
+              {/* Output & Save Actions (Right) */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={onClose}
+                  className="h-8.5 px-3.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrintThermal}
+                  disabled={isSaving || isExporting}
+                  className="h-8.5 rounded-lg border-slate-200 px-3 text-xs font-semibold text-slate-700 shadow-2xs"
+                >
+                  {isExporting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Printer className="mr-1.5 h-3.5 w-3.5 text-slate-500" />}
+                  Thermal
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleExportPDF}
+                  disabled={isSaving || isExporting}
+                  className="h-8.5 rounded-lg border-slate-200 px-3 text-xs font-semibold text-slate-700 shadow-2xs"
+                >
+                  {isExporting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5 text-slate-500" />}
+                  A4 PDF
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isSaving || isSubmittingApproval}
+                  onClick={handleSave}
+                  className="h-8.5 rounded-lg bg-emerald-600 px-5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-all"
+                >
+                  {isSaving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+                  Save Invoice
+                </Button>
+              </div>
             </div>
           </div>
         </div>

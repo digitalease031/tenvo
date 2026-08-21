@@ -6,7 +6,8 @@ import { NextResponse } from "next/server";
 const handler = toNextJsHandler(auth);
 
 function isGetSessionRequest(req) {
-    return req?.nextUrl?.pathname?.endsWith('/get-session');
+    const url = req?.nextUrl?.pathname || (req?.url ? new URL(req.url, 'http://localhost').pathname : '');
+    return url.endsWith('/get-session');
 }
 
 function buildNullSessionResponse() {

@@ -73,7 +73,7 @@ export async function GET(request) {
       });
     }
     console.error('Error fetching notifications:', error);
-    return NextResponse.json({ notifications: [], unreadCount: 0, error: 'Failed to load notifications' }, { status: 200 });
+    return NextResponse.json({ notifications: [], unreadCount: 0 }, { status: 200 });
   }
 }
 

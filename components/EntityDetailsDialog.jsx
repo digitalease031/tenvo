@@ -26,7 +26,8 @@ import { EnhancedInvoiceBuilder } from './EnhancedInvoiceBuilder';
 import { customerAPI, vendorAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { HUB_ENTITY_DIALOG } from '@/lib/utils/formMobileStyles';
-import { printInvoicePdfFromRow, printInvoiceThermalFromRow, downloadStandardInvoicePdfFromRow } from '@/lib/print/clientInvoicePrint';
+import { printInvoicePdfFromRow, printInvoiceThermalFromRow, downloadStandardInvoicePdfFromRow, printVehicleBuyerSellerReceiptFromRow } from '@/lib/print/clientInvoicePrint';
+import { isVehicleAgreementVertical } from '@/components/invoice/VehicleAgreementSection';
 
 export function EntityDetailsDialog({ item: initialItem, type, open, onClose, category = 'retail-shop' }) {
     const { business, currency: businessCurrency } = useBusiness();
@@ -71,6 +72,18 @@ export function EntityDetailsDialog({ item: initialItem, type, open, onClose, ca
         })
             .then(() => toast.success('Standard invoice PDF downloaded'))
             .catch(() => toast.error('Could not download invoice PDF'));
+    };
+
+    const handlePrintVehicleReceipt = () => {
+        if (!business?.id) {
+            toast.error('No business selected');
+            return;
+        }
+        void printVehicleBuyerSellerReceiptFromRow(item, business, category, {
+            businessId: business.id,
+        }).then((ok) => {
+            if (ok === false) toast.error('Could not open print window');
+        });
     };
 
     const handleUpdateSuccess = (updatedData) => {
@@ -355,6 +368,12 @@ export function EntityDetailsDialog({ item: initialItem, type, open, onClose, ca
                                     <FileText className="w-3.5 h-3.5 mr-2" />
                                     <span className="text-[10px] font-semibold uppercase tracking-widest">A4 Invoice</span>
                                 </Button>
+                                {isVehicleAgreementVertical(category) && (
+                                    <Button variant="outline" size="sm" onClick={handlePrintVehicleReceipt} className="rounded-xl bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-3">
+                                        <Printer className="w-3.5 h-3.5 mr-2 text-indigo-600" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest">Buyer-Seller Receipt</span>
+                                    </Button>
+                                )}
                             </>
                         ) : (
                             <Button variant="outline" size="sm" onClick={handlePrint} className="rounded-xl bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300 px-3"><Printer className="w-3.5 h-3.5 mr-2" /><span className="text-[10px] font-semibold uppercase tracking-widest">Print</span></Button>

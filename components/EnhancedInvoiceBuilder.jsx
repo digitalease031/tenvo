@@ -34,6 +34,7 @@ import { MOBILE_OVERLAY, MOBILE_OVERLAY_CARD, MOBILE_FORM_FOOTER, MOBILE_GRID_FI
 import { InvoiceMobileLineItems } from '@/components/invoice/mobile/InvoiceMobileLineItems';
 import { DomainMultiRowLineItems } from '@/components/invoice/DomainMultiRowLineItems';
 import { VehicleAgreementSection, isAutomotiveDomain } from '@/components/invoice/VehicleAgreementSection';
+import { printVehicleBuyerSellerReceiptHtml } from '@/lib/print/vehicleBuyerSellerReceiptHtml';
 import { findProductByScanCode } from '@/lib/utils/productScanLookup';
 import { lookupProductByScanCodeAction } from '@/lib/actions/standard/inventory/lookup';
 import { BarcodeScanTrigger } from '@/components/inventory/BarcodeScanTrigger';
@@ -1509,6 +1510,26 @@ export function EnhancedInvoiceBuilder({
               onChange={(val) => setInvoice((prev) => ({ ...prev, vehicleAgreement: val }))}
               category={category}
               customer={invoice.customer}
+              business={business}
+              onPrintReceipt={() => {
+                printVehicleBuyerSellerReceiptHtml(
+                  { ...invoice, items, totals },
+                  business,
+                  category
+                );
+              }}
+              onDownloadPdf={() => {
+                try {
+                  generateInvoicePDF(
+                    { ...invoice, items, category, vehicleAgreement: invoice.vehicleAgreement },
+                    totals,
+                    business
+                  );
+                  toast.success('Vehicle Buyer-Seller Receipt PDF downloaded');
+                } catch (e) {
+                  toast.error('Failed to generate PDF');
+                }
+              }}
             />
           )}
 

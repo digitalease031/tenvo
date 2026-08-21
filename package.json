@@ -121,6 +121,7 @@
     "data-lab:seed-catalog": "npx tsx scripts/data-lab/seed-master-demo.mjs --refresh-catalog --catalog-only",
     "data-lab:seed-showroom": "npx tsx scripts/data-lab/seed-master-demo.mjs --refresh-catalog --only vehicle-dealership",
     "verify:showroom-seed": "bun scripts/verify-showroom-seed.mjs",
+    "verify:dealership-receipt": "bun scripts/verify-dealership-buyer-seller-receipt.mjs",
     "data-lab:verify": "npx tsx scripts/data-lab/verify-demo-wiring.mjs",
     "data-lab:ensure-demos": "npx tsx scripts/data-lab/ensure-demo-storefronts.mjs --refresh-catalog",
     "data-lab:reset": "node scripts/data-lab/purge-business-data.mjs --confirm PURGE_ALL_BUSINESS_DATA && npx tsx scripts/data-lab/seed-master-demo.mjs && npx tsx scripts/data-lab/verify-demo-wiring.mjs",

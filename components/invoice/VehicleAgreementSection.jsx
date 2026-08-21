@@ -51,6 +51,9 @@ export function VehicleAgreementSection({
   onChange,
   category = 'vehicle-dealership',
   customer = null,
+  business = null,
+  onPrintReceipt = null,
+  onDownloadPdf = null,
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -71,8 +74,12 @@ export function VehicleAgreementSection({
     fuelType: value.fuelType || 'Petrol',
     tokenTaxStatus: value.tokenTaxStatus || 'Paid',
     conditionGrade: value.conditionGrade || 'Certified Pre-Owned',
+    buyerName: value.buyerName || customer?.name || '',
+    buyerPhone: value.buyerPhone || customer?.phone || '',
     buyerCnic: value.buyerCnic || customer?.cnic || customer?.domain_data?.cnic || '',
-    sellerCnic: value.sellerCnic || '',
+    sellerName: value.sellerName || business?.name || '',
+    sellerPhone: value.sellerPhone || business?.phone || business?.phone_number || '',
+    sellerCnic: value.sellerCnic || business?.cnic || business?.ntn || '',
     witness1Name: value.witness1Name || '',
     witness1Cnic: value.witness1Cnic || '',
     witness1Phone: value.witness1Phone || '',
@@ -92,47 +99,96 @@ export function VehicleAgreementSection({
     });
   };
 
-  // Sync customer CNIC if updated
+  // Sync customer & business defaults if updated
   useEffect(() => {
-    if (customer?.cnic && !agreementData.buyerCnic) {
-      updateField('buyerCnic', customer.cnic);
+    let updated = false;
+    const patch = { ...agreementData };
+
+    if (customer?.name && !agreementData.buyerName) { patch.buyerName = customer.name; updated = true; }
+    if (customer?.phone && !agreementData.buyerPhone) { patch.buyerPhone = customer.phone; updated = true; }
+    if ((customer?.cnic || customer?.domain_data?.cnic) && !agreementData.buyerCnic) {
+      patch.buyerCnic = customer.cnic || customer.domain_data?.cnic;
+      updated = true;
     }
-  }, [customer?.cnic]);
+    if (business?.name && !agreementData.sellerName) { patch.sellerName = business.name; updated = true; }
+    if ((business?.phone || business?.phone_number) && !agreementData.sellerPhone) {
+      patch.sellerPhone = business.phone || business.phone_number;
+      updated = true;
+    }
+    if ((business?.cnic || business?.ntn) && !agreementData.sellerCnic) {
+      patch.sellerCnic = business.cnic || business.ntn;
+      updated = true;
+    }
+
+    if (updated) {
+      onChange(patch);
+    }
+  }, [customer?.name, customer?.phone, customer?.cnic, business?.name, business?.phone, business?.cnic, business?.ntn]);
 
   if (!isAutomotiveDomain(category)) return null;
+
+  const missingBuyerPhone = !agreementData.buyerPhone;
+  const missingBuyerCnic = !agreementData.buyerCnic;
+  const missingSellerPhone = !agreementData.sellerPhone;
+  const missingSellerCnic = !agreementData.sellerCnic;
+  const hasMissingMandatoryPartyInfo = missingBuyerPhone || missingBuyerCnic || missingSellerPhone || missingSellerCnic;
 
   return (
     <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50 p-4 shadow-xs space-y-4">
       {/* Header Bar */}
-      <div
-        className="flex items-center justify-between cursor-pointer select-none"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
+        <div
+          className="flex items-center gap-2.5 cursor-pointer flex-1"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shrink-0">
             <Car className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 flex-wrap">
               Vehicle Agreement & Delivery Specifications
               <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px] uppercase font-semibold">
                 {key.replace('-', ' ')}
               </Badge>
+              {hasMissingMandatoryPartyInfo && (
+                <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] uppercase font-semibold">
+                  ⚠️ Phone & CNIC Required
+                </Badge>
+              )}
             </h4>
             <p className="text-xs text-slate-500">
-              Registration, VIN/Chassis #, Engine #, Mileage, CNIC verification & Sales Agreement clauses
+              Mandatory Buyer & Seller Phone + CNIC, VIN/Chassis #, Engine #, Odometer & Buyer-Seller Receipt
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="bg-white text-indigo-700 border-indigo-200 text-[10px] font-semibold">
+
+        <div className="flex items-center gap-2 shrink-0">
+          {onPrintReceipt && (
+            <button
+              type="button"
+              onClick={onPrintReceipt}
+              className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors shadow-2xs flex items-center gap-1.5"
+            >
+              🖨️ Print Receipt
+            </button>
+          )}
+          {onDownloadPdf && (
+            <button
+              type="button"
+              onClick={onDownloadPdf}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-bold hover:bg-slate-900 transition-colors shadow-2xs flex items-center gap-1.5"
+            >
+              📥 Download PDF
+            </button>
+          )}
+          <Badge variant="outline" className="bg-white text-indigo-700 border-indigo-200 text-[10px] font-semibold hidden sm:inline-flex">
             {agreementData.transactionMode === 'sale'
               ? 'Vehicle Sale Invoice'
               : agreementData.transactionMode === 'purchase'
               ? 'Vehicle Trade-In Purchase'
               : 'Vehicle Rental Agreement'}
           </Badge>
-          <button type="button" className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+          <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
@@ -301,38 +357,97 @@ export function VehicleAgreementSection({
             </div>
           </div>
 
-          {/* SECTION 2: Identification & Legal Witnesses */}
+          {/* SECTION 2: Mandatory Buyer & Seller Identification & Legal Witnesses */}
           <div className="space-y-2">
-            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-              Buyer / Seller Identification & Legal Witnesses
+            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                Buyer & Seller Mandatory Identification & Legal Witnesses
+              </span>
+              <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                Mandatory Phone & CNIC Required
+              </span>
             </h5>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              {/* Buyer / Seller CNIC */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-bold text-indigo-800 uppercase block">Primary Parties</span>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+              {/* Buyer Block */}
+              <div className="space-y-2 bg-indigo-50/40 p-2.5 rounded-lg border border-indigo-100">
+                <span className="text-[11px] font-bold text-indigo-900 uppercase block">Purchaser / Buyer</span>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold text-slate-500 uppercase">Purchaser / Buyer CNIC</Label>
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase">Buyer Full Name</Label>
+                  <Input
+                    value={agreementData.buyerName}
+                    onChange={(e) => updateField('buyerName', e.target.value)}
+                    placeholder="Purchaser Name"
+                    className="h-8 text-xs bg-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase flex items-center justify-between">
+                    <span>Buyer Phone <span className="text-red-500">*</span></span>
+                    {missingBuyerPhone && <span className="text-[9px] text-red-600 font-bold">Required</span>}
+                  </Label>
+                  <Input
+                    value={agreementData.buyerPhone}
+                    onChange={(e) => updateField('buyerPhone', e.target.value)}
+                    placeholder="0300-1234567"
+                    className={cn("h-8 text-xs bg-white font-medium", missingBuyerPhone && "border-red-300 bg-red-50/30")}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase flex items-center justify-between">
+                    <span>Buyer CNIC <span className="text-red-500">*</span></span>
+                    {missingBuyerCnic && <span className="text-[9px] text-red-600 font-bold">Required</span>}
+                  </Label>
                   <Input
                     value={agreementData.buyerCnic}
                     onChange={(e) => updateField('buyerCnic', e.target.value)}
                     placeholder="35202-1234567-1"
-                    className="h-8 text-xs font-mono bg-slate-50/50"
+                    className={cn("h-8 text-xs font-mono bg-white", missingBuyerCnic && "border-red-300 bg-red-50/30")}
+                  />
+                </div>
+              </div>
+
+              {/* Seller Block */}
+              <div className="space-y-2 bg-slate-50/70 p-2.5 rounded-lg border border-slate-200">
+                <span className="text-[11px] font-bold text-slate-800 uppercase block">Seller / Transferor</span>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase">Seller / Showroom Name</Label>
+                  <Input
+                    value={agreementData.sellerName}
+                    onChange={(e) => updateField('sellerName', e.target.value)}
+                    placeholder="Showroom Name"
+                    className="h-8 text-xs bg-white"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold text-slate-500 uppercase">Seller / Transferor CNIC</Label>
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase flex items-center justify-between">
+                    <span>Seller Phone <span className="text-red-500">*</span></span>
+                    {missingSellerPhone && <span className="text-[9px] text-red-600 font-bold">Required</span>}
+                  </Label>
+                  <Input
+                    value={agreementData.sellerPhone}
+                    onChange={(e) => updateField('sellerPhone', e.target.value)}
+                    placeholder="0321-9876543"
+                    className={cn("h-8 text-xs bg-white font-medium", missingSellerPhone && "border-red-300 bg-red-50/30")}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase flex items-center justify-between">
+                    <span>Seller CNIC / NTN <span className="text-red-500">*</span></span>
+                    {missingSellerCnic && <span className="text-[9px] text-red-600 font-bold">Required</span>}
+                  </Label>
                   <Input
                     value={agreementData.sellerCnic}
                     onChange={(e) => updateField('sellerCnic', e.target.value)}
                     placeholder="35201-9876543-2"
-                    className="h-8 text-xs font-mono bg-slate-50/50"
+                    className={cn("h-8 text-xs font-mono bg-white", missingSellerCnic && "border-red-300 bg-red-50/30")}
                   />
                 </div>
               </div>
 
               {/* Witness 1 */}
-              <div className="space-y-2">
+              <div className="space-y-2 p-2.5 rounded-lg border border-slate-100 bg-white">
                 <span className="text-[11px] font-bold text-slate-700 uppercase block">Witness 1 (Gawaah 1)</span>
                 <Input
                   value={agreementData.witness1Name}
@@ -340,24 +455,22 @@ export function VehicleAgreementSection({
                   placeholder="Witness 1 Name"
                   className="h-8 text-xs bg-slate-50/50"
                 />
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Input
-                    value={agreementData.witness1Cnic}
-                    onChange={(e) => updateField('witness1Cnic', e.target.value)}
-                    placeholder="CNIC No"
-                    className="h-8 text-xs font-mono bg-slate-50/50"
-                  />
-                  <Input
-                    value={agreementData.witness1Phone}
-                    onChange={(e) => updateField('witness1Phone', e.target.value)}
-                    placeholder="Phone No"
-                    className="h-8 text-xs bg-slate-50/50"
-                  />
-                </div>
+                <Input
+                  value={agreementData.witness1Phone}
+                  onChange={(e) => updateField('witness1Phone', e.target.value)}
+                  placeholder="Phone No"
+                  className="h-8 text-xs bg-slate-50/50"
+                />
+                <Input
+                  value={agreementData.witness1Cnic}
+                  onChange={(e) => updateField('witness1Cnic', e.target.value)}
+                  placeholder="CNIC No"
+                  className="h-8 text-xs font-mono bg-slate-50/50"
+                />
               </div>
 
               {/* Witness 2 */}
-              <div className="space-y-2">
+              <div className="space-y-2 p-2.5 rounded-lg border border-slate-100 bg-white">
                 <span className="text-[11px] font-bold text-slate-700 uppercase block">Witness 2 (Gawaah 2)</span>
                 <Input
                   value={agreementData.witness2Name}
@@ -365,20 +478,18 @@ export function VehicleAgreementSection({
                   placeholder="Witness 2 Name"
                   className="h-8 text-xs bg-slate-50/50"
                 />
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Input
-                    value={agreementData.witness2Cnic}
-                    onChange={(e) => updateField('witness2Cnic', e.target.value)}
-                    placeholder="CNIC No"
-                    className="h-8 text-xs font-mono bg-slate-50/50"
-                  />
-                  <Input
-                    value={agreementData.witness2Phone}
-                    onChange={(e) => updateField('witness2Phone', e.target.value)}
-                    placeholder="Phone No"
-                    className="h-8 text-xs bg-slate-50/50"
-                  />
-                </div>
+                <Input
+                  value={agreementData.witness2Phone}
+                  onChange={(e) => updateField('witness2Phone', e.target.value)}
+                  placeholder="Phone No"
+                  className="h-8 text-xs bg-slate-50/50"
+                />
+                <Input
+                  value={agreementData.witness2Cnic}
+                  onChange={(e) => updateField('witness2Cnic', e.target.value)}
+                  placeholder="CNIC No"
+                  className="h-8 text-xs font-mono bg-slate-50/50"
+                />
               </div>
             </div>
           </div>

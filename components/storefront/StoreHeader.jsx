@@ -153,8 +153,8 @@ export function StoreHeader({ business, categories, settings }) {
       {/* ── Announcement / Top Bar ─────────────────────────────────────── */}
       {showAnnouncementBar && (
         <div
-          className={cn('hidden text-white text-xs py-2 px-4 md:block', evNav && 'bg-slate-950 border-b border-slate-800')}
-          style={evNav ? undefined : { backgroundColor: accent }}
+          className={cn('hidden text-white text-xs py-2 px-4 md:block')}
+          style={{ backgroundColor: accent }}
         >
           <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4">
             {/* Left: contact info */}
@@ -188,7 +188,7 @@ export function StoreHeader({ business, categories, settings }) {
               {(isEvBikesStore(business?.category) || isAutoDealershipStore(business?.category) || isElectronicsElevatedStore(business?.category)) && (
                 <Link
                   href={`/store/${businessDomain}/installments`}
-                  className="whitespace-nowrap font-bold text-amber-300 hover:text-white transition-colors"
+                  className="whitespace-nowrap font-bold text-amber-200 hover:text-white transition-colors"
                 >
                   Installment Plan
                 </Link>
@@ -209,7 +209,7 @@ export function StoreHeader({ business, categories, settings }) {
         className={cn(
           'border-b transition-all duration-300',
           evNav
-            ? 'bg-slate-900 border-slate-800 text-white shadow-md'
+            ? cn('bg-white border-slate-200 text-slate-900', isScrolled ? 'shadow-md' : 'shadow-sm')
             : transparentHeader
               ? 'border-transparent bg-transparent'
               : marketplaceNav
@@ -831,7 +831,7 @@ export function StoreHeader({ business, categories, settings }) {
                     settings={settings}
                     accent="#dc2626"
                     size="md"
-                    nameClassName="text-base sm:text-lg font-black tracking-wider text-white"
+                    nameClassName="text-base sm:text-lg font-extrabold tracking-wider text-slate-900"
                     logoClassName="h-8 sm:h-9 w-auto object-contain"
                   />
                 </Link>
@@ -847,8 +847,8 @@ export function StoreHeader({ business, categories, settings }) {
                         className={cn(
                           'px-3.5 py-2 text-xs font-bold rounded-2xl transition-all whitespace-nowrap',
                           active
-                            ? 'bg-red-600 text-white shadow-md'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+                            ? 'bg-red-600 text-white shadow-sm'
+                            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-semibold'
                         )}
                       >
                         {link.label}
@@ -858,18 +858,18 @@ export function StoreHeader({ business, categories, settings }) {
                 </nav>
 
                 {/* ── EV Showroom Desktop Actions ───────────────────────────────────── */}
-                <div className="ml-auto flex items-center gap-1 text-slate-300">
+                <div className="ml-auto flex items-center gap-1 text-slate-700">
                   <button
                     type="button"
                     onClick={() => setIsSearchOpen(true)}
-                    className="p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    className="p-2.5 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition"
                     aria-label="Search"
                   >
                     <Search className="w-5 h-5" strokeWidth={1.75} />
                   </button>
                   <Link
                     href={`/store/${businessDomain}/account/wishlist`}
-                    className="relative hidden sm:flex p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    className="relative hidden sm:flex p-2.5 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition"
                     aria-label={`Wishlist (${wishlistCount} items)`}
                   >
                     <Heart className="w-5 h-5" strokeWidth={1.75} />
@@ -881,14 +881,14 @@ export function StoreHeader({ business, categories, settings }) {
                   </Link>
                   <Link
                     href={`/store/${businessDomain}/orders`}
-                    className="hidden sm:flex p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    className="hidden sm:flex p-2.5 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition"
                     aria-label="Account"
                   >
                     <User className="w-5 h-5" strokeWidth={1.75} />
                   </Link>
                   <Link
                     href={`/store/${businessDomain}/cart`}
-                    className="relative p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    className="relative p-2.5 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition"
                     aria-label={`Cart (${cartItemCount} items)`}
                   >
                     <ShoppingBag className="w-5 h-5" strokeWidth={1.75} />
@@ -901,7 +901,7 @@ export function StoreHeader({ business, categories, settings }) {
                   <button
                     type="button"
                     onClick={() => setIsMobileMenuOpen(true)}
-                    className="p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition lg:hidden"
+                    className="p-2.5 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition lg:hidden"
                     aria-label="Open menu"
                   >
                     <Menu className="w-5 h-5" />

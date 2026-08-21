@@ -1412,9 +1412,11 @@ function BusinessDashboardContent() {
       const listReadyInvoice = savedInvoice?.id
         ? {
             ...savedInvoice,
+            business_id: savedInvoice.business_id || business.id,
             customer_name: savedInvoice.customer_name || customerName,
             customer_id: savedInvoice.customer_id || header.customer_id || header.customer?.id || null,
             items: savedInvoice.items?.length ? savedInvoice.items : mappedItems,
+            date: savedInvoice.date || new Date().toISOString(),
             balance:
               savedInvoice.balance !== undefined && savedInvoice.balance !== null
                 ? Number(savedInvoice.balance)

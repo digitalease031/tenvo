@@ -53,12 +53,12 @@ export function EvBikesPaveBanner({ onSelectPaveFilter }) {
               100% SE
             </span>
 
-            {/* High-res EV Cutout Image */}
+            {/* High-res METRO METRIX EV Cutout Image (Seamless multiply blend, no box shadow) */}
             <SmartProductImage
-              src="https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=1200&q=80&auto=format&fit=crop"
-              alt="TENVO PAVE Scheme Electric Bike"
-              fallbackSrc="https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=1200&q=80&auto=format&fit=crop"
-              className="relative z-10 max-h-64 sm:max-h-72 w-auto object-contain drop-shadow-xl hover:scale-105 transition-transform duration-500"
+              src="/tenvo-img/ev-metrix-pave-banner.png"
+              alt="TENVO METRIX (NCF) PAVE Scheme Electric Scooter"
+              fallbackSrc="/tenvo-img/ev-metrix-pave-banner.png"
+              className="relative z-10 max-h-64 sm:max-h-80 w-auto object-contain mix-blend-multiply hover:scale-105 transition-transform duration-500"
             />
           </div>
 

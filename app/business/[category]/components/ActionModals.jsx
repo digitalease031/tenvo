@@ -418,16 +418,23 @@ export function ActionModals({
                         if (result.success) {
                             const paidInvoice = result.invoice;
                             if (paidInvoice?.id && typeof upsertInvoiceInState === 'function') {
-                                const patch = { id: paidInvoice.id };
-                                if (paidInvoice.payment_status != null) patch.payment_status = paidInvoice.payment_status;
-                                if (paidInvoice.status != null) patch.status = paidInvoice.status;
-                                const nextBalance = paidInvoice.balance ?? paidInvoice.new_balance;
-                                if (nextBalance !== undefined && nextBalance !== null) patch.balance = nextBalance;
-                                if (paidInvoice.grand_total != null) patch.grand_total = paidInvoice.grand_total;
-                                if (paidInvoice.invoice_number) patch.invoice_number = paidInvoice.invoice_number;
-                                if (selectedInvoiceForPayment.customer_name) {
-                                    patch.customer_name = selectedInvoiceForPayment.customer_name;
-                                }
+                                const rawBalance = paidInvoice.balance ?? paidInvoice.new_balance;
+                                const nextBalance = rawBalance !== undefined && rawBalance !== null ? Number(rawBalance) : 0;
+                                const grand = Number(paidInvoice.grand_total ?? selectedInvoiceForPayment.grand_total ?? 0);
+                                const isFullyPaid = nextBalance <= 0.009 && grand > 0;
+
+                                const patch = {
+                                    id: paidInvoice.id,
+                                    business_id: activeBusinessId,
+                                    payment_status: isFullyPaid ? 'paid' : (paidInvoice.payment_status || 'partial'),
+                                    status: isFullyPaid ? 'paid' : (paidInvoice.status || selectedInvoiceForPayment.status || 'pending'),
+                                    balance: nextBalance,
+                                    grand_total: grand,
+                                    invoice_number: paidInvoice.invoice_number || selectedInvoiceForPayment.invoice_number,
+                                    customer_name: selectedInvoiceForPayment.customer_name || paidInvoice.customer_name || null,
+                                    customer_id: selectedInvoiceForPayment.customer_id || paidInvoice.customer_id || null,
+                                    items: selectedInvoiceForPayment.items || paidInvoice.items || [],
+                                };
                                 upsertInvoiceInState(patch);
                             }
                             setShowPaymentModal(false);

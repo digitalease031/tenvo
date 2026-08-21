@@ -230,7 +230,7 @@ export function EvBikesFeaturedCarousel({
               <div className="space-y-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                    {product.brand || 'Metro EV'} · {product.category || 'Electric Bikes'}
+                    {product.brand || 'Tenvo EV'} · {product.category || 'Electric Bikes'}
                   </p>
                   <Link href={productHref} className="block group-hover:text-red-600 transition-colors">
                     <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight line-clamp-1 mt-0.5">

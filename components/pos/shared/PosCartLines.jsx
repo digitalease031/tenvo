@@ -5,6 +5,7 @@ import { Minus, Plus, ShoppingCart, Weight, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductThumbnail } from '@/components/product/ProductThumbnail';
 import { formatFabricQtyDisplay } from '@/lib/utils/fabricUnitConversions';
+import { cn } from '@/lib/utils';
 
 /**
  * Shared POS cart line list (browse stays outside — lines live in the cart panel).

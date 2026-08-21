@@ -55,15 +55,15 @@ export function EvBikesHomeSections({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {[
-              { id: 'all', label: 'All EV Models' },
+              { id: 'all', label: 'All Tenvo Models' },
               { id: 'pave', label: 'PAVE Scheme' },
+              { id: 't series', label: 'T Series' },
               { id: 'a series', label: 'A Series' },
               { id: 'y series', label: 'Y Series' },
-              { id: 'b series', label: 'B Series' },
-              { id: 'e series', label: 'E Series' },
-              { id: 'revoo', label: 'REVOO EV' },
-              { id: 'metro', label: 'Metro EV' },
-              { id: 'vlektra', label: 'Vlektra EV' },
+              { id: 'thrill', label: 'Thrill Pro' },
+              { id: 'metrix', label: 'Metrix Series' },
+              { id: 'miku', label: 'Miku Flagship' },
+              { id: 'retro', label: 'Retro Café' },
             ].map((tab) => (
               <button
                 key={tab.id}

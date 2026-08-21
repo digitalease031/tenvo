@@ -15,7 +15,7 @@ const PETROL_BIKE_PRESETS = [
 export function EvBikesSavingsCalculator({
   products = [],
   currency = 'PKR',
-  storeName = 'Metro',
+  storeName = 'Tenvo EV',
 }) {
   // Ev model list from products
   const evModels = useMemo(() => {
@@ -159,7 +159,7 @@ export function EvBikesSavingsCalculator({
             </div>
           </div>
 
-          {/* Sub-Section 2: Metro Vehicle Details */}
+          {/* Sub-Section 2: Tenvo EV Vehicle Details */}
           <div className="space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 uppercase tracking-wide border-b border-slate-200 pb-2">
               {storeName} Vehicle Details

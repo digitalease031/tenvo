@@ -22,7 +22,7 @@ export function EvBikesPaveBanner({ onSelectPaveFilter }) {
             </h2>
 
             <p className="text-sm sm:text-base font-medium text-slate-600 leading-relaxed max-w-xl">
-              Six Metro & Jolta electric bike models are featured in the official PAVE lineup. Confirm your latest eligibility on the official government portal, then visit any authorized showroom to claim your EV subsidy.
+              Six TENVO EV models are featured in the official PAVE lineup. Confirm your latest eligibility on the official government portal, then visit any authorized showroom to claim your EV subsidy.
             </p>
 
             {/* Action CTAs */}
@@ -55,9 +55,9 @@ export function EvBikesPaveBanner({ onSelectPaveFilter }) {
 
             {/* High-res EV Cutout Image */}
             <SmartProductImage
-              src="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=1200&q=80&auto=format&fit=crop"
-              alt="PAVE Scheme Electric Bike"
-              fallbackSrc="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=1200&q=80&auto=format&fit=crop"
+              src="https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=1200&q=80&auto=format&fit=crop"
+              alt="TENVO PAVE Scheme Electric Bike"
+              fallbackSrc="https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=1200&q=80&auto=format&fit=crop"
               className="relative z-10 max-h-64 sm:max-h-72 w-auto object-contain drop-shadow-xl hover:scale-105 transition-transform duration-500"
             />
           </div>

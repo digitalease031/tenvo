@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -182,14 +182,28 @@ export function InvoiceList({
 
     const getPaymentStatusBadge = (invoice: Invoice, compact = false) => {
         const total = Number(invoice.grand_total) || 0;
-        const balance = Number((invoice as any).balance) || total;
+        const rawBalance = (invoice as any).balance;
+        const balance = rawBalance !== undefined && rawBalance !== null
+            ? Number(rawBalance)
+            : total;
         const paid = total - balance;
         const percentage = total > 0 ? Math.round((paid / total) * 100) : 0;
         const badgeClass = compact
             ? 'text-[10px] px-1.5 py-0 h-5 font-semibold'
             : '';
 
-        if (invoice.payment_status === 'paid' || invoice.status === 'paid' || percentage >= 100) {
+        const isFullyPaid =
+            invoice.payment_status === 'paid' ||
+            (balance <= 0.01 && total > 0) ||
+            percentage >= 100 ||
+            (invoice.status === 'paid' && balance <= 0.01);
+
+        const isPartial =
+            !isFullyPaid &&
+            (invoice.payment_status === 'partial' ||
+                (paid > 0.01 && balance > 0.01));
+
+        if (isFullyPaid) {
             return (
                 <Badge className={cn('bg-green-100 text-green-800 hover:bg-green-200', badgeClass)}>
                     {!compact && <CheckCircle2 className="w-3 h-3 mr-1" />}
@@ -198,7 +212,7 @@ export function InvoiceList({
             );
         }
 
-        if (invoice.payment_status === 'partial' || (paid > 0 && paid < total)) {
+        if (isPartial) {
             return (
                 <Badge className={cn('bg-blue-100 text-blue-800 hover:bg-blue-200', badgeClass)}>
                     {!compact && <CreditCard className="w-3 h-3 mr-1" />}

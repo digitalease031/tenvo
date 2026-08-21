@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 
 /**
  * Interactive Test Ride Modal for EV Bikes Storefront.
- * Allows visitors to request a free test ride for Vlektra, Metro EV, or Ramza models.
+ * Allows visitors to request a free test ride for TENVO EV models.
  */
 export function TestRideModal({ isOpen, onClose, storeName = 'Tenvo EV', vehicle = null }) {
   const [modelOverride, setModelOverride] = useState('');
@@ -16,7 +16,7 @@ export function TestRideModal({ isOpen, onClose, storeName = 'Tenvo EV', vehicle
   const [date, setDate] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  const model = modelOverride || vehicle?.name || 'Metro T9 Sport (Smart Scooter)';
+  const model = modelOverride || vehicle?.name || 'Tenvo T9 Sport (Smart Scooter)';
 
   if (!isOpen) return null;
 
@@ -95,14 +95,14 @@ export function TestRideModal({ isOpen, onClose, storeName = 'Tenvo EV', vehicle
                 onChange={(e) => setModelOverride(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-bold text-slate-900 focus:border-red-600 focus:bg-white focus:outline-none"
               >
-                <option value="Metro T9 Sport (Smart Scooter)">Metro T9 Sport — Graphene Smart Scooter (90 km Range)</option>
-                <option value="Metro Metrix NCF (Long Range)">Metro Metrix NCF — 72V Smart Scooter (105 km Range)</option>
-                <option value="Metro Miku Super Dual Lithium">Metro Miku Super — 3000W Dual Lithium Motorcycle (100 km/h)</option>
-                <option value="Vlektra Retro (Café Racer EV)">Vlektra Retro — 72V Lithium Café Racer (100 km Range)</option>
-                <option value="Vlektra Velocity (Naked Sport EV)">Vlektra Velocity — Naked Sport EV (85 km Range)</option>
-                <option value="Vlektra Rex (Streetfighter EV)">Vlektra Rex — High-Performance Streetfighter (120 km Range)</option>
-                <option value="REVOO A12 LFP Smart Scooter">REVOO A12 — LFP Battery Smart Scooter (100 km Range)</option>
-                <option value="Ramza Liberty (Compact EV)">Ramza Liberty — Compact City EV (75 km Range)</option>
+                <option value="Tenvo T9 Sport (Smart Scooter)">Tenvo T9 Sport — Graphene Smart Scooter (90 km Range)</option>
+                <option value="Tenvo Metrix NCF (Long Range)">Tenvo Metrix NCF — 72V Smart Scooter (105 km Range)</option>
+                <option value="Tenvo Miku Super Dual Lithium">Tenvo Miku Super — 3000W Dual Lithium Motorcycle (100 km/h)</option>
+                <option value="Tenvo Retro (Café Racer EV)">Tenvo Retro — 72V Lithium Café Racer (100 km Range)</option>
+                <option value="Tenvo Velocity (Naked Sport EV)">Tenvo Velocity — Naked Sport EV (85 km Range)</option>
+                <option value="Tenvo Rex (Streetfighter EV)">Tenvo Rex — High-Performance Streetfighter (120 km Range)</option>
+                <option value="Tenvo A12 LFP Smart Scooter">Tenvo A12 — LFP Battery Smart Scooter (100 km Range)</option>
+                <option value="Tenvo Liberty (Compact EV)">Tenvo Liberty — Compact City EV (75 km Range)</option>
               </select>
             </div>
 

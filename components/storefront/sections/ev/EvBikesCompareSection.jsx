@@ -12,7 +12,7 @@ export function EvBikesCompareSection({
   products = [],
   businessDomain = '',
   currency = 'PKR',
-  storeName = 'Metro',
+  storeName = 'Tenvo EV',
   onBookTestRide,
 }) {
   // Filter products that belong to EV vehicles

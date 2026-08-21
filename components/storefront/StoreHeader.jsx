@@ -25,7 +25,7 @@ import { isAutoDealershipStore, getDealershipNavLinks, getDealershipNavGroups } 
 import { StorefrontBrandMark } from '@/components/storefront/StorefrontBrandMark';
 import { isAutoMarketplaceStore, getMarketplaceNavLinks } from '@/lib/storefront/autoMarketplace';
 import { isPharmacyElevatedStore, getPharmacyNavLinks, formatPharmacyStoreName } from '@/lib/storefront/pharmacyStorefront';
-import { isEvBikesStore } from '@/lib/storefront/evBikesStorefront';
+import { isEvBikesStore, getEvBikesNavLinks } from '@/lib/storefront/evBikesStorefront';
 import { isElectronicsElevatedStore } from '@/lib/storefront/electronicsStorefront';
 import { resolveDomainKey } from '@/lib/config/domainKeyAliases';
 import { resolveStoreContact } from '@/lib/storefront/businessContact';
@@ -65,7 +65,10 @@ export function StoreHeader({ business, categories, settings }) {
   const topBar = resolveStoreTopBarConfig(settings);
   const topBarEnabled = topBar.enabled;
   const showServiceStrip = settings?.storefront?.showServiceStrip !== false;
-  const announcement = settings?.announcement || domainCfg.bannerText;
+  const evNav = isEvBikesStore(business?.category);
+  const announcement = evNav
+    ? '⚡ Tenvo Electric Mobility Suite · Official TENVO EV Flagship Storefront · Book a Free Test Ride Today'
+    : (settings?.announcement || domainCfg.bannerText);
   const contact = resolveStoreContact({ business, settings });
   const contactPhone = topBar.showPhone ? contact.phone : '';
   const contactPhoneHref = contactPhone ? formatTelHref(contactPhone) : null;
@@ -135,6 +138,7 @@ export function StoreHeader({ business, categories, settings }) {
   const marketplaceLinks = marketplaceNav ? getMarketplaceNavLinks(storeRoot) : [];
   const pharmacyLinks = pharmacyNav ? getPharmacyNavLinks(storeRoot) : [];
   const pharmacyDisplayName = pharmacyNav ? formatPharmacyStoreName(business?.business_name) : '';
+  const evLinks = evNav ? getEvBikesNavLinks(storeRoot) : [];
 
   const visibleCategories = categories?.slice(0, 5) || [];
   const extraCategories = categories?.slice(5) || [];
@@ -149,8 +153,8 @@ export function StoreHeader({ business, categories, settings }) {
       {/* ── Announcement / Top Bar ─────────────────────────────────────── */}
       {showAnnouncementBar && (
         <div
-          className="hidden text-white text-xs py-2 px-4 md:block"
-          style={{ backgroundColor: accent }}
+          className={cn('hidden text-white text-xs py-2 px-4 md:block', evNav && 'bg-slate-950 border-b border-slate-800')}
+          style={evNav ? undefined : { backgroundColor: accent }}
         >
           <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4">
             {/* Left: contact info */}
@@ -204,14 +208,16 @@ export function StoreHeader({ business, categories, settings }) {
       <div
         className={cn(
           'border-b transition-all duration-300',
-          transparentHeader
-            ? 'border-transparent bg-transparent'
-            : marketplaceNav
-              ? cn('border-neutral-200 bg-white', isScrolled && 'shadow-md')
-              : cn(
-                'bg-white',
-                isScrolled ? 'shadow-lg' : 'border-stone-200'
-              )
+          evNav
+            ? 'bg-slate-900 border-slate-800 text-white shadow-md'
+            : transparentHeader
+              ? 'border-transparent bg-transparent'
+              : marketplaceNav
+                ? cn('border-neutral-200 bg-white', isScrolled && 'shadow-md')
+                : cn(
+                  'bg-white',
+                  isScrolled ? 'shadow-lg' : 'border-stone-200'
+                )
         )}
       >
         {/* Marketplace Service Strip - Only visible when scrolled */}
@@ -364,16 +370,22 @@ export function StoreHeader({ business, categories, settings }) {
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
-              className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full bg-gray-100 px-3 text-left text-xs text-gray-500"
+              className={cn(
+                'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full px-3 text-left text-xs',
+                evNav ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-gray-100 text-gray-500'
+              )}
               aria-label={searchPlaceholder}
             >
-              <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <Search className={cn('h-3.5 w-3.5 shrink-0', evNav ? 'text-slate-400' : 'text-gray-400')} />
               <span className="truncate">{searchPlaceholder}</span>
             </button>
 
             <Link
               href={`/store/${businessDomain}/cart`}
-              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-700"
+              className={cn(
+                'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                evNav ? 'text-slate-200 hover:text-white' : 'text-gray-700'
+              )}
               aria-label={`Cart (${cartItemCount} items)`}
             >
               <ShoppingBag className="h-[18px] w-[18px]" />
@@ -390,7 +402,10 @@ export function StoreHeader({ business, categories, settings }) {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-700"
+              className={cn(
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                evNav ? 'text-slate-200 hover:text-white' : 'text-gray-700'
+              )}
               aria-label="Open menu"
             >
               <Menu className="h-[18px] w-[18px]" />
@@ -807,6 +822,92 @@ export function StoreHeader({ business, categories, settings }) {
                   </Link>
                 </div>
               </>
+            ) : evNav ? (
+              <>
+                {/* ── EV Brand Mark ─────────────────────────────────────────────────── */}
+                <Link href={storeRoot} className="flex shrink-0 items-center gap-2">
+                  <StorefrontBrandMark
+                    business={business}
+                    settings={settings}
+                    accent="#dc2626"
+                    size="md"
+                    nameClassName="text-base sm:text-lg font-black tracking-wider text-white"
+                    logoClassName="h-8 sm:h-9 w-auto object-contain"
+                  />
+                </Link>
+
+                {/* ── EV Showroom Desktop Category Nav ────────────────────────────── */}
+                <nav className="hidden lg:flex items-center justify-center gap-1.5 flex-1">
+                  {evLinks.map((link) => {
+                    const active = isActive(link.href);
+                    return (
+                      <Link
+                        key={link.id}
+                        href={link.href}
+                        className={cn(
+                          'px-3.5 py-2 text-xs font-bold rounded-2xl transition-all whitespace-nowrap',
+                          active
+                            ? 'bg-red-600 text-white shadow-md'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+
+                {/* ── EV Showroom Desktop Actions ───────────────────────────────────── */}
+                <div className="ml-auto flex items-center gap-1 text-slate-300">
+                  <button
+                    type="button"
+                    onClick={() => setIsSearchOpen(true)}
+                    className="p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    aria-label="Search"
+                  >
+                    <Search className="w-5 h-5" strokeWidth={1.75} />
+                  </button>
+                  <Link
+                    href={`/store/${businessDomain}/account/wishlist`}
+                    className="relative hidden sm:flex p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    aria-label={`Wishlist (${wishlistCount} items)`}
+                  >
+                    <Heart className="w-5 h-5" strokeWidth={1.75} />
+                    {wishlistCount > 0 && (
+                      <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-0.5 text-[9px] font-black text-white">
+                        {wishlistCount > 99 ? '99+' : wishlistCount}
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    href={`/store/${businessDomain}/orders`}
+                    className="hidden sm:flex p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    aria-label="Account"
+                  >
+                    <User className="w-5 h-5" strokeWidth={1.75} />
+                  </Link>
+                  <Link
+                    href={`/store/${businessDomain}/cart`}
+                    className="relative p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition"
+                    aria-label={`Cart (${cartItemCount} items)`}
+                  >
+                    <ShoppingBag className="w-5 h-5" strokeWidth={1.75} />
+                    {cartItemCount > 0 && (
+                      <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-0.5 text-[9px] font-black text-white">
+                        {cartItemCount > 99 ? '99+' : cartItemCount}
+                      </span>
+                    )}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="p-2.5 rounded-xl hover:text-white hover:bg-slate-800 transition lg:hidden"
+                    aria-label="Open menu"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </button>
+                </div>
+              </>
             ) : (
               <>
             {/* ── Logo ─────────────────────────────────────────────────── */}
@@ -1010,7 +1111,7 @@ export function StoreHeader({ business, categories, settings }) {
         categories={categories}
         businessDomain={businessDomain}
         accent={accent}
-        navLinks={dealershipNav ? dealershipLinks : marketplaceNav ? marketplaceLinks : undefined}
+        navLinks={dealershipNav ? dealershipLinks : marketplaceNav ? marketplaceLinks : evNav ? evLinks : undefined}
       />
       )}
     </header>

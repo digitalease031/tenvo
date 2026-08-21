@@ -21,6 +21,8 @@ const MARKUP_RATES = {
   18: 0.20, // 20% markup for 18m
   24: 0.25, // 25% markup for 24m
   36: 0.35, // 35% markup for 36m
+  48: 0.40, // 40% markup for 48m
+  60: 0.48, // 48% markup for 60m
 };
 
 export function InstallmentPageClient({
@@ -69,6 +71,8 @@ export function InstallmentPageClient({
   // Form State
   const formRef = useRef(null);
   const [fullName, setFullName] = useState('');
+  const [cnic, setCnic] = useState('');
+  const [fatherName, setFatherName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
@@ -96,11 +100,11 @@ export function InstallmentPageClient({
 
   const handleDownloadForm = async () => {
     try {
-      toast.loading('Generating Official TENVO EV Installment Form…', { id: 'pdf-gen' });
+      toast.loading('Generating Official TENVO Installment Form…', { id: 'pdf-gen' });
       const { generateInstallmentFormPdf } = await import('@/lib/pdf/installmentFormPdf');
       const doc = await generateInstallmentFormPdf({
-        storeName: storeName || 'TENVO EV Flagship Showroom',
-        selectedVehicle: selectedProduct?.name || 'TENVO T9 SPORT LITHIUM',
+        storeName: storeName || 'TENVO Flagship Showroom',
+        selectedVehicle: selectedProduct?.name || 'Vehicle / Product Model',
         productPrice: productPrice || 245000,
         downPaymentAmount: downPaymentAmount || 49000,
         downPaymentPct: downPaymentPct || 20,
@@ -108,6 +112,8 @@ export function InstallmentPageClient({
         monthlyInstallment: monthlyInstallment || 10208,
         applicant: {
           fullName: fullName || '',
+          cnic: cnic || '',
+          fatherName: fatherName || '',
           phone: phone || '',
           email: email || '',
           city: city || '',
@@ -115,8 +121,8 @@ export function InstallmentPageClient({
         },
         contact,
       });
-      doc.save(`TENVO-EV-Installment-Application-Form.pdf`);
-      toast.success('TENVO EV Installment Application Form downloaded successfully!', { id: 'pdf-gen' });
+      doc.save(`TENVO-Installment-Application-Form.pdf`);
+      toast.success('TENVO Installment Application Form downloaded successfully!', { id: 'pdf-gen' });
     } catch (err) {
       console.error('Failed to generate PDF:', err);
       toast.error('Could not download form. Please try again.', { id: 'pdf-gen' });
@@ -283,7 +289,7 @@ Attached Document: ${nicFileName || 'Not uploaded online (will bring physical CN
                 </label>
 
                 <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm font-bold">
-                  {[12, 18, 24, 36].map((months) => (
+                  {[12, 18, 24, 36, 48, 60].map((months) => (
                     <label key={months} className="flex items-center gap-2 cursor-pointer text-slate-800">
                       <input
                         type="radio"
@@ -397,19 +403,65 @@ Attached Document: ${nicFileName || 'Not uploaded online (will bring physical CN
             <form onSubmit={handleSubmitApplication} className="space-y-6">
               {/* Applicant Info Fields */}
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="inst-fullname" className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                    Full Name *
-                  </label>
-                  <input
-                    id="inst-fullname"
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none transition"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="inst-fullname" className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                      Full Name (as per CNIC) *
+                    </label>
+                    <input
+                      id="inst-fullname"
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="inst-cnic" className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                      CNIC Number *
+                    </label>
+                    <input
+                      id="inst-cnic"
+                      type="text"
+                      value={cnic}
+                      onChange={(e) => setCnic(e.target.value)}
+                      placeholder="35202-1234567-1"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="inst-father" className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                      Father / Husband Name
+                    </label>
+                    <input
+                      id="inst-father"
+                      type="text"
+                      value={fatherName}
+                      onChange={(e) => setFatherName(e.target.value)}
+                      placeholder="Father or Husband name"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                      Employment Status *
+                    </label>
+                    <select
+                      value={employmentType}
+                      onChange={(e) => setEmploymentType(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:border-red-600 focus:outline-none transition"
+                    >
+                      <option value="salaried">Salaried Employee</option>
+                      <option value="business">Self-Employed / Business Owner</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -465,7 +517,7 @@ Attached Document: ${nicFileName || 'Not uploaded online (will bring physical CN
                       Installment Plan *
                     </label>
                     <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-bold text-slate-800">
-                      {[12, 18, 24, 36].map((m) => (
+                      {[12, 18, 24, 36, 48, 60].map((m) => (
                         <label key={`plan-${m}`} className="flex items-center gap-1.5 cursor-pointer">
                           <input
                             type="radio"
@@ -474,7 +526,7 @@ Attached Document: ${nicFileName || 'Not uploaded online (will bring physical CN
                             onChange={() => setDurationMonths(m)}
                             className="accent-red-600"
                           />
-                          <span>{m}-month</span>
+                          <span>{m}-m</span>
                         </label>
                       ))}
                     </div>

@@ -69,7 +69,7 @@ export function VehicleAgreementSection({
     (business ? formatBusinessAddressBlock(business).join(', ') : '') || business?.address || '';
 
   const agreementData = {
-    transactionMode: value.transactionMode || 'sale', // sale, purchase, rental
+    transactionMode: value.transactionMode || 'sale', // sale, purchase, rental, installment
     registrationNo: value.registrationNo || '',
     chassisNo: value.chassisNo || '',
     engineNo: value.engineNo || '',
@@ -86,16 +86,29 @@ export function VehicleAgreementSection({
     buyerPhone: value.buyerPhone || customer?.phone || '',
     buyerCnic: value.buyerCnic || customer?.cnic || customer?.domain_data?.cnic || '',
     buyerAddress: value.buyerAddress || defaultBuyerAddress,
+    fatherName: value.fatherName || '',
+    employmentType: value.employmentType || 'salaried',
+    employerName: value.employerName || '',
+    monthlyIncome: value.monthlyIncome || '',
     sellerName: value.sellerName || business?.name || '',
     sellerPhone: value.sellerPhone || business?.phone || business?.phone_number || '',
     sellerCnic: value.sellerCnic || business?.cnic || business?.ntn || '',
     sellerAddress: value.sellerAddress || defaultSellerAddress,
+    downPaymentPct: value.downPaymentPct ?? 20,
+    downPaymentAmount: value.downPaymentAmount || '',
+    durationMonths: value.durationMonths ?? 24,
+    markupPct: value.markupPct ?? 15,
+    monthlyInstallment: value.monthlyInstallment || '',
     witness1Name: value.witness1Name || '',
     witness1Cnic: value.witness1Cnic || '',
     witness1Phone: value.witness1Phone || '',
+    witness1Relation: value.witness1Relation || '',
+    witness1City: value.witness1City || '',
     witness2Name: value.witness2Name || '',
     witness2Cnic: value.witness2Cnic || '',
     witness2Phone: value.witness2Phone || '',
+    witness2Relation: value.witness2Relation || '',
+    witness2City: value.witness2City || '',
     ownershipTransferTerms:
       value.ownershipTransferTerms ||
       'Vehicle delivered in good condition. Ownership transfer to be completed within 30 days of sale.',
@@ -226,6 +239,8 @@ export function VehicleAgreementSection({
               ? 'Vehicle Sale Invoice'
               : agreementData.transactionMode === 'purchase'
               ? 'Vehicle Trade-In Purchase'
+              : agreementData.transactionMode === 'installment'
+              ? 'Vehicle Installment Lease'
               : 'Vehicle Rental Agreement'}
           </Badge>
           <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
@@ -243,6 +258,7 @@ export function VehicleAgreementSection({
             {[
               { id: 'sale', label: '🚗 Vehicle Sale Invoice & Delivery Receipt' },
               { id: 'purchase', label: '📥 Vehicle Trade-In / Purchase Receipt' },
+              { id: 'installment', label: '📄 Easy Installments / Leasing' },
               { id: 'rental', label: '🔑 Rent-a-Car Agreement' },
             ].map((mode) => (
               <button
@@ -455,6 +471,47 @@ export function VehicleAgreementSection({
                     className="h-8 text-xs bg-white"
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase">Father / Husband Name</Label>
+                  <Input
+                    value={agreementData.fatherName}
+                    onChange={(e) => updateField('fatherName', e.target.value)}
+                    placeholder="Father/Husband Name"
+                    className="h-8 text-xs bg-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-slate-600 uppercase">Employment Status</Label>
+                  <select
+                    value={agreementData.employmentType}
+                    onChange={(e) => updateField('employmentType', e.target.value)}
+                    className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium"
+                  >
+                    <option value="salaried">Salaried Employee</option>
+                    <option value="business">Self-Employed / Business Owner</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold text-slate-600 uppercase">Employer/Co.</Label>
+                    <Input
+                      value={agreementData.employerName}
+                      onChange={(e) => updateField('employerName', e.target.value)}
+                      placeholder="Employer Name"
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold text-slate-600 uppercase">Income (PKR)</Label>
+                    <Input
+                      type="number"
+                      value={agreementData.monthlyIncome}
+                      onChange={(e) => updateField('monthlyIncome', e.target.value)}
+                      placeholder="e.g. 150000"
+                      className="h-8 text-xs bg-white font-semibold"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Seller Block */}
@@ -525,6 +582,20 @@ export function VehicleAgreementSection({
                   placeholder="CNIC No"
                   className="h-8 text-xs font-mono bg-slate-50/50"
                 />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Input
+                    value={agreementData.witness1Relation}
+                    onChange={(e) => updateField('witness1Relation', e.target.value)}
+                    placeholder="Relation"
+                    className="h-7 text-[11px] bg-slate-50/50"
+                  />
+                  <Input
+                    value={agreementData.witness1City}
+                    onChange={(e) => updateField('witness1City', e.target.value)}
+                    placeholder="City"
+                    className="h-7 text-[11px] bg-slate-50/50"
+                  />
+                </div>
               </div>
 
               {/* Witness 2 */}
@@ -548,11 +619,91 @@ export function VehicleAgreementSection({
                   placeholder="CNIC No"
                   className="h-8 text-xs font-mono bg-slate-50/50"
                 />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Input
+                    value={agreementData.witness2Relation}
+                    onChange={(e) => updateField('witness2Relation', e.target.value)}
+                    placeholder="Relation"
+                    className="h-7 text-[11px] bg-slate-50/50"
+                  />
+                  <Input
+                    value={agreementData.witness2City}
+                    onChange={(e) => updateField('witness2City', e.target.value)}
+                    placeholder="City"
+                    className="h-7 text-[11px] bg-slate-50/50"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* SECTION 3: Legal Terms & Ownership Clause */}
+          {/* SECTION 3: Installment Financing Plan & Calculation Settings */}
+          {agreementData.transactionMode === 'installment' && (
+            <div className="space-y-2 bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+              <h5 className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Calculator className="w-3.5 h-3.5 text-emerald-700" />
+                Installment Financing & Payment Schedule Calculator
+              </h5>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-emerald-800 uppercase">Down Payment (%)</Label>
+                  <Input
+                    type="number"
+                    value={agreementData.downPaymentPct}
+                    onChange={(e) => updateField('downPaymentPct', Number(e.target.value))}
+                    placeholder="20"
+                    className="h-8 text-xs font-bold bg-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-emerald-800 uppercase">Down Payment (PKR)</Label>
+                  <Input
+                    type="number"
+                    value={agreementData.downPaymentAmount}
+                    onChange={(e) => updateField('downPaymentAmount', e.target.value)}
+                    placeholder="Down Payment"
+                    className="h-8 text-xs font-semibold bg-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-emerald-800 uppercase">Duration (Months)</Label>
+                  <select
+                    value={agreementData.durationMonths}
+                    onChange={(e) => updateField('durationMonths', Number(e.target.value))}
+                    className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold"
+                  >
+                    {[12, 18, 24, 36, 48, 60].map((m) => (
+                      <option key={m} value={m}>
+                        {m} Months
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-emerald-800 uppercase">Annual Profit Rate (%)</Label>
+                  <Input
+                    type="number"
+                    value={agreementData.markupPct}
+                    onChange={(e) => updateField('markupPct', Number(e.target.value))}
+                    placeholder="15"
+                    className="h-8 text-xs font-semibold bg-white"
+                  />
+                </div>
+                <div className="space-y-1 col-span-2 sm:col-span-1">
+                  <Label className="text-[10px] font-semibold text-emerald-800 uppercase">Monthly Installment (PKR)</Label>
+                  <Input
+                    type="number"
+                    value={agreementData.monthlyInstallment}
+                    onChange={(e) => updateField('monthlyInstallment', e.target.value)}
+                    placeholder="e.g. 25000"
+                    className="h-8 text-xs font-bold text-emerald-700 bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION 4: Legal Terms & Ownership Clause */}
           <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
             <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-indigo-600" />

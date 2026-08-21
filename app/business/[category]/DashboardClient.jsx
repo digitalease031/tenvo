@@ -1719,13 +1719,13 @@ function BusinessDashboardContent() {
 
   const handleStockTransfer = async (data) => {
     try {
-      await warehouseAPI.createTransfer({ ...data, business_id: business.id });
-      toast.success('Stock transfer initiated');
+      const result = await warehouseAPI.createTransfer({ ...data, business_id: business.id });
       // Non-blocking catalog refresh — UI already confirmed transfer.
       void fetchInventory({ force: true, detailLevel: 'grid' });
+      return result;
     } catch (error) {
       console.error('Stock Transfer Error:', error);
-      toast.error('Failed to transfer stock');
+      throw error;
     }
   };
 

@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Multi-Location Inventory Component - TypeScript Migration
  * Manages warehouse locations and stock transfers
@@ -132,12 +132,28 @@ export function MultiLocationInventory({
         const stockMap = new Map<string, Map<string, number>>();
 
         products.forEach(product => {
-            if (product.locations) {
+            if (product.locations && typeof product.locations === 'object' && !Array.isArray(product.locations)) {
                 Object.entries(product.locations).forEach(([locationId, quantity]) => {
-                    if (!stockMap.has(locationId)) {
-                        stockMap.set(locationId, new Map());
+                    const qty = Number(quantity) || 0;
+                    if (qty > 0) {
+                        if (!stockMap.has(locationId)) stockMap.set(locationId, new Map());
+                        stockMap.get(locationId)!.set(product.id, qty);
                     }
-                    stockMap.get(locationId)!.set(product.id, quantity);
+                });
+            } else {
+                const stockLocs = product.stock_locations || (product as any).stock_locations;
+                const prodStockLocs = product.product_stock_locations || (product as any).product_stock_locations;
+                const locArray = Array.isArray(stockLocs)
+                    ? stockLocs
+                    : (Array.isArray(prodStockLocs) ? prodStockLocs : []);
+
+                locArray.forEach((loc: any) => {
+                    const locationId = loc.warehouse_id || loc.location_id || loc.id;
+                    const qty = Number(loc.quantity) || 0;
+                    if (locationId && qty > 0) {
+                        if (!stockMap.has(locationId)) stockMap.set(locationId, new Map());
+                        stockMap.get(locationId)!.set(product.id, qty);
+                    }
                 });
             }
         });

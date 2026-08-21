@@ -76,6 +76,8 @@ export interface Product {
     created_at: Date;
     updated_at: Date;
     locations?: Record<string, number>; // locationId -> quantity mapping
+    stock_locations?: ProductStockLocation[] | Array<Record<string, any>>;
+    product_stock_locations?: ProductStockLocation[] | Array<Record<string, any>>;
 }
 
 export interface ProductStockLocation {

@@ -347,9 +347,9 @@ export function SalesDocumentForm({
                             <table className="w-full text-sm">
                                 <thead className="bg-gray-50 border-b">
                                     <tr>
-                                        <th className="px-4 py-2 text-left">{t.products_stat || 'Product'}</th>
-                                        {domainCategory === 'textile-wholesale' && <th className="px-4 py-2 text-left">{t.article_no}/{t.design_no}</th>}
-                                        {(showBatch || showSerial) && <th className="px-4 py-2 text-left w-48">{t.batch_tracking}/{t.serial_numbers}</th>}
+                                        <th className="px-4 py-2 text-left">{t?.products_stat || 'Product'}</th>
+                                        {domainCategory === 'textile-wholesale' && <th className="px-4 py-2 text-left">{t?.article_no || 'Article'} / {t?.design_no || 'Design'}</th>}
+                                        {(showBatch || showSerial) && <th className="px-4 py-2 text-left w-48">{t?.batch_tracking || 'Batch Tracking'} / {t?.serial_numbers || 'Serial Numbers'}</th>}
                                         <th className="px-4 py-2 text-right w-24">Qty</th>
                                         <th className="px-4 py-2 text-right w-32">Price</th>
                                         <th className="px-4 py-2 text-right w-32">Total</th>

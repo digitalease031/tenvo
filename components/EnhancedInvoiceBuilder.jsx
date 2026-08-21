@@ -35,6 +35,7 @@ import { InvoiceMobileLineItems } from '@/components/invoice/mobile/InvoiceMobil
 import { DomainMultiRowLineItems } from '@/components/invoice/DomainMultiRowLineItems';
 import { VehicleAgreementSection, isAutomotiveDomain } from '@/components/invoice/VehicleAgreementSection';
 import { printVehicleBuyerSellerReceiptHtml } from '@/lib/print/vehicleBuyerSellerReceiptHtml';
+import { generateInstallmentFormPdf } from '@/lib/pdf/installmentFormPdf';
 import { findProductByScanCode } from '@/lib/utils/productScanLookup';
 import { lookupProductByScanCodeAction } from '@/lib/actions/standard/inventory/lookup';
 import { BarcodeScanTrigger } from '@/components/inventory/BarcodeScanTrigger';
@@ -1528,6 +1529,57 @@ export function EnhancedInvoiceBuilder({
                   toast.success('Vehicle Buyer-Seller Receipt PDF downloaded');
                 } catch (e) {
                   toast.error('Failed to generate PDF');
+                }
+              }}
+              onDownloadInstallmentForm={() => {
+                try {
+                  const itemsList = items || [];
+                  const selectedVehicle =
+                    invoice.vehicleAgreement?.makeModel || (itemsList[0]?.name || itemsList[0]?.product_name) || 'Vehicle / Product';
+                  const productPrice = Number(totals.total || 0);
+                  const downPaymentPct = Number(invoice.vehicleAgreement?.downPaymentPct || 20);
+                  const downPaymentAmount = Number(
+                    invoice.vehicleAgreement?.downPaymentAmount || Math.round(productPrice * (downPaymentPct / 100))
+                  );
+                  const durationMonths = Number(invoice.vehicleAgreement?.durationMonths || 24);
+                  const monthlyInstallment = Number(
+                    invoice.vehicleAgreement?.monthlyInstallment ||
+                      Math.round(((productPrice - downPaymentAmount) * 1.25) / durationMonths)
+                  );
+
+                  void generateInstallmentFormPdf({
+                    storeName: business?.name || business?.business_name || 'Showroom',
+                    selectedVehicle,
+                    productPrice,
+                    downPaymentAmount,
+                    downPaymentPct,
+                    durationMonths,
+                    monthlyInstallment,
+                    applicant: {
+                      fullName: invoice.vehicleAgreement?.buyerName || invoice.customer?.name || '',
+                      phone: invoice.vehicleAgreement?.buyerPhone || invoice.customer?.phone || '',
+                      cnic: invoice.vehicleAgreement?.buyerCnic || invoice.customer?.cnic || invoice.customer?.domain_data?.cnic || '',
+                      address: invoice.customer?.address || '',
+                      city: invoice.customer?.city || '',
+                      witness1Name: invoice.vehicleAgreement?.witness1Name || '',
+                      witness1Phone: invoice.vehicleAgreement?.witness1Phone || '',
+                      witness1Cnic: invoice.vehicleAgreement?.witness1Cnic || '',
+                      witness2Name: invoice.vehicleAgreement?.witness2Name || '',
+                      witness2Phone: invoice.vehicleAgreement?.witness2Phone || '',
+                      witness2Cnic: invoice.vehicleAgreement?.witness2Cnic || '',
+                    },
+                    contact: {
+                      phone: business?.phone || business?.phone_number || '',
+                      email: business?.email || '',
+                    },
+                    category,
+                    business,
+                  }).then((doc) => {
+                    doc.save(`Installment-Application-Form-${invoice.invoiceNumber || 'Draft'}.pdf`);
+                    toast.success('Installment Application Form downloaded');
+                  });
+                } catch (e) {
+                  toast.error('Failed to generate Installment Form PDF');
                 }
               }}
             />

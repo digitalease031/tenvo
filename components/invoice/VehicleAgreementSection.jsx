@@ -54,6 +54,7 @@ export function VehicleAgreementSection({
   business = null,
   onPrintReceipt = null,
   onDownloadPdf = null,
+  onDownloadInstallmentForm = null,
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -179,6 +180,16 @@ export function VehicleAgreementSection({
               className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-bold hover:bg-slate-900 transition-colors shadow-2xs flex items-center gap-1.5"
             >
               📥 Download PDF
+            </button>
+          )}
+          {onDownloadInstallmentForm && (
+            <button
+              type="button"
+              onClick={onDownloadInstallmentForm}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-2xs flex items-center gap-1.5"
+              title="Download Official Installment Application Form PDF"
+            >
+              📄 Installment Form
             </button>
           )}
           <Badge variant="outline" className="bg-white text-indigo-700 border-indigo-200 text-[10px] font-semibold hidden sm:inline-flex">

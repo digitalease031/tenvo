@@ -113,4 +113,24 @@ const pdfDoc = buildInvoicePDFDoc(
 );
 assert.ok(pdfDoc, 'jsPDF document created successfully');
 
+// 5. Test Official Installment Application Form PDF Generation
+const { generateInstallmentFormPdf } = await import('../lib/pdf/installmentFormPdf.js');
+const installmentDoc = await generateInstallmentFormPdf({
+  storeName: 'Tenvo Motors Showroom',
+  selectedVehicle: 'Toyota Corolla Altis Grande 1.8',
+  productPrice: 4500000,
+  downPaymentAmount: 900000,
+  downPaymentPct: 20,
+  durationMonths: 24,
+  monthlyInstallment: 187500,
+  applicant: {
+    fullName: 'Tariq Mehmood',
+    phone: '0300-9876543',
+    cnic: '35202-1234567-1',
+    address: 'Gulberg III, Lahore',
+  },
+  business: sampleBusiness,
+});
+assert.ok(installmentDoc, 'Installment form PDF generated successfully');
+
 console.log('verify-dealership-buyer-seller-receipt: ok');

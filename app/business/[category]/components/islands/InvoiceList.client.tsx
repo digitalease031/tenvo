@@ -15,7 +15,7 @@ import { MobileTabHeader, MobileStatStrip } from '@/components/mobile/MobileTabH
 import { InvoiceMobileList } from '@/components/invoice/mobile/InvoiceMobileList';
 import { MOBILE_BOTTOM_NAV_CLASS, MOBILE_FLOATING_Z, MOBILE_MODULE_FAB_RIGHT } from '@/lib/utils/mobileLayout';
 import { useBusiness } from '@/lib/context/BusinessContext';
-import { printInvoiceThermalFromRow, downloadStandardInvoicePdfFromRow, printVehicleBuyerSellerReceiptFromRow } from '@/lib/print/clientInvoicePrint';
+import { printInvoiceThermalFromRow, downloadStandardInvoicePdfFromRow, printVehicleBuyerSellerReceiptFromRow, downloadInstallmentFormPdfFromRow } from '@/lib/print/clientInvoicePrint';
 import { isVehicleAgreementVertical } from '@/components/invoice/VehicleAgreementSection';
 import toast from 'react-hot-toast';
 
@@ -190,6 +190,20 @@ export function InvoiceList({
             businessId: business.id,
         }).then((ok) => {
             if (ok === false) toast.error('Could not open vehicle receipt print');
+        });
+    };
+
+    const handleInstallmentFormDownload = (invoice: Invoice) => {
+        if (!business) {
+            toast.error('No business selected');
+            return;
+        }
+        void downloadInstallmentFormPdfFromRow(invoice, business, category, {
+            businessId: business.id,
+        }).then(() => {
+            toast.success('Installment application form downloaded');
+        }).catch(() => {
+            toast.error('Could not download installment form');
         });
     };
 
@@ -595,15 +609,26 @@ export function InvoiceList({
                                     <Printer className="w-4 h-4" />
                                 </Button>
                                 {isVehicleAgreementVertical(category) && (
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleVehicleReceiptPrint(row.original)}
-                                        className="h-8 w-8 text-indigo-600 hover:text-indigo-800"
-                                        title="Print Buyer-Seller Receipt (HTML)"
-                                    >
-                                        <Printer className="w-4 h-4 text-indigo-600" />
-                                    </Button>
+                                    <>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleVehicleReceiptPrint(row.original)}
+                                            className="h-8 w-8 text-indigo-600 hover:text-indigo-800"
+                                            title="Print Buyer-Seller Receipt (HTML)"
+                                        >
+                                            <Printer className="w-4 h-4 text-indigo-600" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleInstallmentFormDownload(row.original)}
+                                            className="h-8 w-8 text-emerald-600 hover:text-emerald-800"
+                                            title="Download Installment Application Form PDF"
+                                        >
+                                            <FileText className="w-4 h-4 text-emerald-600" />
+                                        </Button>
+                                    </>
                                 )}
                                 {row.original.payment_status !== 'paid' &&
                                     row.original.status !== 'voided' && (

@@ -275,6 +275,7 @@ export function Header({ onMenuClick }) {
         analytics: 'Intelligence Center',
         finance: 'Finance Hub',
         orders: 'Storefront Orders',
+        installments: 'Installment Plans',
         inquiries: 'Customer Inquiries',
         pos: 'Point of Sale',
         refunds: 'Refunds & Returns',

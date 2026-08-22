@@ -27,7 +27,8 @@ export function DomainReports({ category }) {
         // Simulate report generation
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        toast.success(`${selectedReport.name} generated successfully!`);
+        const name = typeof selectedReport === 'object' && selectedReport !== null ? (selectedReport.name || selectedReport.id) : String(selectedReport);
+        toast.success(`${name} generated successfully!`);
         setIsGenerating(false);
     };
 
@@ -45,28 +46,38 @@ export function DomainReports({ category }) {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {availableReports.map((report) => (
-                    <Card
-                        key={report.id}
-                        className={`cursor-pointer transition-all hover:shadow-md ${selectedReport?.id === report.id ? 'border-wine-600 ring-1 ring-wine-600' : ''}`}
-                        onClick={() => setSelectedReport(report)}
-                    >
-                        <CardHeader className="p-4">
-                            <div className="flex items-start justify-between">
-                                <div className="p-2 rounded-lg bg-wine-50 text-wine-600">
-                                    <BarChart3 className="w-5 h-5" />
+                {availableReports.map((report, idx) => {
+                    const rId = typeof report === 'object' && report !== null ? (report.id || report.name || idx) : String(report);
+                    const rName = typeof report === 'object' && report !== null ? (report.name || report.id || String(report)) : String(report);
+                    const rDesc = typeof report === 'object' && report !== null && report.description 
+                        ? report.description 
+                        : `Detailed ${rName.toLowerCase()} analysis`;
+                    const selectedId = typeof selectedReport === 'object' && selectedReport !== null ? (selectedReport.id || selectedReport.name) : String(selectedReport);
+                    const isSelected = selectedReport && selectedId === rId;
+
+                    return (
+                        <Card
+                            key={rId}
+                            className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? 'border-wine-600 ring-1 ring-wine-600' : ''}`}
+                            onClick={() => setSelectedReport(report)}
+                        >
+                            <CardHeader className="p-4">
+                                <div className="flex items-start justify-between">
+                                    <div className="p-2 rounded-lg bg-wine-50 text-wine-600">
+                                        <BarChart3 className="w-5 h-5" />
+                                    </div>
+                                    {isSelected && (
+                                        <Badge className="bg-wine-600 text-white">Selected</Badge>
+                                    )}
                                 </div>
-                                {selectedReport?.id === report.id && (
-                                    <Badge className="bg-wine-600 text-white">Selected</Badge>
-                                )}
-                            </div>
-                            <CardTitle className="mt-3 text-base">{report.name}</CardTitle>
-                            <CardDescription className="text-xs line-clamp-2">
-                                {report.description || `Detailed ${report.name.toLowerCase()} analysis`}
-                            </CardDescription>
-                        </CardHeader>
-                    </Card>
-                ))}
+                                <CardTitle className="mt-3 text-base">{rName}</CardTitle>
+                                <CardDescription className="text-xs line-clamp-2">
+                                    {rDesc}
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
+                    );
+                })}
             </div>
 
             {selectedReport && (
@@ -74,7 +85,7 @@ export function DomainReports({ category }) {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <FileText className="text-wine-600" />
-                            Generate: {selectedReport.name}
+                            Generate: {typeof selectedReport === 'object' && selectedReport !== null ? (selectedReport.name || selectedReport.id) : String(selectedReport)}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">

@@ -69,6 +69,7 @@ const ResourceLimitBanner = lazyHubTab(() => import('@/components/ui/ResourceLim
 const NotificationBell = lazyHubTab(() => import('@/components/notifications/NotificationBell').then(mod => mod.NotificationBell));
 const ConstructionHub = lazyHubTab(() => import('@/components/construction/ConstructionHub').then(mod => mod.ConstructionHub));
 const TextileWholesaleHub = lazyHubTab(() => import('@/components/textile/TextileWholesaleHub').then(mod => mod.TextileWholesaleHub));
+const InstallmentsHub = lazyHubTab(() => import('@/components/installments/InstallmentsHub').then(mod => mod.InstallmentsHub));
 
 /** Tabs that stay mounted after first visit (SWR keep-alive — no remount refetch storms). */
 const KEEP_ALIVE_TABS = new Set([
@@ -86,6 +87,7 @@ const KEEP_ALIVE_TABS = new Set([
     'orders',
     'campaigns',
     'memberships',
+    'installments',
     'route-hisab',
     'payments',
     'audit',
@@ -1368,6 +1370,14 @@ export function DashboardTabs({
                             ) : (
                               <MilkRouteHisab businessId={activeBusinessId} category={category} />
                             )}
+                        </TabGuard>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="installments" forceMount={shouldForceMount('installments')} className="space-y-6 outline-none data-[state=inactive]:hidden">
+                    {wrapTab(
+                        <TabGuard tabKey="installments" role={role} planTier={planTier} featureName="Installment Plans" onUpgrade={() => handleTabChange('settings')}>
+                            <InstallmentsHub business={business} products={products} customers={customers} currency={currency} />
                         </TabGuard>
                     )}
                 </TabsContent>

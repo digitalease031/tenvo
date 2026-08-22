@@ -3234,20 +3234,24 @@ export function InventoryManager({
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {domainKnowledge.reports.map((report, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-3"
-                    >
-                      <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-                      <div className="text-left min-w-0">
-                        <div className="font-medium text-sm text-gray-800">{report}</div>
-                        <div className="text-xs text-gray-500">
-                          Use Reports → Analytics or Finance → Statements for exportable figures
+                  {domainKnowledge.reports.map((report, index) => {
+                    const reportTitle = typeof report === 'object' && report !== null ? (report.name || report.id || 'Report') : String(report);
+                    const reportDesc = typeof report === 'object' && report !== null && report.description 
+                      ? report.description 
+                      : 'Use Reports → Analytics or Finance → Statements for exportable figures';
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-3"
+                      >
+                        <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                        <div className="text-left min-w-0">
+                          <div className="font-medium text-sm text-gray-800">{reportTitle}</div>
+                          <div className="text-xs text-gray-500">{reportDesc}</div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

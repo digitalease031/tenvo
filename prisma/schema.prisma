@@ -310,6 +310,7 @@ model businesses {
   affiliates                   affiliates?                    @relation(fields: [affiliate_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   referrals                    referrals[]
   custom_domains               business_custom_domains[]
+  installment_plans            installment_plans[]
 
   @@index([approval_status, approval_requested_at(sort: Desc)], map: "idx_businesses_approval_status")
 }
@@ -442,6 +443,7 @@ model customers {
   customer_memberships   customer_memberships[]
   milk_delivery_stops    milk_delivery_stops[]
   water_delivery_stops   water_delivery_stops[]
+  installment_plans      installment_plans[]
 
   @@index([domain_data], map: "idx_customers_domain_data", type: Gin)
   @@index([business_id, email])
@@ -848,6 +850,7 @@ model products {
   price_list_items        price_list_items[]
   credit_note_items       credit_note_items[]
   pos_transaction_items   pos_transaction_items[]
+  installment_plans       installment_plans[]
   purchase_return_items   purchase_return_items[] // C16
   category_id             String?                   @db.Uuid
   catalog_category        product_categories?       @relation("ProductCatalogCategory", fields: [category_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
@@ -3438,3 +3441,55 @@ model construction_site_inspections {
   @@index([business_id, inspection_date], map: "idx_site_inspection_date")
   @@index([domain_data], map: "idx_site_inspection_domain_data", type: Gin)
 }
+
+// ============================================================================
+// Installment Plans & Financing Models
+// Added: 2026-08-21
+// Vehicle Dealership, EV Bikes, Electronics, Furniture & Real Estate Installments
+// ============================================================================
+
+/// Installment plans and customer financing ledger
+model installment_plans {
+  id                    String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  business_id           String      @db.Uuid
+  plan_number           String      @db.VarChar(100)
+  customer_id           String?     @db.Uuid
+  customer_name         String      @db.VarChar(255)
+  customer_phone        String?     @db.VarChar(100)
+  customer_cnic         String?     @db.VarChar(100)
+  customer_address      String?
+  guarantor_name        String?     @db.VarChar(255)
+  guarantor_phone       String?     @db.VarChar(100)
+  guarantor_cnic        String?     @db.VarChar(100)
+  product_id            String?     @db.Uuid
+  item_name             String      @db.VarChar(255)
+  item_details          String?
+  total_price           Decimal     @default(0) @db.Decimal(12, 2)
+  down_payment_amount   Decimal     @default(0) @db.Decimal(12, 2)
+  down_payment_pct      Decimal     @default(0) @db.Decimal(5, 2)
+  financed_amount       Decimal     @default(0) @db.Decimal(12, 2)
+  markup_rate_pct       Decimal     @default(0) @db.Decimal(5, 2)
+  markup_amount         Decimal     @default(0) @db.Decimal(12, 2)
+  total_payable         Decimal     @default(0) @db.Decimal(12, 2)
+  frequency             String      @default("monthly") @db.VarChar(30) // monthly, quarterly, yearly
+  tenure_months         Int         @default(12)
+  number_of_installments Int        @default(12)
+  installment_amount    Decimal     @default(0) @db.Decimal(12, 2)
+  start_date            DateTime    @db.Date
+  status                String      @default("active") @db.VarChar(30) // active, completed, defaulted, cancelled
+  notes                 String?
+  schedule_data         Json?       @default("[]")
+  domain_data           Json?       @default("{}")
+  created_at            DateTime?   @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  businesses            businesses  @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customers             customers?  @relation(fields: [customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  products              products?   @relation(fields: [product_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([business_id], map: "idx_installment_plan_business")
+  @@index([business_id, status], map: "idx_installment_plan_status")
+  @@index([business_id, customer_name], map: "idx_installment_plan_customer")
+  @@index([domain_data], map: "idx_installment_plan_domain_data", type: Gin)
+}
+

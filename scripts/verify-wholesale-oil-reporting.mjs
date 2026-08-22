@@ -61,6 +61,22 @@ const tabsFile = path.resolve(process.cwd(), 'app/business/[category]/components
 const tabsCode = fs.readFileSync(tabsFile, 'utf8');
 assert(tabsCode.includes('WholesaleOilReportingHub'), 'DashboardTabs imports and renders WholesaleOilReportingHub');
 
+// Test 7: Verify InventoryManager handles domain report objects without raw React child crashes
+const invManagerFile = path.resolve(process.cwd(), 'components/InventoryManager.jsx');
+const invManagerCode = fs.readFileSync(invManagerFile, 'utf8');
+assert(
+    invManagerCode.includes('reportTitle') && !invManagerCode.includes('<div className="font-medium text-sm text-gray-800">{report}</div>'),
+    'InventoryManager safely renders report objects (reportTitle/reportDesc) without raw {report} child crash'
+);
+
+// Test 8: Verify DomainReports handles both string and object reports safely
+const domainReportsFile = path.resolve(process.cwd(), 'components/reports/DomainReports.jsx');
+const domainReportsCode = fs.readFileSync(domainReportsFile, 'utf8');
+assert(
+    domainReportsCode.includes('rName') && domainReportsCode.includes('rDesc'),
+    'DomainReports safely handles both string and object domain report configurations'
+);
+
 console.log(`\n=== Verification Summary: ${passed} passed, ${failed} failed ===`);
 if (failed > 0) {
     process.exit(1);

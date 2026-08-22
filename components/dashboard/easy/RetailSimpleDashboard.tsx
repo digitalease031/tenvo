@@ -612,7 +612,7 @@ export function RetailSimpleDashboard(props: RetailSimpleDashboardProps) {
               <ChartEmpty label="No expenses in this period" />
             ) : (
               <div className="h-[11rem] w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} initialDimension={{ width: 300, height: 180 }}>
                   <PieChart>
                     <Pie
                       data={expensePie}
@@ -662,7 +662,7 @@ export function RetailSimpleDashboard(props: RetailSimpleDashboardProps) {
               <ChartEmpty label="Not enough sales history yet" />
             ) : (
               <div className="h-[12.5rem] w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} initialDimension={{ width: 300, height: 180 }}>
                   <AreaChart data={salesTrend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="retailRevFill" x1="0" y1="0" x2="0" y2="1">
@@ -713,7 +713,7 @@ export function RetailSimpleDashboard(props: RetailSimpleDashboardProps) {
               <ChartEmpty label="No revenue bars yet" />
             ) : (
               <div className="h-[11rem] w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} initialDimension={{ width: 300, height: 180 }}>
                   <BarChart data={revenueBars} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                     <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis hide />
@@ -793,7 +793,7 @@ export function RetailSimpleDashboard(props: RetailSimpleDashboardProps) {
               <ChartEmpty label="Not enough sales history yet" />
             ) : (
               <div className="h-[11rem] w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} initialDimension={{ width: 300, height: 180 }}>
                   <AreaChart data={salesTrend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="retailRevFillMobile" x1="0" y1="0" x2="0" y2="1">
@@ -835,7 +835,7 @@ export function RetailSimpleDashboard(props: RetailSimpleDashboardProps) {
                 <ChartEmpty label="No expenses in this period" />
               ) : (
                 <div className="h-[10rem] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} initialDimension={{ width: 300, height: 180 }}>
                     <PieChart>
                       <Pie
                         data={expensePie}
@@ -872,7 +872,7 @@ export function RetailSimpleDashboard(props: RetailSimpleDashboardProps) {
                 <ChartEmpty label="No revenue bars yet" />
               ) : (
                 <div className="h-[10rem] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} initialDimension={{ width: 300, height: 180 }}>
                     <BarChart data={revenueBars} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis hide />

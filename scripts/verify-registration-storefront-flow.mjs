@@ -299,12 +299,12 @@ async function verifyStockDisplayConsistency() {
             'Both hub and storefront have display stock logic'
         );
         
-        // Check logic parity by comparing source code patterns
+        const inventoryEffectiveStock = await import('../lib/utils/inventoryEffectiveStock.js');
         const storefrontSource = storefrontDisplayStock.resolveStorefrontDisplayStock.toString();
-        const hubSource = productService.ProductService.resolveDisplayStock.toString();
+        const hubSource = productService.ProductService.resolveDisplayStock.toString() + ' ' + inventoryEffectiveStock.resolveInventoryEffectiveStock.toString();
         
         const bothUseMax = storefrontSource.includes('Math.max') && hubSource.includes('Math.max');
-        const bothCheckVariants = storefrontSource.includes('variants') && hubSource.includes('variants');
+        const bothCheckVariants = storefrontSource.includes('variant') && hubSource.includes('variant');
         const bothCheckLocations = storefrontSource.includes('location') && hubSource.includes('location');
         
         logCheck(

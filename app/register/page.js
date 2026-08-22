@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -122,9 +122,9 @@ const DOMAIN_CATEGORY_BLUEPRINTS = [
     },
     {
         id: 'industrial',
-        name: 'Manufacturing',
+        name: 'Manufacturing & Construction',
         icon: Factory,
-        domains: ['chemical', 'paper-mill', 'paint', 'plastic-manufacturing', 'textile-mill', 'printing-packaging', 'furniture', 'ceramics-tiles', 'flour-mill', 'rice-mill', 'sugar-mill', 'steel-industry', 'industrial-parts', 'marine-parts']
+        domains: ['chemical', 'paper-mill', 'paint', 'plastic-manufacturing', 'textile-mill', 'printing-packaging', 'furniture', 'ceramics-tiles', 'flour-mill', 'rice-mill', 'sugar-mill', 'steel-industry', 'industrial-parts', 'marine-parts', 'construction-contractor']
     },
     {
         id: 'services',
@@ -134,10 +134,19 @@ const DOMAIN_CATEGORY_BLUEPRINTS = [
     },
     {
         id: 'specialized',
-        name: 'Specialized',
+        name: 'Specialized & Automotive',
         icon: Crown,
-        domains: ['auto-parts', 'auto-marketplace', 'vehicle-dealership', 'pharmacy', 'computer-hardware', 'electrical', 'agriculture', 'livestock-cattle', 'gems-jewellery', 'real-estate', 'hardware-sanitary', 'poultry-farm', 'solar-energy', 'courier-logistics', 'wholesale-distribution', 'petrol-pump', 'cold-storage', 'book-publishing', 'steel-iron', 'construction-material', 'dairy-farm']
+        domains: ['ev-bikes', 'vehicle-dealership', 'auto-parts', 'auto-marketplace', 'lubricant-distribution', 'pharmacy', 'computer-hardware', 'electrical', 'agriculture', 'livestock-cattle', 'gems-jewellery', 'real-estate', 'hardware-sanitary', 'poultry-farm', 'solar-energy', 'courier-logistics', 'wholesale-distribution', 'petrol-pump', 'cold-storage', 'book-publishing', 'steel-iron', 'construction-material', 'dairy-farm']
     }
+];
+
+const DEMO_BUSINESS_PRESETS = [
+    { name: 'Tenvo EV', category: 'ev-bikes', icon: '⚡', tagline: 'EV Bikes & Scooters' },
+    { name: 'Tenvo Vehicles', category: 'vehicle-dealership', icon: '🚘', tagline: 'Car Dealership' },
+    { name: 'Tenvo Oils', category: 'lubricant-distribution', icon: '🛢️', tagline: 'Lubricant Dist.' },
+    { name: 'Consigli Construction', category: 'construction-contractor', icon: '🏢', tagline: 'Civil Contracting' },
+    { name: 'Jama Fabrics', category: 'textile-wholesale', icon: '🧵', tagline: 'Textile Wholesale' },
+    { name: 'Nexus Trading', category: 'retail-shop', icon: '🏪', tagline: 'General Retail' },
 ];
 
 const knownDomainSet = new Set(DOMAIN_CATEGORY_BLUEPRINTS.flatMap(group => group.domains));
@@ -528,6 +537,17 @@ export default function RegisterWizard() {
         updateFormData({
             businessName: name,
             handle: generateSlug(name)
+        });
+    };
+
+    const handleApplyDemoPreset = (preset) => {
+        const handle = generateSlug(preset.name);
+        const recommendedPlan = recommendedPlanForDomain(preset.category);
+        updateFormData({
+            businessName: preset.name,
+            handle,
+            category: preset.category,
+            planTier: PLAN_ORDER[formData.planTier] >= PLAN_ORDER[recommendedPlan] ? formData.planTier : recommendedPlan,
         });
     };
 
@@ -1009,14 +1029,38 @@ export default function RegisterWizard() {
                                             ) : null}
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div className="space-y-2">
-                                                    <Label className={authLabelClass}>Legal business name</Label>
+                                                <div className="space-y-2 sm:col-span-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className={authLabelClass}>Legal business name</Label>
+                                                        <span className="text-[10px] text-gray-400 font-semibold">Try example:</span>
+                                                    </div>
                                                     <Input
-                                                        placeholder="Nexus Trading Co."
+                                                        placeholder="e.g. Tenvo EV, Tenvo Vehicles, Nexus Trading Co."
                                                         value={formData.businessName}
                                                         onChange={e => handleBusinessNameChange(e.target.value)}
                                                         className={authInputClass}
                                                     />
+                                                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                                        {DEMO_BUSINESS_PRESETS.map((p) => {
+                                                            const isActive = formData.category === p.category && formData.businessName === p.name;
+                                                            return (
+                                                                <button
+                                                                    key={p.category}
+                                                                    type="button"
+                                                                    onClick={() => handleApplyDemoPreset(p)}
+                                                                    className={cn(
+                                                                        "px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all flex items-center gap-1.5 active:scale-[0.97]",
+                                                                        isActive
+                                                                            ? "bg-wine text-white border-wine shadow-sm shadow-wine/20"
+                                                                            : "bg-white border-gray-200 text-gray-700 hover:border-wine/40 hover:bg-wine/5"
+                                                                    )}
+                                                                >
+                                                                    <span>{p.icon}</span>
+                                                                    <span>{p.name}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest ml-1 flex justify-between items-center">

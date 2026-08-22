@@ -17,6 +17,7 @@ import { inventoryGridRowKey } from '@/lib/utils/inventoryRowKey';
 import { buildSparseHiddenColumnKeys } from '@/lib/utils/inventoryVisualColumnVisibility';
 import { productSchema } from '@/lib/validation/schemas';
 import toast from 'react-hot-toast';
+import { formatInventoryActionError } from '@/lib/utils/productMutationPayload';
 import { useCompactViewport } from '@/lib/hooks/useCompactViewport';
 import { buildExcelMobileHiddenColumnKeys } from '@/lib/utils/inventoryExcelMobile';
 import { MOBILE_FORM_FOOTER } from '@/lib/utils/formMobileStyles';
@@ -421,7 +422,7 @@ export function ExcelModeModal({
             }
         } catch (err) {
             console.error("Save Error:", err);
-            toast.error('Save failed');
+            toast.error(formatInventoryActionError(err));
         }
         finally { setIsSaving(false); }
     }, [hasUnsavedChanges, localData, isEmptyRow, validateAllData, onSave, onClose]);

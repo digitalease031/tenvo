@@ -369,7 +369,14 @@ export function InventoryManager({
         const merged = next.map((n) => {
           if (!n?.id) return n;
           const existing = prevById.get(n.id);
-          return existing ? mergeInventoryServerRow(existing, n) : n;
+          if (!existing) return n;
+          const activeSaveGen = busyCellSaveGenRef.current.get(String(n.id));
+          if (activeSaveGen != null && activeSaveGen > 0) {
+            // An in-flight cell edit is in progress for this product.
+            // Retain local optimistic state so incoming stale props do not cause a 2-3s revert glitch.
+            return existing;
+          }
+          return mergeInventoryServerRow(existing, n);
         });
         return deduplicateProducts([...temps, ...merged]);
       });
@@ -1773,6 +1780,10 @@ export function InventoryManager({
       });
       console.error('Inventory cell update error:', error);
       throw error;
+    } finally {
+      if (busyCellSaveGenRef.current.get(saveKey) === gen) {
+        busyCellSaveGenRef.current.delete(saveKey);
+      }
     }
   }, [products, category, domainKnowledge, businessId, onUpdate, handleCreateProduct, reloadProductsSilent, isBatchEnabled, isSerialEnabled, canEditInventory]);
 

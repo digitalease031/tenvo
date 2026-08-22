@@ -15,7 +15,7 @@ import { isWaterHisabRelevant, isRouteHisabRelevant } from '@/lib/storefront/wat
 import { resolvePosVariant } from '@/lib/config/posDomains';
 import { useResolvedBusinessId } from '@/lib/hooks/useResolvedBusinessId';
 import { isTextileWholesale } from '@/lib/utils/textileWholesaleDomainFilter';
-import { isWholesaleDomain } from '@/lib/utils/wholesaleDomain';
+import { isWholesaleDomain, isOilDistributionDomain } from '@/lib/utils/wholesaleDomain';
 
 const DomainDashboard = lazyHubTab(() => import('./tabs/DomainDashboard').then(mod => mod.DomainDashboard));
 const InventoryTab = lazyHubTab(() => import('./tabs/InventoryTab').then(mod => mod.InventoryTab));
@@ -30,6 +30,8 @@ const PaymentManager = lazyHubTab(() => import('@/components/payment/PaymentMana
 const QuotationOrderChallanManager = lazyHubTab(() => import('@/components/QuotationOrderChallanManager').then(mod => mod.QuotationOrderChallanManager));
 const AdvancedAnalytics = lazyHubTab(() => import('@/components/AdvancedAnalytics').then(mod => mod.AdvancedAnalytics));
 const WholesaleOilReportingHub = lazyHubTab(() => import('@/components/reports/WholesaleOilReportingHub').then(mod => mod.WholesaleOilReportingHub));
+const DomainReports = lazyHubTab(() => import('@/components/reports/DomainReports').then(mod => mod.DomainReports));
+
 const DemandForecast = lazyHubTab(() => import('@/components/DemandForecast').then(mod => mod.DemandForecast));
 const TaxComplianceManager = lazyHubTab(() => import('@/components/TaxComplianceManager').then(mod => mod.TaxComplianceManager));
 const SettingsManager = lazyHubTab(() => import('@/components/SettingsManager').then(mod => mod.SettingsManager));
@@ -166,6 +168,8 @@ export function DashboardTabs({
     const waterHisabRelevant = isWaterHisabRelevant(category);
     const routeHisabRelevant = isRouteHisabRelevant(category);
     const constructionDomain = !!category && resolveDomainKey?.(category) === 'construction-contractor';
+    const isOilDomain = isOilDistributionDomain(category);
+    const isWholesale = isWholesaleDomain(category);
 
     // Visit-based forceMount: first open loads once; leave/return keeps state (no tab-switch storms).
     // Inactive panels stay mounted but must be CSS-hidden — see TabsContent data-[state=inactive]:hidden.
@@ -900,7 +904,7 @@ export function DashboardTabs({
                     <TabsContent value="reports" forceMount={shouldForceMount('reports')} className="data-[state=inactive]:hidden space-y-4 outline-none">
                         {wrapTab(
                             <TabGuard tabKey="reports" role={role} planTier={planTier} requiredPlan={isWholesale ? "enterprise" : undefined} featureName="Analytics & Reports" onUpgrade={() => handleTabChange('settings')}>
-                                {isWholesale ? (
+                                {isOilDomain ? (
                                     <WholesaleOilReportingHub
                                         businessId={activeBusinessId}
                                         category={category}
@@ -924,6 +928,7 @@ export function DashboardTabs({
                                                     { key: 'forecast', label: 'Demand Forecast', short: 'Forecast' },
                                                     { key: 'ai', label: 'AI Insights', short: 'AI' },
                                                     { key: 'builder', label: 'Report Builder', short: 'Builder' },
+                                                    { key: 'domain', label: 'Domain Exports', short: 'Exports' },
                                                 ].map(v => (
                                                     <button
                                                         key={v.key}
@@ -969,12 +974,21 @@ export function DashboardTabs({
                                                 <ReportBuilder businessId={activeBusinessId} currency={currency} dateRange={dateRange} />
                                             </div>
                                         ) : null}
+                                        {shouldShowReportsView('domain') ? (
+                                            <div
+                                                className={reportsView === 'domain' ? 'space-y-4' : 'hidden'}
+                                                aria-hidden={reportsView !== 'domain'}
+                                            >
+                                                <DomainReports category={category} />
+                                            </div>
+                                        ) : null}
                                     </div>
                                 )}
                             </TabGuard>
                         )}
                     </TabsContent>
                 )}
+
 
                 <TabsContent value="campaigns" forceMount={shouldForceMount('campaigns')} className="data-[state=inactive]:hidden space-y-6 outline-none">
                     {wrapTab(

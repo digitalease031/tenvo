@@ -254,14 +254,47 @@ export function WholesaleOilReportingHub({
 
   // ── Brand Market Share Distribution ────────────────────────────────────────────
   const brandShareData = useMemo(() => {
+    const brandMap = new Map();
+    (products || []).forEach(p => {
+      const bName = p.brand || p.domain_data?.brand || p.domain_data?.fabrictype || p.category || 'Standard Product';
+      if (!brandMap.has(bName)) {
+        brandMap.set(bName, { name: bName, value: 0, cartons: 0 });
+      }
+      const entry = brandMap.get(bName);
+      const stock = Number(p.stock || 0);
+      const price = Number(p.price || p.cost_price || 0);
+      entry.cartons += stock;
+      entry.value += stock * price;
+    });
+
+    const calculated = Array.from(brandMap.values())
+      .filter(b => b.value > 0 || b.cartons > 0)
+      .sort((a, b) => b.value - a.value);
+
+    if (calculated.length > 0) {
+      const COLORS = ['#dc2626', '#2563eb', '#d97706', '#16a34a', '#7c3aed', '#0891b2', '#db2777'];
+      return calculated.slice(0, 7).map((item, idx) => ({
+        ...item,
+        color: COLORS[idx % COLORS.length],
+      }));
+    }
+
+    if (isOil) {
+      return [
+        { name: 'Shell Lubricants', value: 21800000, cartons: 760, color: '#dc2626' },
+        { name: 'ZIC Oils (SK Enmove)', value: 14200000, cartons: 495, color: '#2563eb' },
+        { name: 'Caltex Havoline', value: 9100000, cartons: 318, color: '#d97706' },
+        { name: 'Guard Oil/Air Filters', value: 4350000, cartons: 210, color: '#16a34a' },
+        { name: 'TotalEnergies / Quartz', value: 3000000, cartons: 105, color: '#7c3aed' },
+      ];
+    }
+
     return [
-      { name: 'Shell Lubricants', value: 21800000, cartons: 760, color: '#dc2626' },
-      { name: 'ZIC Oils (SK Enmove)', value: 14200000, cartons: 495, color: '#2563eb' },
-      { name: 'Caltex Havoline', value: 9100000, cartons: 318, color: '#d97706' },
-      { name: 'Guard Oil/Air Filters', value: 4350000, cartons: 210, color: '#16a34a' },
-      { name: 'TotalEnergies / Quartz', value: 3000000, cartons: 105, color: '#7c3aed' },
+      { name: 'Primary Category', value: 1500000, cartons: 500, color: '#2563eb' },
+      { name: 'Secondary Category', value: 850000, cartons: 280, color: '#d97706' },
+      { name: 'General Inventory', value: 420000, cartons: 140, color: '#16a34a' },
     ];
-  }, []);
+  }, [products, isOil]);
 
   // ── Udhaar Credit Aging Data ───────────────────────────────────────────────────
   const agingData = useMemo(() => {
@@ -285,13 +318,20 @@ export function WholesaleOilReportingHub({
 
   // ── Principal Volume Targets & Scheme Rebates ─────────────────────────────────
   const principalTargets = useMemo(() => {
+    if (isOil) {
+      return [
+        { brand: 'Shell Lubricants', targetCartons: 900, achievedCartons: 760, targetValue: 25000000, achievedValue: 21800000, rebateRate: '3.5% (Rs 763,000)', status: 'On Track (84%)' },
+        { brand: 'ZIC Oils (SK)', targetCartons: 550, achievedCartons: 495, targetValue: 16000000, achievedValue: 14200000, rebateRate: '2.8% (Rs 397,600)', status: 'On Track (90%)' },
+        { brand: 'Caltex Havoline', targetCartons: 400, achievedCartons: 318, targetValue: 11500000, achievedValue: 9100000, rebateRate: '2.5% (Rs 227,500)', status: 'Needs Push (80%)' },
+        { brand: 'Guard Filters', targetCartons: 250, achievedCartons: 210, targetValue: 5000000, achievedValue: 4350000, rebateRate: '4.0% (Rs 174,000)', status: 'Near Target (84%)' },
+      ];
+    }
+
     return [
-      { brand: 'Shell Lubricants', targetCartons: 900, achievedCartons: 760, targetValue: 25000000, achievedValue: 21800000, rebateRate: '3.5% (Rs 763,000)', status: 'On Track (84%)' },
-      { brand: 'ZIC Oils (SK)', targetCartons: 550, achievedCartons: 495, targetValue: 16000000, achievedValue: 14200000, rebateRate: '2.8% (Rs 397,600)', status: 'On Track (90%)' },
-      { brand: 'Caltex Havoline', targetCartons: 400, achievedCartons: 318, targetValue: 11500000, achievedValue: 9100000, rebateRate: '2.5% (Rs 227,500)', status: 'Needs Push (80%)' },
-      { brand: 'Guard Filters', targetCartons: 250, achievedCartons: 210, targetValue: 5000000, achievedValue: 4350000, rebateRate: '4.0% (Rs 174,000)', status: 'Near Target (84%)' },
+      { brand: 'Supplier Volume Target', targetCartons: 500, achievedCartons: 420, targetValue: 10000000, achievedValue: 8400000, rebateRate: '2.5% Rebate', status: 'On Track (84%)' },
     ];
-  }, []);
+  }, [isOil]);
+
 
   // ── Handlers & Export Trigger ──────────────────────────────────────────────────
   const handleExportReport = (type) => {

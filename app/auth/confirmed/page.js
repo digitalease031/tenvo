@@ -49,8 +49,8 @@ export default function AuthConfirmedPage() {
         const biz = businesses[0];
         const approvalStatus = String(biz.approval_status || '');
 
-        if (BLOCKED_APPROVAL_STATUSES.has(approvalStatus)) {
-          router.replace('/pending-approval');
+        if (approvalStatus === 'pending_approval' || BLOCKED_APPROVAL_STATUSES.has(approvalStatus)) {
+          router.push('/pending-approval');
           return;
         }
 

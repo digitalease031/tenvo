@@ -8,6 +8,7 @@ import { headers } from 'next/headers';
 import { getServerSession } from '@/lib/auth/rbac';
 import { BusinessShellLayout } from '@/components/layout/BusinessShellLayout';
 import { HubSessionHydrator } from '@/components/guards/HubSessionHydrator';
+import { PendingApprovalGuard } from '@/components/guards/PendingApprovalGuard';
 import { toHubSessionHint } from '@/lib/utils/hubSessionHint';
 
 function buildHubLoginRedirect(pathname) {
@@ -38,7 +39,9 @@ export default async function BusinessLayout({ children }) {
 
   return (
     <HubSessionHydrator initialSession={initialSession}>
-      <BusinessShellLayout>{children}</BusinessShellLayout>
+      <BusinessShellLayout>
+        <PendingApprovalGuard>{children}</PendingApprovalGuard>
+      </BusinessShellLayout>
     </HubSessionHydrator>
   );
 }

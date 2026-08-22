@@ -30,7 +30,7 @@ import { PharmacyPrescriptionCta } from '@/components/storefront/pharmacy/Pharma
 import { getStorefrontStockState } from '@/lib/storefront/storefrontStockUi';
 import { isStorefrontProductUuid } from '@/lib/utils/storefrontProductRef';
 import { resolveStorefrontProductBrowseHref } from '@/lib/storefront/storefrontPurchasability';
-import { resolveSourcingBadge, buildTyreAttributeRows, buildElectronicsAttributeRows } from '@/lib/storefront/productAttributeChips';
+import { resolveSourcingBadge, buildTyreAttributeRows, buildElectronicsAttributeRows, formatVehicleSummaryLine } from '@/lib/storefront/productAttributeChips';
 import { catalogProductNeedsVariantPage } from '@/lib/storefront/storefrontProductVariants';
 import { getTenantMeetingUrl } from '@/lib/storefront/storefrontBooking';
 import { toast } from 'react-hot-toast';
@@ -111,6 +111,7 @@ export function ProductCard({ product, businessDomain, variant = 'default' }) {
         return [capacity, warranty].filter(Boolean).join(' · ') || '';
       })()
     : '';
+  const vehicleHint = formatVehicleSummaryLine(product);
   const partNumber = product.domain_data?.partnumber;
   const fitmentHint = showPartsMeta
     ? [product.domain_data?.vehiclemake, product.domain_data?.vehiclemodel].filter(Boolean).join(' ')
@@ -434,6 +435,12 @@ export function ProductCard({ product, businessDomain, variant = 'default' }) {
 
         {electronicsStore && electronicsHint && !isDense && (
           <p className="truncate text-[10px] font-semibold text-slate-600">{electronicsHint}</p>
+        )}
+
+        {vehicleHint && !showPartsMeta && !isDense && (
+          <p className="truncate text-[10px] font-medium text-blue-700 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-100/60 inline-block w-fit max-w-full">
+            {vehicleHint}
+          </p>
         )}
 
         {evStore && evSpecs.length > 0 && !isDense && (

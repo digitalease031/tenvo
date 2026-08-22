@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, use, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -30,6 +30,7 @@ import {
 } from '@/lib/storefront/restaurantMenu';
 import { resolveRetailShippingCost, getStorefrontShippingSettings } from '@/lib/storefront/storefrontShipping';
 import { useRestaurantChromeOptional } from '@/components/storefront/restaurant/RestaurantChromeContext';
+import { formatVehicleSummaryLine } from '@/lib/storefront/productAttributeChips';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -415,6 +416,11 @@ export default function CartPage({ params }) {
                       {item.variantName && (
                         <p className="text-xs text-gray-400 mt-0.5">{item.variantName}</p>
                       )}
+                      {formatVehicleSummaryLine(item) ? (
+                        <p className="text-xs font-medium text-blue-700 bg-blue-50/80 px-2 py-0.5 rounded-md mt-1 inline-block">
+                          {formatVehicleSummaryLine(item)}
+                        </p>
+                      ) : null}
                       <p className="text-xs text-gray-500 mt-1">
                         {formatCurrency(item.price, currency)} each
                       </p>

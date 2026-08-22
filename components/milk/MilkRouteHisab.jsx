@@ -460,7 +460,6 @@ export function MilkRouteHisab({ businessId, category }) {
   );
 
   const updateQty = (customerId, productId, value) => {
-    const next = value === '' ? '' : value;
     const pid = String(productId);
     setDayDirty(true);
     setRows((prev) =>
@@ -470,7 +469,7 @@ export function MilkRouteHisab({ businessId, category }) {
           ...r,
           qtyByProduct: {
             ...r.qtyByProduct,
-            [pid]: next === '' ? '' : Number(next),
+            [pid]: value === null || value === undefined ? '' : String(value),
           },
         };
       })
@@ -488,8 +487,13 @@ export function MilkRouteHisab({ businessId, category }) {
     rows.map((r) => {
       const qtyByProduct = {};
       for (const [pid, raw] of Object.entries(r.qtyByProduct || {})) {
-        const n = Number(raw);
-        if (Number.isFinite(n) && n > 0) qtyByProduct[String(pid)] = n;
+        if (raw !== null && raw !== undefined && String(raw).trim() !== '') {
+          const strVal = String(raw).trim();
+          const { qty } = parseQtyCalculatorInput(strVal);
+          if (qty > 0) {
+            qtyByProduct[String(pid)] = strVal;
+          }
+        }
       }
       return {
         customerId: r.customerId,

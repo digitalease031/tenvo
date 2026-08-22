@@ -4,6 +4,8 @@ import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { useStorefront } from '@/lib/context/StorefrontContext';
+import { isAutoDealershipStore } from '@/lib/storefront/autoDealership';
+import { isVehicleListingVertical } from '@/lib/utils/vehicleListingHelpers';
 import { isAutoPartsFinderStore } from '@/lib/storefront/partsFinder';
 import { isMarinePartsFinderStore } from '@/lib/storefront/marinePartsFinder';
 import { isFashionEditorialStore } from '@/lib/storefront/fashionEditorial';
@@ -33,6 +35,16 @@ export function ProductInfo({ product, businessDomain }) {
   const showElectronicsMeta = isElectronicsElevatedStore(categoryKey);
   const showFootwearMeta = isFootwearElevatedStore(categoryKey);
   const showEvMeta = isEvBikesStore(categoryKey);
+  const showVehicleMeta =
+    isAutoDealershipStore(categoryKey) ||
+    isVehicleListingVertical(categoryKey) ||
+    Boolean(
+      product?.domain_data?.vehiclemake ||
+        product?.domain_data?.modelyear ||
+        product?.domain_data?.mileage ||
+        product?.domain_data?.transmission
+    );
+
   const pharmacyStore = isPharmacyElevatedStore(categoryKey);
   const pharmacyMeta = pharmacyStore ? resolvePharmacyProductMeta(product) : null;
   const evSpecs = showEvMeta ? formatEvProductSpecs(product) : [];
@@ -45,6 +57,10 @@ export function ProductInfo({ product, businessDomain }) {
     ? buildElectronicsAttributeRows(product).find((row) => row.key === 'warranty')?.value
     : null;
 
+  const vehicleYear = product?.domain_data?.modelyear || product?.domain_data?.year;
+  const vehicleCondition = product?.domain_data?.condition;
+  const vehicleTransmission = product?.domain_data?.transmission;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -55,6 +71,21 @@ export function ProductInfo({ product, businessDomain }) {
         ) : null}
         {product.is_featured ? (
           <Badge className="bg-amber-500 text-white text-xs">Featured</Badge>
+        ) : null}
+        {vehicleYear ? (
+          <Badge variant="outline" className="text-xs border-blue-200 text-blue-800 bg-blue-50 font-semibold">
+            {vehicleYear} Model
+          </Badge>
+        ) : null}
+        {vehicleCondition ? (
+          <Badge variant="secondary" className="text-xs capitalize">
+            {String(vehicleCondition).replace(/_/g, ' ')}
+          </Badge>
+        ) : null}
+        {vehicleTransmission ? (
+          <Badge variant="outline" className="text-xs border-neutral-200 text-neutral-800 bg-neutral-50">
+            {vehicleTransmission}
+          </Badge>
         ) : null}
         {sourcingBadge === 'local' ? (
           <Badge variant="outline" className="text-xs border-emerald-200 text-emerald-800 bg-emerald-50">
@@ -144,10 +175,11 @@ export function ProductInfo({ product, businessDomain }) {
         <p className="text-gray-600 leading-relaxed">{product.description}</p>
       ) : null}
 
-      {(showFashionMeta || showPartsMeta || showMarineMeta || showTyreMeta || showElectronicsMeta || showFootwearMeta || showEvMeta || product.sku) ? (
+      {(showVehicleMeta || showFashionMeta || showPartsMeta || showMarineMeta || showTyreMeta || showElectronicsMeta || showFootwearMeta || showEvMeta || product.sku) ? (
         <ProductAttributeList
           product={product}
           businessDomain={businessDomain}
+          showVehicleMeta={showVehicleMeta}
           showFashionMeta={showFashionMeta}
           showPartsMeta={showPartsMeta}
           showMarineMeta={showMarineMeta}

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Truck, RotateCcw, Shield } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
+import { buildVehicleAttributeRows } from '@/lib/storefront/productAttributeChips';
 
 const TABS = [
   { key: 'description', label: 'Description' },
@@ -44,22 +45,33 @@ export function ProductTabs({ product, freeShippingThreshold = 2000, returnPolic
       )}
 
       {/* Specifications */}
-      {activeTab === 'specs' && (
-        <div>
-          {product.specifications && Object.keys(product.specifications).length > 0 ? (
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-              {Object.entries(product.specifications).map(([key, value]) => (
-                <div key={key} className="flex gap-3 py-2 border-b border-gray-100 last:border-0">
-                  <dt className="text-sm text-gray-500 capitalize w-1/3 flex-shrink-0">{key}</dt>
-                  <dd className="text-sm font-medium text-gray-900">{String(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : (
-            <p className="text-gray-400 italic text-sm">No specifications available.</p>
-          )}
-        </div>
-      )}
+      {activeTab === 'specs' && (() => {
+        const vehicleRows = buildVehicleAttributeRows(product);
+        const hasVehicle = vehicleRows.length > 0;
+        const customSpecs = product.specifications && typeof product.specifications === 'object' ? product.specifications : {};
+        const hasCustom = Object.keys(customSpecs).length > 0;
+
+        if (!hasVehicle && !hasCustom) {
+          return <p className="text-gray-400 italic text-sm">No specifications available.</p>;
+        }
+
+        return (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+            {vehicleRows.map((row) => (
+              <div key={row.key} className="flex gap-3 py-2 border-b border-gray-100">
+                <dt className="text-sm text-gray-500 w-1/3 flex-shrink-0">{row.label}</dt>
+                <dd className="text-sm font-medium text-gray-900">{row.value}</dd>
+              </div>
+            ))}
+            {Object.entries(customSpecs).map(([key, value]) => (
+              <div key={key} className="flex gap-3 py-2 border-b border-gray-100">
+                <dt className="text-sm text-gray-500 capitalize w-1/3 flex-shrink-0">{key}</dt>
+                <dd className="text-sm font-medium text-gray-900">{String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        );
+      })()}
 
       {/* Shipping & Returns */}
       {activeTab === 'shipping' && (

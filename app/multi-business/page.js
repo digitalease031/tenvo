@@ -26,10 +26,21 @@ import {
   LayoutGrid,
   Search,
   List,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { TenvoTextLogo } from '@/components/branding/TenvoTextLogo';
+import { deleteBusinessAction } from '@/lib/actions/basic/business';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -46,6 +57,34 @@ export default function MultiBusinessPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteBusiness = async () => {
+    if (!deleteTarget?.id) return;
+    const targetName = (deleteTarget.business_name || '').trim();
+    if (deleteInput.trim().toLowerCase() !== targetName.toLowerCase()) {
+      toast.error('Business name does not match.');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const res = await deleteBusinessAction({ businessId: deleteTarget.id });
+      if (!res.success) {
+        toast.error(res.error || 'Failed to delete business entity');
+        return;
+      }
+      toast.success(res.data?.message || 'Business deleted successfully');
+      setBusinesses(prev => prev.filter(b => b.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      setDeleteInput('');
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete business');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchBusinesses() {
@@ -296,6 +335,20 @@ export default function MultiBusinessPage() {
                                 biz.category === 'ecommerce' ? <Globe className="w-6 h-6" /> :
                                   <Briefcase className="w-6 h-6" />}
                           </div>
+                          {Boolean(biz.user_role === 'owner' || isPlatformAdmin) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteTarget(biz);
+                                setDeleteInput('');
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors z-10"
+                              title="Delete business"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                         <div className="mb-4">
                           <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 group-hover:text-wine transition-colors line-clamp-2">
@@ -442,6 +495,61 @@ export default function MultiBusinessPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              Delete Business Entity?
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-2">
+              <p className="text-slate-700">
+                This will permanently delete <strong>{deleteTarget?.business_name}</strong>. All catalog products, inventory stock, invoices, settings, and staff permissions will be wiped.
+              </p>
+              <p className="text-xs font-medium text-slate-700">
+                To confirm, type <strong>{deleteTarget?.business_name}</strong> below:
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder={deleteTarget?.business_name || 'Business Name'}
+              className="rounded-xl h-11 border-slate-300 font-medium"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="rounded-xl bg-red-600 hover:bg-red-700 font-bold"
+              disabled={
+                isDeleting ||
+                deleteInput.trim().toLowerCase() !== (deleteTarget?.business_name || '').trim().toLowerCase()
+              }
+              onClick={handleDeleteBusiness}
+            >
+              {isDeleting ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Permanently Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

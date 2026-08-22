@@ -20,6 +20,7 @@ import { RESTAURANT_CART_DRAWER_UI, RESTAURANT_CHECKOUT_UI } from '@/lib/storefr
 import { useRestaurantChromeOptional } from '@/components/storefront/restaurant/RestaurantChromeContext';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatVehicleSummaryLine } from '@/lib/storefront/productAttributeChips';
 import {
   allowsFractionalStorefrontQty,
   storefrontQtyStep,
@@ -218,6 +219,12 @@ export function CartDrawer() {
                           {item.variantName}
                         </p>
                       )}
+
+                      {formatVehicleSummaryLine(item) ? (
+                        <p className="text-xs font-medium text-blue-700 bg-blue-50/80 px-2 py-0.5 rounded-md mt-1 inline-block">
+                          {formatVehicleSummaryLine(item)}
+                        </p>
+                      ) : null}
 
                       <p className={cn('text-xs mt-1', restaurantDrawerUi ? restaurantDrawerUi.itemMeta : 'text-gray-500')}>
                         {formatCurrency(item.price, currency)} each

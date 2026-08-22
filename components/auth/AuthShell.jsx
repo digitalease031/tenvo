@@ -88,10 +88,11 @@ function AuthBrandPanel({ variant = 'login' }) {
         </ul>
       </div>
 
-      <div className="relative z-10 border-t border-white/[0.08] px-10 py-5 xl:px-12">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">
-          {content.footnote}
-        </p>
+      <div className="relative z-10 border-t border-white/[0.08] px-10 py-4 xl:px-12">
+        <div className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white/50">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+          <span className="truncate">{content.footnote}</span>
+        </div>
       </div>
     </aside>
   );

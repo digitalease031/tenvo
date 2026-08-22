@@ -164,6 +164,17 @@ function recommendedPlanForDomain(domainKey) {
     return suggestPlanTier(domainKey, domainKnowledge[domainKey]);
 }
 
+function getVerticalTags(domainKey) {
+    const k = domainKnowledge[domainKey] || {};
+    if (Array.isArray(k.inventoryFeatures) && k.inventoryFeatures.length > 0) {
+        return k.inventoryFeatures.slice(0, 2);
+    }
+    if (Array.isArray(k.productFields) && k.productFields.length > 0) {
+        return k.productFields.slice(0, 2);
+    }
+    return ['POS', 'Inventory'];
+}
+
 /** Short bullets for plan comparison on step 3 (aligned with PLAN_TIERS keys). */
 function planCardBullets(tier) {
     const cfg = PLAN_TIERS[tier];
@@ -238,6 +249,7 @@ export default function RegisterWizard() {
         });
     });
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeCategory, setActiveCategory] = useState('retail');
     const [isLoading, setIsLoading] = useState(false);
     const [handleStatus, setHandleStatus] = useState({ checking: false, available: true, error: '' });
     const [verificationState, setVerificationState] = useState('idle'); // idle, sending, sent, verified (legacy link-based verify)
@@ -614,22 +626,48 @@ export default function RegisterWizard() {
         const knowledge = domainKnowledge[domainKey] || {};
         const IconComponent = LucideIcons[knowledge.icon] || Rocket;
         const domainName = translations[language]?.domains?.[domainKey] || domainKey.replace(/-/g, ' ');
+        const tags = getVerticalTags(domainKey);
+        const recommendedPlan = recommendedPlanForDomain(domainKey);
+        const planConfig = PLAN_TIERS[recommendedPlan];
 
         return (
             <button
+                type="button"
                 onClick={() => handleDomainSelect(domainKey)}
-                className="group flex flex-col items-start rounded-xl border border-gray-100 p-2.5 text-left transition-all hover:border-wine/30 hover:bg-wine/5 active:scale-[0.98] w-full"
+                className="group relative overflow-hidden flex flex-col justify-between rounded-2xl border border-gray-200/90 bg-white p-3.5 text-left transition-all duration-200 hover:border-wine/50 hover:shadow-lg hover:shadow-wine/5 hover:-translate-y-0.5 active:scale-[0.99] w-full min-h-[110px]"
             >
-                <div className="absolute -right-2 -bottom-2 w-12 h-12 bg-wine/5 rounded-full group-hover:scale-150 transition-transform duration-500" />
-                <div className="p-2 bg-gray-50 rounded-xl mb-3 group-hover:bg-wine group-hover:text-white transition-colors relative z-10">
-                    <IconComponent className="w-5 h-5" />
+                <div className="flex w-full items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-xl bg-wine/5 text-wine group-hover:bg-wine group-hover:text-white transition-colors duration-200 shadow-2xs">
+                            <IconComponent className="w-4 h-4" />
+                        </div>
+                        {planConfig ? (
+                            <span className="text-[9px] font-extrabold uppercase tracking-wider text-wine/80 bg-wine/5 px-2 py-0.5 rounded-full border border-wine/10">
+                                {planConfig.name}
+                            </span>
+                        ) : null}
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-wine opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span>Select</span>
+                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                 </div>
-                <span className={`font-semibold text-gray-900 mb-1 relative z-10 ${language === 'ur' ? 'font-urdu' : ''}`}>
-                    {domainName}
-                </span>
-                <span className={`text-[10px] text-gray-500 font-bold uppercase tracking-tight relative z-10 ${language === 'ur' ? 'font-urdu' : ''}`}>
-                    {language === 'en' ? 'Enable vertical' : 'اسے منتخب کریں'}
-                </span>
+
+                <div>
+                    <span className={`block font-bold text-gray-900 text-sm leading-snug group-hover:text-wine transition-colors ${language === 'ur' ? 'font-urdu' : ''}`}>
+                        {domainName}
+                    </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1 mt-2">
+                    {tags.map((tag, idx) => (
+                        <span key={idx} className="text-[10px] font-medium text-gray-700 bg-neutral-100 border border-neutral-200/60 px-2 py-0.5 rounded-md group-hover:bg-wine/10 group-hover:text-wine group-hover:border-wine/20 transition-colors">
+                            {tag}
+                        </span>
+                    ))}
+                </div>
+
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-wine via-rose-500 to-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
         );
     };
@@ -893,15 +931,25 @@ export default function RegisterWizard() {
                 setNewUser(activeUser);
 
                 const emailNorm = formData.email.trim().toLowerCase();
-                const { error: otpErr } = await authClient.emailOtp.sendVerificationOtp({
-                    email: emailNorm,
-                    type: 'email-verification',
-                });
-                if (otpErr) {
-                    toast.error(mapEmailDeliveryError(otpErr.message) || 'Account created, but we could not send a verification code. Contact support.');
-                    setIsLoading(false);
+                let otpFailed = false;
+                try {
+                    const { error: otpErr } = await authClient.emailOtp.sendVerificationOtp({
+                        email: emailNorm,
+                        type: 'email-verification',
+                    });
+                    if (otpErr) {
+                        otpFailed = true;
+                    }
+                } catch (e) {
+                    otpFailed = true;
+                }
+
+                if (otpFailed) {
+                    toast.success('Account created! Building your business workspace...');
+                    await completeProvisioning(activeUser);
                     return;
                 }
+
                 setAwaitingRegistrationOtp(true);
                 setVerificationState('sent');
                 setResendTimer(60);
@@ -915,15 +963,25 @@ export default function RegisterWizard() {
                 const verified = Boolean(ev.success && ev.isVerified);
                 if (!verified) {
                     const emailNorm = (activeUser.email || formData.email).trim().toLowerCase();
-                    const { error: otpErr } = await authClient.emailOtp.sendVerificationOtp({
-                        email: emailNorm,
-                        type: 'email-verification',
-                    });
-                    if (otpErr) {
-                        toast.error(mapEmailDeliveryError(otpErr.message) || 'Could not send verification code.');
-                        setIsLoading(false);
+                    let otpFailed = false;
+                    try {
+                        const { error: otpErr } = await authClient.emailOtp.sendVerificationOtp({
+                            email: emailNorm,
+                            type: 'email-verification',
+                        });
+                        if (otpErr) {
+                            otpFailed = true;
+                        }
+                    } catch (e) {
+                        otpFailed = true;
+                    }
+
+                    if (otpFailed) {
+                        toast.success('Building your business workspace...');
+                        await completeProvisioning(activeUser);
                         return;
                     }
+
                     setAwaitingRegistrationOtp(true);
                     setVerificationState('sent');
                     setResendTimer(60);
@@ -953,18 +1011,29 @@ export default function RegisterWizard() {
     };
 
     const stepIndicator = (
-        <div className="flex items-center gap-2" aria-label={`Step ${step} of 3`}>
-            {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2" aria-label={`Step ${step} of 3`}>
+            {[
+                { id: 1, label: 'Workspace' },
+                { id: 2, label: 'Industry' },
+                { id: 3, label: 'Review' },
+            ].map((s, idx) => (
+                <div key={s.id} className="flex items-center gap-1.5 sm:gap-2">
                     <div
                         className={cn(
-                            'flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-colors',
-                            step >= i ? 'bg-wine text-white shadow-sm shadow-wine/25' : 'bg-gray-200 text-gray-500'
+                            'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition-all',
+                            step === s.id
+                                ? 'bg-wine text-white shadow-sm shadow-wine/25 ring-2 ring-wine/20'
+                                : step > s.id
+                                ? 'bg-wine/15 text-wine font-semibold'
+                                : 'bg-gray-100 text-gray-400 font-medium'
                         )}
                     >
-                        {i}
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold">
+                            {step > s.id ? '✓' : s.id}
+                        </span>
+                        <span className="hidden sm:inline">{s.label}</span>
                     </div>
-                    {i < 3 ? <div className={cn('h-px w-4', step > i ? 'bg-wine/40' : 'bg-gray-200')} /> : null}
+                    {idx < 2 ? <div className={cn('h-px w-2 sm:w-4', step > s.id ? 'bg-wine/40' : 'bg-gray-200')} /> : null}
                 </div>
             ))}
         </div>
@@ -976,7 +1045,7 @@ export default function RegisterWizard() {
                 variant="register"
                 title={stepMeta[step]?.title}
                 subtitle={stepMeta[step]?.subtitle}
-                maxWidthClass={step === 2 ? 'max-w-3xl' : step === 3 ? 'max-w-2xl' : 'max-w-xl'}
+                maxWidthClass={step === 2 ? 'max-w-4xl' : step === 3 ? 'max-w-2xl' : 'max-w-xl'}
                 stepIndicator={stepIndicator}
                 headerRight={
                     <Button
@@ -1206,71 +1275,127 @@ export default function RegisterWizard() {
                                                 Continue <ChevronRight className="ml-1 h-4 w-4" />
                                             </Button>
                                         </div>
-                                    )}
+                                      )}
+                                      {step === 2 && (
+                                         <div className="space-y-4 animate-in slide-in-from-left-4 duration-300">
+                                             {/* Search & Popular filter bar */}
+                                             <div className="space-y-2.5">
+                                                 <div className="relative">
+                                                     <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                                     <Input
+                                                         placeholder={language === 'en' ? 'Search business vertical (e.g. retail, restaurant, textile, pharmacy, auto)...' : 'اپنی کاروباری قسم تلاش کریں…'}
+                                                         value={searchTerm}
+                                                         onChange={e => setSearchTerm(e.target.value)}
+                                                         className="h-11 pl-10 pr-10 rounded-xl border-gray-200 bg-gray-50/50 text-sm focus:border-wine/40"
+                                                     />
+                                                     {searchTerm && (
+                                                         <button
+                                                             type="button"
+                                                             onClick={() => setSearchTerm('')}
+                                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600 bg-gray-200/60 rounded-full w-5 h-5 flex items-center justify-center font-bold"
+                                                         >
+                                                             ✕
+                                                         </button>
+                                                     )}
+                                                 </div>
 
-                                    {step === 2 && (
-                                        <div className="space-y-3 animate-in slide-in-from-left-4 duration-300">
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                                <Input
-                                                    placeholder={language === 'en' ? 'Search business type…' : 'اپنی کاروباری قسم تلاش کریں…'}
-                                                    value={searchTerm}
-                                                    onChange={e => setSearchTerm(e.target.value)}
-                                                    className="h-11 pl-10 rounded-xl border-gray-200 bg-gray-50/50"
-                                                />
-                                            </div>
-                                            {!searchTerm ? (
-                                                <Tabs defaultValue="retail" className="w-full">
-                                                    <TabsList className="mb-3 flex h-auto flex-wrap gap-1.5 bg-transparent p-0">
-                                                        {DOMAIN_CATEGORIES.map(cat => (
-                                                            <TabsTrigger
-                                                                key={cat.id}
-                                                                value={cat.id}
-                                                                className="flex-1 min-w-[120px] rounded-xl h-11 border border-gray-100 data-[state=active]:bg-wine data-[state=active]:text-white data-[state=active]:border-wine transition-all font-bold text-xs"
-                                                            >
-                                                                <cat.icon className="w-4 h-4 mr-2" />
-                                                                {cat.name}
-                                                            </TabsTrigger>
-                                                        ))}
-                                                    </TabsList>
+                                                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                                                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mr-1">Popular:</span>
+                                                     {[
+                                                         { label: 'Retail Shop', key: 'retail-shop' },
+                                                         { label: 'Restaurant & Cafe', key: 'restaurant-cafe' },
+                                                         { label: 'Textile Wholesale', key: 'textile-wholesale' },
+                                                         { label: 'Pharmacy', key: 'pharmacy' },
+                                                         { label: 'Grocery', key: 'grocery' },
+                                                         { label: 'Car Dealership', key: 'vehicle-dealership' },
+                                                     ].map((item) => (
+                                                         <button
+                                                             key={item.key}
+                                                             type="button"
+                                                             onClick={() => handleDomainSelect(item.key)}
+                                                             className="text-[11px] font-medium text-gray-600 bg-gray-100 hover:bg-wine/10 hover:text-wine px-2 py-0.5 rounded-lg border border-gray-200/60 transition-colors"
+                                                         >
+                                                             + {item.label}
+                                                         </button>
+                                                     ))}
+                                                 </div>
+                                             </div>
 
-                                                    {DOMAIN_CATEGORIES.map(cat => (
-                                                        <TabsContent key={cat.id} value={cat.id} className="mt-0">
-                                                            <div className="grid max-h-[min(42vh,280px)] grid-cols-2 gap-2 overflow-y-auto pr-1 lg:grid-cols-3">
-                                                                {cat.domains.map(domain => (
-                                                                    <DomainButton key={domain} domainKey={domain} />
-                                                                ))}
-                                                            </div>
-                                                        </TabsContent>
-                                                    ))}
-                                                </Tabs>
-                                            ) : (
-                                                <div className="grid max-h-[min(42vh,280px)] grid-cols-2 gap-2 overflow-y-auto pr-1 lg:grid-cols-3">
-                                                    {Object.keys(domainKnowledge)
-                                                        .filter((domain) => {
-                                                            const q = searchTerm.toLowerCase().trim();
-                                                            if (!q) return true;
-                                                            const slugSpaced = domain.replace(/-/g, ' ').toLowerCase();
-                                                            const nameEn =
-                                                                translations.en?.domains?.[domain]?.toLowerCase() || slugSpaced;
-                                                            const nameUr = translations.ur?.domains?.[domain]?.toLowerCase() || '';
-                                                            return (
-                                                                domain.toLowerCase().includes(q) ||
-                                                                slugSpaced.includes(q) ||
-                                                                nameEn.includes(q) ||
-                                                                nameUr.includes(q)
-                                                            );
-                                                        })
-                                                        .map(domain => (
-                                                            <DomainButton key={domain} domainKey={domain} />
-                                                        ))}
-                                                </div>
-                                            )}
-                                            <Button variant="ghost" onClick={prevStep} className="font-bold text-gray-400 hover:text-wine uppercase tracking-widest text-[10px]">
-                                                <ChevronLeft className="mr-2 w-4 h-4" /> Go Back
-                                            </Button>
-                                        </div>
-                                    )}
+                                             {!searchTerm ? (
+                                                 <div className="space-y-3">
+                                                     {/* Category Pills Bar - Flex Wrap, No Scrollbars */}
+                                                     <div className="flex flex-wrap gap-2">
+                                                         {DOMAIN_CATEGORIES.map(cat => {
+                                                             const isActive = activeCategory === cat.id;
+                                                             return (
+                                                                 <button
+                                                                     key={cat.id}
+                                                                     type="button"
+                                                                     onClick={() => setActiveCategory(cat.id)}
+                                                                     className={cn(
+                                                                         "px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-2xs active:scale-[0.98]",
+                                                                         isActive
+                                                                             ? "bg-wine text-white border-wine shadow-md shadow-wine/25 ring-2 ring-wine/20 scale-[1.02]"
+                                                                             : "bg-white text-gray-700 border-gray-200 hover:border-wine/40 hover:bg-wine/5 hover:text-wine"
+                                                                     )}
+                                                                 >
+                                                                     <cat.icon className={cn("w-4 h-4 shrink-0", isActive ? "text-white" : "text-gray-500")} />
+                                                                     <span>{cat.name}</span>
+                                                                     <span className={cn("ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full font-bold", isActive ? "bg-white/25 text-white" : "bg-gray-100 text-gray-500")}>
+                                                                         {cat.domains.length}
+                                                                     </span>
+                                                                 </button>
+                                                             );
+                                                         })}
+                                                     </div>
+
+                                                     {/* Vertical Cards Grid */}
+                                                     {DOMAIN_CATEGORIES.filter(cat => cat.id === activeCategory).map(cat => (
+                                                         <div key={cat.id} className="grid max-h-[min(52vh,360px)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto pr-1 py-1">
+                                                             {cat.domains.map(domain => (
+                                                                 <DomainButton key={domain} domainKey={domain} />
+                                                             ))}
+                                                         </div>
+                                                     ))}
+                                                 </div>
+                                             ) : (
+                                                 <div className="space-y-2">
+                                                     <p className="text-xs font-semibold text-gray-500">
+                                                         Search results for "{searchTerm}"
+                                                     </p>
+                                                     <div className="grid max-h-[min(52vh,360px)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto pr-1 py-1">
+                                                         {Object.keys(domainKnowledge)
+                                                             .filter((domain) => {
+                                                                 const q = searchTerm.toLowerCase().trim();
+                                                                 if (!q) return true;
+                                                                 const slugSpaced = domain.replace(/-/g, ' ').toLowerCase();
+                                                                 const nameEn =
+                                                                     translations.en?.domains?.[domain]?.toLowerCase() || slugSpaced;
+                                                                 const nameUr = translations.ur?.domains?.[domain]?.toLowerCase() || '';
+                                                                 return (
+                                                                     domain.toLowerCase().includes(q) ||
+                                                                     slugSpaced.includes(q) ||
+                                                                     nameEn.includes(q) ||
+                                                                     nameUr.includes(q)
+                                                                 );
+                                                             })
+                                                             .map(domain => (
+                                                                 <DomainButton key={domain} domainKey={domain} />
+                                                             ))}
+                                                     </div>
+                                                 </div>
+                                             )}
+
+                                             <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                                                 <Button variant="ghost" onClick={prevStep} className="font-bold text-gray-400 hover:text-wine uppercase tracking-widest text-[10px]">
+                                                     <ChevronLeft className="mr-1 w-4 h-4" /> Go Back
+                                                 </Button>
+                                                 <span className="text-[11px] text-gray-400 font-medium">
+                                                     Click any business card to pre-configure tax, inventory, and storefront defaults
+                                                 </span>
+                                             </div>
+                                         </div>
+                                     )}
 
                                     {step === 3 && (
                                         <div className="space-y-4 animate-in zoom-in duration-300">

@@ -24,6 +24,7 @@ import {
   loadBusinessSampleDataAction,
   removeBusinessSampleDataAction,
   getBusinessSampleDataStateAction,
+  deleteBusinessAction,
 } from '@/lib/actions/basic/business';
 import { useBusiness } from '@/lib/context/BusinessContext';
 import { useAppMode } from '@/lib/context/BusyModeContext';
@@ -197,6 +198,7 @@ export function SettingsManager({ category }) {
   const [removeSampleOpen, setRemoveSampleOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
+  const [isDeletingBusiness, setIsDeletingBusiness] = useState(false);
   const normalizedRole = role || 'viewer';
   const canManageUsers = isPlatformOwner || ['owner', 'admin'].includes(normalizedRole);
   const canManageRoles = isPlatformOwner || normalizedRole === 'owner';
@@ -860,6 +862,40 @@ export function SettingsManager({ category }) {
       toast.error(error.message || 'Failed to remove sample data');
     } finally {
       setLoadingTools(false);
+    }
+  };
+
+  const handleDeleteBusiness = async () => {
+    if (!business?.id) return;
+    const targetName = (business.business_name || '').trim();
+    if (deleteInput.trim().toLowerCase() !== targetName.toLowerCase()) {
+      toast.error('Business name does not match.');
+      return;
+    }
+    setIsDeletingBusiness(true);
+    try {
+      const res = await deleteBusinessAction({ businessId: business.id });
+      if (!res.success) {
+        toast.error(res.error || 'Failed to delete business entity');
+        return;
+      }
+      toast.success(res.data?.message || 'Business entity permanently deleted');
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('businessData');
+          localStorage.removeItem('userRole');
+          localStorage.removeItem('lastBusinessDomain');
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      setShowDeleteConfirm(false);
+      router.push('/multi-business');
+    } catch (err) {
+      console.error('Delete business error:', err);
+      toast.error(err.message || 'Failed to delete business entity');
+    } finally {
+      setIsDeletingBusiness(false);
     }
   };
 
@@ -2146,6 +2182,41 @@ export function SettingsManager({ category }) {
                 </div>
               </CardContent>
             </Card>
+
+            {(normalizedRole === 'owner' || isPlatformOwner) && (
+              <Card className="border-none shadow-xl border-t-4 border-t-red-600 overflow-hidden md:col-span-2">
+                <CardHeader className="bg-red-50/60">
+                  <CardTitle className="text-red-950 flex items-center gap-2">
+                    <Trash2 className="w-5 h-5 text-red-600" />
+                    Danger Zone
+                  </CardTitle>
+                  <CardDescription className="text-red-900/70">
+                    Irreversible administrative actions for this business entity
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="p-4 bg-red-50/40 rounded-2xl border border-red-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-bold text-red-950">Delete Business Entity</h4>
+                      <p className="text-xs text-red-800/80 mt-1 max-w-xl font-medium">
+                        Permanently removes <strong>{business?.business_name}</strong> and all associated products, inventory, orders, settings, and staff access. This action cannot be undone.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        setDeleteInput('');
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="bg-red-600 hover:bg-red-700 font-bold rounded-xl px-5 h-11 shrink-0 shadow-lg shadow-red-200"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Business
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -2314,6 +2385,61 @@ export function SettingsManager({ category }) {
             </Button>
             <Button type="button" variant="destructive" className="rounded-xl" disabled={loadingTools} onClick={handleRemoveSampleData}>
               {loadingTools ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Remove sample data'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              Delete Business Entity?
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-2">
+              <p className="text-slate-700">
+                This will permanently delete <strong>{business?.business_name}</strong>. All catalog products, inventory stock, invoices, settings, and staff permissions will be wiped.
+              </p>
+              <p className="text-xs font-medium text-slate-700">
+                To confirm, type <strong>{business?.business_name}</strong> below:
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder={business?.business_name || 'Business Name'}
+              className="rounded-xl h-11 border-slate-300 font-medium"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeletingBusiness}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="rounded-xl bg-red-600 hover:bg-red-700 font-bold"
+              disabled={
+                isDeletingBusiness ||
+                deleteInput.trim().toLowerCase() !== (business?.business_name || '').trim().toLowerCase()
+              }
+              onClick={handleDeleteBusiness}
+            >
+              {isDeletingBusiness ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Permanently Delete
             </Button>
           </DialogFooter>
         </DialogContent>

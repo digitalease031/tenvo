@@ -10,6 +10,7 @@ import {
   buildElectronicsAttributeRows,
   buildFootwearAttributeRows,
   buildEvBikesAttributeRows,
+  buildVehicleAttributeRows,
   buildStorefrontFilterHref,
 } from '@/lib/storefront/productAttributeChips';
 
@@ -26,24 +27,36 @@ export function ProductAttributeList({
   showElectronicsMeta = false,
   showFootwearMeta = false,
   showEvMeta = false,
+  showVehicleMeta = false,
   /** Keys already rendered as top-level badges (e.g. sourcing on ProductInfo). */
   hideBadgeKeys = [],
 }) {
-  const rows = showFashionMeta
-    ? buildClothingAttributeRows(product)
-    : showMarineMeta
-      ? buildMarinePartsAttributeRows(product)
-      : showPartsMeta
-        ? buildPartsAttributeRows(product)
-        : showTyreMeta
-          ? buildTyreAttributeRows(product)
-          : showElectronicsMeta
-            ? buildElectronicsAttributeRows(product)
-            : showFootwearMeta
-              ? buildFootwearAttributeRows(product)
-              : showEvMeta
-                ? buildEvBikesAttributeRows(product)
-                : [];
+  const isVehicle =
+    showVehicleMeta ||
+    Boolean(
+      product?.domain_data?.vehiclemake ||
+        product?.domain_data?.modelyear ||
+        product?.domain_data?.mileage ||
+        product?.domain_data?.transmission
+    );
+
+  const rows = isVehicle
+    ? buildVehicleAttributeRows(product)
+    : showFashionMeta
+      ? buildClothingAttributeRows(product)
+      : showMarineMeta
+        ? buildMarinePartsAttributeRows(product)
+        : showPartsMeta
+          ? buildPartsAttributeRows(product)
+          : showTyreMeta
+            ? buildTyreAttributeRows(product)
+            : showElectronicsMeta
+              ? buildElectronicsAttributeRows(product)
+              : showFootwearMeta
+                ? buildFootwearAttributeRows(product)
+                : showEvMeta
+                  ? buildEvBikesAttributeRows(product)
+                  : [];
 
   const visibleRows = rows.filter(
     (row) => !(row.badge && hideBadgeKeys.includes(row.key))

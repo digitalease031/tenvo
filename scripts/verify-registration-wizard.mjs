@@ -18,33 +18,38 @@ function assert(condition, message) {
 
 assert(getMaxAccessibleRegistrationStep({}) === 1, 'empty form -> step 1');
 assert(
-  getMaxAccessibleRegistrationStep({ businessName: 'Tyre', handle: 'tyre-shop' }) === 2,
-  'name+handle -> step 2'
+  getMaxAccessibleRegistrationStep({ businessName: 'Tyre', handle: 'tyre-shop' }) === 1,
+  'missing phone -> step 1'
+);
+assert(
+  getMaxAccessibleRegistrationStep({ businessName: 'Tyre', handle: 'tyre-shop', phone: '03001234567' }) === 2,
+  'name+handle+phone -> step 2'
 );
 assert(
   getMaxAccessibleRegistrationStep({
     businessName: 'Tyre',
     handle: 'tyre-shop',
+    phone: '03001234567',
     category: 'tyre-shop',
   }) === 3,
-  'full form -> step 3'
+  'full form with phone -> step 3'
 );
 
-assert(!canAccessRegistrationStep(3, { businessName: 'A', handle: 'b' }), 'block step 3 without category');
-assert(clampRegistrationStep(3, { businessName: 'A', handle: 'b' }) === 2, 'clamp step 3 to 2');
+assert(!canAccessRegistrationStep(3, { businessName: 'A', handle: 'b', phone: '03001234567' }), 'block step 3 without category');
+assert(clampRegistrationStep(3, { businessName: 'A', handle: 'b', phone: '03001234567' }) === 2, 'clamp step 3 to 2');
 
 const params = new URLSearchParams('step=3');
 assert(
   resolveInitialRegistrationStep({
     searchParams: params,
-    savedData: { businessName: 'A', handle: 'b' },
+    savedData: { businessName: 'A', handle: 'b', phone: '03001234567' },
   }) === 1,
   'step=3 without category resumes at 1'
 );
 assert(
   resolveInitialRegistrationStep({
     searchParams: params,
-    savedData: { businessName: 'A', handle: 'b', category: 'retail-shop' },
+    savedData: { businessName: 'A', handle: 'b', phone: '03001234567', category: 'retail-shop' },
   }) === 3,
   'step=3 with full data resumes at 3'
 );

@@ -31,6 +31,7 @@ import {
 } from '@/lib/registration/registrationWizard';
 import { ResumeBanner } from '@/components/registration/ResumeBanner';
 import { GoogleOAuthError } from '@/components/registration/GoogleOAuthError';
+import { RegistrationCostCalculator } from '@/components/registration/RegistrationCostCalculator';
 import Link from 'next/link';
 import { AuthShell, AuthDivider, AuthFooterLink, AuthGoogleButton, authInputClass, authLabelClass } from '@/components/auth/AuthShell';
 import { isEmailVerified } from '@/lib/actions/auth/verification';
@@ -250,6 +251,7 @@ export default function RegisterWizard() {
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [showResumeBanner, setShowResumeBanner] = useState(false);
     const [googleError, setGoogleError] = useState(null);
+    const [dealTerms, setDealTerms] = useState(null);
     
     // Form data with persistence
     const [formData, setFormData] = useState(() => {
@@ -648,6 +650,7 @@ export default function RegisterWizard() {
             currency: formData.currency,
             ntn: formData.ntn,
             description: formData.storeTagline || null,
+            dealTerms: dealTerms || undefined,
         });
 
         if (!bizResult.success) {
@@ -844,8 +847,8 @@ export default function RegisterWizard() {
             toast.error('Enter the verification code sent to your email, then tap “Verify & launch”.');
             return;
         }
-        if (!formData.businessName || (!isAuth && (!formData.email || !formData.password)) || !formData.handle || !formData.category) {
-            toast.error('Please fill in all required fields.');
+        if (!formData.businessName || !formData.phone?.trim() || (!isAuth && (!formData.email || !formData.password)) || !formData.handle || !formData.category) {
+            toast.error('Please fill in all required fields, including business phone number.');
             return;
         }
 
@@ -1125,10 +1128,22 @@ export default function RegisterWizard() {
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
+                                                <div className="space-y-2 sm:col-span-2">
+                                                     <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest ml-1">
+                                                         Business Phone Number <span className="text-rose-500">*</span>
+                                                     </Label>
+                                                     <Input
+                                                         type="tel"
+                                                         placeholder={`e.g. ${regionalForWizard.phoneCode} 300 1234567`}
+                                                         value={formData.phone}
+                                                         onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                                         className={authInputClass}
+                                                     />
+                                                 </div>
                                                 {!user ? (
                                                     <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                         <div className="space-y-1.5">
-                                                            <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest ml-1">Email</Label>
+                                                            <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest ml-1">Email <span className="text-rose-500">*</span></Label>
                                                             <Input
                                                                 type="email"
                                                                 placeholder="owner@business.com"
@@ -1138,7 +1153,7 @@ export default function RegisterWizard() {
                                                             />
                                                         </div>
                                                         <div className="space-y-1.5">
-                                                            <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest ml-1">Password</Label>
+                                                            <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest ml-1">Password <span className="text-rose-500">*</span></Label>
                                                             <Input
                                                                 type="password"
                                                                 placeholder="Min. 8 characters"
@@ -1156,21 +1171,11 @@ export default function RegisterWizard() {
                                                 onClick={() => setShowOptionalFields((v) => !v)}
                                                 className="text-[10px] font-bold uppercase tracking-widest text-wine hover:underline"
                                             >
-                                                {showOptionalFields ? 'Hide optional fields' : '+ Phone, tax ID, tagline (optional)'}
+                                                {showOptionalFields ? 'Hide optional fields' : '+ Tax ID, store tagline (optional)'}
                                             </button>
 
                                             {showOptionalFields ? (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-3">
-                                                    <div className="space-y-1.5">
-                                                        <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest">Phone</Label>
-                                                        <Input
-                                                            type="tel"
-                                                            placeholder={`${regionalForWizard.phoneCode} number`}
-                                                            value={formData.phone}
-                                                            onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                                            className={cn(authInputClass, 'bg-white')}
-                                                        />
-                                                    </div>
                                                     <div className="space-y-1.5">
                                                         <Label className="text-[10px] font-semibold uppercase text-gray-400 tracking-widest">{regionalForWizard.taxIdLabel}</Label>
                                                         <Input
@@ -1196,7 +1201,7 @@ export default function RegisterWizard() {
                                             <Button
                                                 className="h-11 w-full rounded-xl bg-wine text-sm font-semibold text-white hover:bg-wine/90"
                                                 onClick={nextStep}
-                                                disabled={!formData.businessName || !formData.handle || !handleStatus.available || handleStatus.checking || (!user && (!formData.email || !formData.password))}
+                                                disabled={!formData.businessName || !formData.handle || !formData.phone?.trim() || !handleStatus.available || handleStatus.checking || (!user && (!formData.email || !formData.password))}
                                             >
                                                 Continue <ChevronRight className="ml-1 h-4 w-4" />
                                             </Button>
@@ -1312,8 +1317,15 @@ export default function RegisterWizard() {
                                                             </button>
                                                         );
                                                     })}
-                                                </div>
-                                            </div>
+                                                 </div>
+                                             </div>
+
+                                             <RegistrationCostCalculator
+                                                 selectedPlan={formData.planTier}
+                                                 currency={formData.currency}
+                                                 regional={regionalForWizard}
+                                                 onChange={setDealTerms}
+                                             />
 
                                             {awaitingRegistrationOtp ? (
                                                 <div className="rounded-xl border border-wine/20 bg-wine/[0.06] p-4 space-y-3">

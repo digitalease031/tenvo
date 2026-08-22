@@ -704,7 +704,9 @@ function BusinessDetailModal({ details, onClose, onRefresh }) {
                         <div><span className="text-gray-500">Plan:</span> <span className="font-semibold">{PLAN_TIERS[business.plan_tier]?.name || business.plan_tier}</span></div>
                         <div className="min-w-0"><span className="text-gray-500">Owner:</span> <span className="font-semibold break-words">{business.owner_name || business.owner_email}</span></div>
                         <div className="min-w-0"><span className="text-gray-500">Email:</span> <span className="font-semibold break-all">{business.email}</span></div>
+                        <div><span className="text-gray-500">Phone:</span> <span className="font-bold text-wine">{business.phone || 'N/A'}</span></div>
                         <div><span className="text-gray-500">Created:</span> <span className="font-semibold">{new Date(business.created_at).toLocaleDateString()}</span></div>
+                        <div><span className="text-gray-500">Country:</span> <span className="font-semibold">{business.country}</span></div>
                         {business.stripe_subscription_status && (
                             <div className="col-span-2">
                                 <span className="text-gray-500">Billing status (sync):</span>{' '}
@@ -721,6 +723,26 @@ function BusinessDetailModal({ details, onClose, onRefresh }) {
                             </div>
                         )}
                     </div>
+
+                    {bizSettings?.deal_terms && (
+                        <div className="rounded-xl border border-wine/20 bg-wine/[0.02] p-3 space-y-2 text-xs">
+                            <div className="flex items-center justify-between">
+                                <span className="font-bold uppercase tracking-wider text-wine">Registered Deal Terms</span>
+                                <span className="font-bold text-wine">
+                                    {bizSettings.deal_terms.currency || 'PKR'} {Number(bizSettings.deal_terms.total_advance_payable || 0).toLocaleString()} Total Advance
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <div><span className="text-gray-500">Setup:</span> {bizSettings.deal_terms.currency} {Number(bizSettings.deal_terms.setup_fee || 0).toLocaleString()}</div>
+                                <div><span className="text-gray-500">Training:</span> {bizSettings.deal_terms.currency} {Number(bizSettings.deal_terms.training_fee || 0).toLocaleString()}</div>
+                                <div><span className="text-gray-500">Support:</span> {bizSettings.deal_terms.currency} {Number(bizSettings.deal_terms.support_fee || 0).toLocaleString()}</div>
+                                <div><span className="text-gray-500">Monthly:</span> {bizSettings.deal_terms.currency} {Number(bizSettings.deal_terms.monthly_fee || 0).toLocaleString()}</div>
+                            </div>
+                            {bizSettings.deal_terms.notes && (
+                                <p className="text-[11px] text-gray-500 italic">Note: {bizSettings.deal_terms.notes}</p>
+                            )}
+                        </div>
+                    )}
 
                     {bizSettings?.packaging?.mode === 'custom' && (
                         <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

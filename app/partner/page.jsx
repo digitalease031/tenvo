@@ -17,7 +17,8 @@ import {
   ArrowRight,
   Award,
   Compass,
-  LayoutGrid
+  Building2,
+  Layers,
 } from 'lucide-react';
 import { persistBusinessShell } from '@/lib/utils/businessClientCache';
 
@@ -72,11 +73,11 @@ export default function PartnerShowcasePage() {
 
   if (loading || authLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-canvas">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-wine" />
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground animate-pulse">
-            Initializing Partner Showcase...
+      <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-wine" />
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 animate-pulse">
+            Loading Partner Showcase...
           </p>
         </div>
       </div>
@@ -92,136 +93,139 @@ export default function PartnerShowcasePage() {
     : verticalDemos.filter(v => v.packageKey === activeCategory || v.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-canvas text-foreground pb-20">
-      {/* Top Header */}
-      <div className="bg-card/80 backdrop-blur-md border-b border-border sticky top-0 z-50 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-          <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gray-50/50 text-gray-900 pb-16">
+      {/* Top Navigation Bar */}
+      <header className="bg-white/90 backdrop-blur-md border-b border-gray-200/80 sticky top-0 z-50 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <TenvoTextLogo />
-              <span className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-wine/10 border border-wine/20 text-wine text-[10px] font-semibold uppercase tracking-wider">
-                Partner Portal
+              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full bg-wine/10 border border-wine/20 text-wine text-[10px] font-bold uppercase tracking-wider">
+                Partner Hub
               </span>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => router.push('/affiliates/status')}
-                className="text-xs font-semibold uppercase tracking-wider hover:bg-muted rounded-xl"
+                className="text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg h-8"
               >
-                Partner Dashboard
+                Dashboard
               </Button>
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => router.push('/multi-business')}
-                className="text-xs font-semibold uppercase tracking-wider hover:bg-muted rounded-xl"
+                className="text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg h-8"
               >
-                My Entities
+                My Workspaces
               </Button>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => router.push('/')}
-                className="text-xs font-semibold uppercase tracking-wider border-border rounded-xl"
+                className="text-xs font-semibold text-gray-700 border-gray-200 rounded-lg h-8 bg-white shadow-xs hover:bg-gray-50"
               >
-                Public Home
+                Public Store
               </Button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
-        {/* Hero Section */}
-        <div className="bg-gradient-to-br from-wine-950 via-wine-900 to-zinc-950 text-white rounded-3xl p-8 sm:p-12 relative overflow-hidden shadow-2xl border border-wine-800/40">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-amber-300 text-[10px] font-semibold uppercase tracking-widest">
+      {/* Main Content Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {/* Compact Light-Themed Hero Card */}
+        <div className="bg-gradient-to-r from-wine/[0.06] via-wine/[0.02] to-white rounded-2xl p-6 sm:p-8 border border-wine/15 shadow-xs relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-wine/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+          <div className="relative z-10 max-w-3xl space-y-2.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-wine/10 border border-wine/20 text-wine text-[10px] font-bold uppercase tracking-wider">
               <Award className="w-3.5 h-3.5" />
-              Affiliate & Sales Demo Hub
+              Affiliate &amp; Demo Showcase
             </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-              Market Tenvo.<br />
-              <span className="text-amber-300 drop-shadow-sm">Showcase Live Vertical Demos.</span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-snug">
+              Market Tenvo.{' '}
+              <span className="text-wine">Showcase Live Vertical Demos.</span>
             </h1>
-            <p className="text-sm sm:text-base text-zinc-100 font-medium leading-relaxed max-w-2xl">
+            <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed max-w-2xl">
               Present fully functioning enterprise workspaces, POS terminals, and domain-specific themes to prospective clients with zero risk to production data.
             </p>
           </div>
         </div>
 
-        {/* Partner Referral Link & Earnings Card */}
-        <div className="bg-card text-card-foreground rounded-2xl border border-border p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
+        {/* Affiliate Link & Key Stats Card */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-xs space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
             <div>
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Share2 className="w-5 h-5 text-wine" />
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-wine" />
                 Your Affiliate Partner Link
               </h2>
-              <p className="text-xs text-muted-foreground font-medium mt-1">
+              <p className="text-xs text-gray-500 font-medium mt-0.5">
                 Share your referral link with clients to track conversions and earn lifetime commissions.
               </p>
             </div>
 
             {/* Referral Link Box */}
-            <div className="flex items-center gap-2 bg-muted/60 border border-border p-2 rounded-xl w-full md:w-auto">
-              <code className="text-xs font-mono font-semibold text-foreground px-3 py-1.5 bg-background rounded-lg border border-border truncate max-w-xs">
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 p-1.5 rounded-xl w-full md:w-auto">
+              <code className="text-xs font-mono font-semibold text-gray-800 px-3 py-1 bg-white rounded-lg border border-gray-200 truncate max-w-xs select-all">
                 {typeof window !== 'undefined' ? `${window.location.origin}/register?ref=${referralCode}` : `https://tenvo.app/register?ref=${referralCode}`}
               </code>
               <Button
                 onClick={() => handleCopyLink(referralCode)}
-                className="bg-wine hover:bg-wine-700 text-white text-xs font-semibold px-4 rounded-lg flex items-center gap-1.5 flex-shrink-0 h-9"
+                className="bg-wine hover:bg-wine/90 text-white text-xs font-semibold px-3.5 rounded-lg flex items-center gap-1.5 shrink-0 h-8 shadow-xs"
               >
-                {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Copied!' : 'Copy Link'}
               </Button>
             </div>
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 bg-muted/40 rounded-xl border border-border space-y-1">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Referral Code</p>
-              <p className="text-lg font-bold text-foreground font-mono">{referralCode}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3.5 bg-gray-50/80 rounded-xl border border-gray-200/80 space-y-0.5">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Referral Code</p>
+              <p className="text-base font-bold text-gray-900 font-mono">{referralCode}</p>
             </div>
-            <div className="p-4 bg-muted/40 rounded-xl border border-border space-y-1">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Commission Rate</p>
-              <p className="text-lg font-bold text-wine">{affiliate?.commissionRate || 20}%</p>
+            <div className="p-3.5 bg-gray-50/80 rounded-xl border border-gray-200/80 space-y-0.5">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Commission Rate</p>
+              <p className="text-base font-bold text-wine tabular-nums">{affiliate?.commissionRate || 20}%</p>
             </div>
-            <div className="p-4 bg-muted/40 rounded-xl border border-border space-y-1">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Active Referrals</p>
-              <p className="text-lg font-bold text-foreground">{data?.referralCount || 0}</p>
+            <div className="p-3.5 bg-gray-50/80 rounded-xl border border-gray-200/80 space-y-0.5">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Referrals</p>
+              <p className="text-base font-bold text-gray-900 tabular-nums">{data?.referralCount || 0}</p>
             </div>
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-1">
-              <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Earnings</p>
-              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">PKR {(affiliate?.totalEarnings || 0).toLocaleString()}</p>
+            <div className="p-3.5 bg-emerald-50/90 border border-emerald-200/80 rounded-xl space-y-0.5">
+              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Total Earnings</p>
+              <p className="text-base font-bold text-emerald-800 tabular-nums">PKR {(affiliate?.totalEarnings || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
 
-        {/* Vertical Demo Showcase Header */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Vertical Demo Showcase Header & Filter Bar */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-                <Compass className="w-6 h-6 text-wine" />
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <Compass className="w-5 h-5 text-wine" />
                 Industry Vertical Demo Hubs
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
+              <p className="text-xs text-gray-500 font-medium mt-0.5">
                 Select any industry domain below to present a live, fully populated working demo to your clients.
               </p>
             </div>
           </div>
 
           {/* Categories Horizontal Filter Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setActiveCategory('all')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeCategory === 'all'
-                  ? 'bg-wine text-white shadow-md shadow-wine/20'
-                  : 'bg-card border border-border text-muted-foreground hover:bg-muted'
+                  ? 'bg-wine text-white shadow-xs'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
               All Verticals ({verticalDemos.length})
@@ -230,10 +234,10 @@ export default function PartnerShowcasePage() {
               <button
                 key={item.packageKey}
                 onClick={() => setActiveCategory(item.packageKey)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap ${
                   activeCategory === item.packageKey
-                    ? 'bg-wine text-white shadow-md shadow-wine/20'
-                    : 'bg-card border border-border text-muted-foreground hover:bg-muted'
+                    ? 'bg-wine text-white shadow-xs'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 {item.title}
@@ -243,7 +247,7 @@ export default function PartnerShowcasePage() {
         </div>
 
         {/* Demo Cards Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredDemos.map((demo) => {
             const hasStores = demo.matchingStores && demo.matchingStores.length > 0;
             const primaryStore = hasStores ? demo.matchingStores[0] : null;
@@ -252,41 +256,41 @@ export default function PartnerShowcasePage() {
             return (
               <div
                 key={demo.packageKey}
-                className="bg-card text-card-foreground rounded-2xl border border-border p-6 flex flex-col justify-between hover:shadow-xl hover:border-wine/40 transition-all duration-300 group"
+                className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between hover:border-wine/30 hover:shadow-md transition-all duration-200 group"
               >
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 bg-wine/10 text-wine rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <Store className="w-6 h-6" />
+                    <div className="w-10 h-10 bg-wine/10 text-wine rounded-xl flex items-center justify-center font-bold">
+                      <Store className="w-5 h-5" />
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-muted border border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <span className="px-2.5 py-0.5 rounded-full bg-wine/5 border border-wine/15 text-[10px] font-bold text-wine uppercase tracking-wider">
                       {demo.category}
                     </span>
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground group-hover:text-wine transition-colors">
+                    <h3 className="text-base font-bold text-gray-900 group-hover:text-wine transition-colors">
                       {demo.title}
                     </h3>
-                    <p className="text-xs text-muted-foreground font-medium leading-relaxed mt-1 line-clamp-2">
+                    <p className="text-xs text-gray-500 font-medium leading-relaxed mt-1 line-clamp-2">
                       {demo.description}
                     </p>
                   </div>
 
-                  <div className="pt-2">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  <div className="pt-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                       {hasStores ? 'Available Demo Instances:' : 'Target Demo Environment:'}
                     </p>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       {hasStores ? (
                         demo.matchingStores.slice(0, 2).map((s) => (
-                          <div key={s.id} className="flex items-center justify-between p-2 bg-muted/60 rounded-lg text-xs font-medium text-foreground">
+                          <div key={s.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-xs font-medium text-gray-800">
                             <span className="truncate">{s.name}</span>
                             <span className="text-[10px] font-mono text-wine font-semibold">{s.domain}</span>
                           </div>
                         ))
                       ) : (
-                        <div className="flex items-center justify-between p-2 bg-muted/40 border border-border rounded-lg text-xs font-medium text-muted-foreground">
+                        <div className="flex items-center justify-between p-2 bg-gray-50/70 border border-gray-100 rounded-lg text-xs font-medium text-gray-600">
                           <span className="truncate">Standard Vertical Sandbox</span>
                           <span className="text-[10px] font-mono text-wine font-semibold">{targetDomain}</span>
                         </div>
@@ -295,13 +299,13 @@ export default function PartnerShowcasePage() {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border">
+                <div className="mt-5 pt-3.5 border-t border-gray-100">
                   <Button
                     onClick={() => handleLaunchDemo(targetDomain)}
-                    className="w-full bg-wine hover:bg-wine-700 text-white font-semibold text-xs rounded-xl h-11 uppercase tracking-wider shadow-md flex items-center justify-center gap-2 group-hover:shadow-lg transition-all"
+                    className="w-full bg-wine hover:bg-wine/90 text-white font-semibold text-xs rounded-xl h-10 uppercase tracking-wider shadow-xs flex items-center justify-center gap-2 transition-all"
                   >
                     <span>Launch Demo Presentation</span>
-                    <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
@@ -310,26 +314,27 @@ export default function PartnerShowcasePage() {
         </div>
 
         {/* Security & Tenancy Guarantee Banner */}
-        <div className="bg-gradient-to-r from-zinc-900 via-zinc-950 to-black text-white rounded-2xl p-6 sm:p-8 border border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
-          <div className="space-y-2 text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4" />
+        <div className="bg-gradient-to-r from-emerald-50/90 via-white to-gray-50 rounded-2xl p-5 sm:p-6 border border-emerald-200/80 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
+          <div className="space-y-1.5 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-1.5 text-emerald-700 text-xs font-bold uppercase tracking-wider">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
               Isolated Partner Demo Environment
             </div>
-            <h3 className="text-lg font-semibold text-white">
-              Complete Client Privacy & Production Data Protection
+            <h3 className="text-base font-bold text-gray-900">
+              Complete Client Privacy &amp; Production Data Protection
             </h3>
-            <p className="text-xs text-zinc-300 font-medium max-w-2xl leading-relaxed">
+            <p className="text-xs text-gray-600 font-medium max-w-2xl leading-relaxed">
               Partner sessions are strictly scoped to registered Demo Stores. Your access prevents viewing private client businesses, super-admin platform controls, or owner account metrics.
             </p>
           </div>
 
-          <button
+          <Button
+            variant="outline"
             onClick={() => router.push('/multi-business')}
-            className="border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold uppercase tracking-wider px-6 py-2.5 rounded-xl flex-shrink-0 transition-colors h-11"
+            className="border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-xs font-semibold uppercase tracking-wider px-4 rounded-xl shrink-0 transition-colors h-10 shadow-xs"
           >
-            Go to Entity Hub
-          </button>
+            Go to Workspace Hub
+          </Button>
         </div>
       </div>
     </div>

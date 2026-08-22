@@ -29,6 +29,10 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  Phone,
+  Calculator,
+  DollarSign,
+  Receipt,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
@@ -420,21 +424,25 @@ export function RegistrationApprovalsPanel({ embedded = false }) {
                             )}
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
                             <div className="flex items-center gap-2 text-gray-600">
-                              <Mail className="w-4 h-4 flex-shrink-0" />
+                              <Mail className="w-4 h-4 flex-shrink-0 text-gray-400" />
                               <span className="truncate">{request.user_email}</span>
                             </div>
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Phone className="w-4 h-4 flex-shrink-0 text-wine" />
+                              <span className="font-bold tabular-nums">{request.phone || 'N/A'}</span>
+                            </div>
                             <div className="flex items-center gap-2 text-gray-600">
-                              <Tag className="w-4 h-4 flex-shrink-0" />
+                              <Tag className="w-4 h-4 flex-shrink-0 text-gray-400" />
                               <span className="truncate">{request.category}</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-600">
-                              <MapPin className="w-4 h-4 flex-shrink-0" />
+                              <MapPin className="w-4 h-4 flex-shrink-0 text-gray-400" />
                               <span className="truncate">{request.country}</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-600">
-                              <Globe className="w-4 h-4 flex-shrink-0" />
+                              <Globe className="w-4 h-4 flex-shrink-0 text-gray-400" />
                               <span className="font-mono truncate">{request.domain}</span>
                             </div>
                           </div>
@@ -443,10 +451,12 @@ export function RegistrationApprovalsPanel({ embedded = false }) {
                             <span>Plan: <strong>{request.plan_tier}</strong></span>
                             <span>&bull;</span>
                             <span>Submitted: {new Date(request.requested_at).toLocaleDateString()}</span>
-                            {request.phone && (
+                            {request.deal_terms?.total_advance_payable != null && (
                               <>
                                 <span>&bull;</span>
-                                <span>Phone: {request.phone}</span>
+                                <span className="text-wine font-bold">
+                                  Advance Calculated: {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.total_advance_payable).toLocaleString()}
+                                </span>
                               </>
                             )}
                           </div>
@@ -473,20 +483,86 @@ export function RegistrationApprovalsPanel({ embedded = false }) {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setExpandedRequest(
-                              expandedRequest === request.id ? null : request.id
-                            )}
+                            onClick={() => {
+                              const willExpand = expandedRequest !== request.id;
+                              setExpandedRequest(willExpand ? request.id : null);
+                              if (willExpand && request.deal_terms?.total_advance_payable != null) {
+                                setPayAmount(String(request.deal_terms.total_advance_payable));
+                                if (request.plan_tier && request.plan_tier !== 'free') {
+                                  setPayTier(request.plan_tier);
+                                }
+                              }
+                            }}
                           >
                             <Info className="w-4 h-4 mr-1" />
-                            {expandedRequest === request.id ? 'Close' : 'More'}
+                            {expandedRequest === request.id ? 'Close' : 'More Details'}
                           </Button>
                         </div>
                       )}
                     </div>
 
-                    {/* Expanded Actions */}
+                    {/* Expanded Actions & Cost Breakdown */}
                     {expandedRequest === request.id && (
                       <div className="border-t pt-4 space-y-4">
+                        {/* Commercial Deal & Project Cost Breakdown */}
+                        {request.deal_terms && (
+                          <div className="rounded-xl border border-wine/20 bg-wine/[0.02] p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h5 className="text-xs font-bold uppercase tracking-wider text-wine flex items-center gap-1.5">
+                                <Calculator className="w-4 h-4" />
+                                Registered Project Deal &amp; Cost Calculation
+                              </h5>
+                              <Badge className="bg-wine/10 text-wine border-wine/20 text-[11px] font-bold">
+                                {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.total_advance_payable || 0).toLocaleString()} Total Advance
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                              <div className="p-2 rounded-lg bg-white border border-gray-100">
+                                <span className="text-gray-400 text-[10px] uppercase font-bold block">Setup Fee</span>
+                                <span className="font-semibold tabular-nums text-gray-800">
+                                  {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.setup_fee || 0).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white border border-gray-100">
+                                <span className="text-gray-400 text-[10px] uppercase font-bold block">Training Fee</span>
+                                <span className="font-semibold tabular-nums text-gray-800">
+                                  {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.training_fee || 0).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white border border-gray-100">
+                                <span className="text-gray-400 text-[10px] uppercase font-bold block">Support Fee</span>
+                                <span className="font-semibold tabular-nums text-gray-800">
+                                  {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.support_fee || 0).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white border border-gray-100">
+                                <span className="text-gray-400 text-[10px] uppercase font-bold block">Monthly Fee</span>
+                                <span className="font-semibold tabular-nums text-gray-800">
+                                  {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.monthly_fee || 0).toLocaleString()} / mo
+                                </span>
+                              </div>
+                            </div>
+
+                            {(Number(request.deal_terms.one_time_discount || 0) > 0 || Number(request.deal_terms.monthly_discount || 0) > 0) && (
+                              <div className="flex flex-wrap gap-3 text-xs bg-emerald-50 border border-emerald-100 rounded-lg p-2 text-emerald-800 font-medium">
+                                {Number(request.deal_terms.one_time_discount || 0) > 0 && (
+                                  <span>One-Time Discount: <strong>- {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.one_time_discount).toLocaleString()}</strong></span>
+                                )}
+                                {Number(request.deal_terms.monthly_discount || 0) > 0 && (
+                                  <span>Monthly Discount: <strong>- {request.deal_terms.currency || 'PKR'} {Number(request.deal_terms.monthly_discount).toLocaleString()} / mo</strong></span>
+                                )}
+                              </div>
+                            )}
+
+                            {request.deal_terms.notes && (
+                              <p className="text-xs text-gray-600 italic bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                Note: &ldquo;{request.deal_terms.notes}&rdquo;
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         <div className="rounded-lg border border-green-200 bg-green-50/60 p-4">
                           <label className="block text-sm font-semibold text-gray-900 mb-1">
                             Record payment &amp; grant access

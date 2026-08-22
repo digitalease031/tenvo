@@ -26,7 +26,7 @@ import { getNavItemAccess } from '@/lib/rbac/permissions';
 import { PLAN_TIERS, FEATURE_LABELS, FEATURE_MIN_PLAN, resolvePlanTier } from '@/lib/config/plans';
 import {
   POS_RELEVANT_DOMAINS, HOSPITALITY_DOMAINS, CAMPAIGN_RELEVANT_DOMAINS,
-  isPosRelevant, isHospitality, isCampaignRelevant, isMembershipRelevant
+  isPosRelevant, isHospitality, isCampaignRelevant, isMembershipRelevant, isInstallmentRelevant
 } from '@/lib/config/domains';
 import { isMilkHisabRelevant } from '@/lib/storefront/milkShopHisab';
 import { isWaterHisabRelevant, isRouteHisabRelevant } from '@/lib/storefront/waterShopHisab';
@@ -65,6 +65,10 @@ function isCampaignRelevantDomain(category, domainKnowledge) {
   return isCampaignRelevant(category, domainKnowledge);
 }
 
+function isInstallmentRelevantDomain(category, domainKnowledge) {
+  return isInstallmentRelevant(category, domainKnowledge);
+}
+
 // --- Grouped Navigation Definition ------------------------------------------
 // Each item has: key (matches tab param), label, icon, and optional:
 //   - alwaysShow: bypass all gating checks
@@ -92,7 +96,7 @@ const ADVANCED_NAV_SECTIONS = [
     label: 'STOREFRONT',
     items: [
       { key: 'orders', label: 'Storefront Orders', icon: Package, alwaysShow: true, badge: 'NEW' },
-      { key: 'installments', label: 'Installment Plans', icon: Calculator, alwaysShow: true },
+      { key: 'installments', label: 'Installment Plans', icon: Calculator, domainRule: 'installmentRelevant' },
       { key: 'inquiries', label: 'Customer Inquiries', icon: Inbox, alwaysShow: true },
       { key: 'pos', label: 'Point of Sale', icon: ShoppingCart, domainRule: 'posRelevant' },
       { key: 'refunds', label: 'Refunds & Returns', icon: RefreshCcw, domainRule: 'posRelevant' },
@@ -158,7 +162,7 @@ const EASY_NAV_SECTIONS = [
     items: [
       { key: 'invoices', label: 'Invoices', icon: FileText, alwaysShow: true },
       { key: 'customers', label: 'Customers', icon: Users, alwaysShow: true },
-      { key: 'installments', label: 'Installment Plans', icon: Calculator, alwaysShow: true },
+      { key: 'installments', label: 'Installment Plans', icon: Calculator, domainRule: 'installmentRelevant' },
       { key: 'route-hisab', label: 'Daily Route', icon: BookOpen, domainRule: 'milkHisab' },
       { key: 'memberships', label: 'Memberships', icon: BadgeCheck, domainRule: 'membershipRelevant' },
       { key: 'orders', label: 'Storefront Orders', icon: Package, alwaysShow: true, badge: 'NEW' },
@@ -311,6 +315,7 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
   const posRelevant = isPosRelevantDomain(category, domainKnowledge);
   const hospitalityDomain = isHospitalityDomain(category);
   const campaignRelevant = isCampaignRelevantDomain(category, domainKnowledge);
+  const installmentRelevant = isInstallmentRelevantDomain(category, domainKnowledge);
   const membershipRelevant = isMembershipRelevant(category);
   const milkHisabRelevant = isMilkHisabRelevant(category);
   const waterHisabRelevant = isWaterHisabRelevant(category);
@@ -370,6 +375,9 @@ export function Sidebar({ isOpen, onClose, isSidebarCollapsed, setIsSidebarColla
       return { visible: false, locked: false, requiredPlan: null };
     }
     if (item.domainRule === 'campaignRelevant' && !campaignRelevant) {
+      return { visible: false, locked: false, requiredPlan: null };
+    }
+    if (item.domainRule === 'installmentRelevant' && !installmentRelevant) {
       return { visible: false, locked: false, requiredPlan: null };
     }
     if (item.domainRule === 'membershipRelevant' && !membershipRelevant) {

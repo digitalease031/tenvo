@@ -45,6 +45,7 @@ export function useScrollDepth() {
  */
 export function useCustomScrollDepth(thresholds = [25, 50, 75, 100]) {
   const trackedDepths = useRef(new Set());
+  const thresholdsKey = Array.isArray(thresholds) ? thresholds.join(',') : '';
   
   useEffect(() => {
     const handleScroll = () => {
@@ -53,7 +54,8 @@ export function useCustomScrollDepth(thresholds = [25, 50, 75, 100]) {
       const scrollTop = window.scrollY;
       const scrollPercentage = (scrollTop / (documentHeight - windowHeight)) * 100;
       
-      thresholds.forEach(depth => {
+      const list = thresholdsKey ? thresholdsKey.split(',').map(Number) : thresholds;
+      list.forEach(depth => {
         if (scrollPercentage >= depth && !trackedDepths.current.has(depth)) {
           trackedDepths.current.add(depth);
           trackScrollDepth(depth);
@@ -63,5 +65,5 @@ export function useCustomScrollDepth(thresholds = [25, 50, 75, 100]) {
     
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [thresholds]);
+  }, [thresholdsKey]);
 }

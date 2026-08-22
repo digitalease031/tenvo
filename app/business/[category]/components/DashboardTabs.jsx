@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Package } from 'lucide-react';
 import { lazyHubTab } from '@/lib/utils/lazyHubTab';
-import { isPosRelevant, isHospitality, isCampaignRelevant, isMembershipRelevant } from '@/lib/config/domains';
+import { isPosRelevant, isHospitality, isCampaignRelevant, isMembershipRelevant, isInstallmentRelevant } from '@/lib/config/domains';
 import { isMilkHisabRelevant } from '@/lib/storefront/milkShopHisab';
 import { resolveDomainKey } from '@/lib/config/domainKeyAliases';
 import { isWaterHisabRelevant, isRouteHisabRelevant } from '@/lib/storefront/waterShopHisab';
@@ -160,6 +160,7 @@ export function DashboardTabs({
     const posRelevant = isPosRelevant(category, domainKnowledge);
     const hospitalityDomain = isHospitality(category);
     const campaignRelevant = isCampaignRelevant(category, domainKnowledge);
+    const installmentRelevant = isInstallmentRelevant(category, domainKnowledge);
     const membershipRelevant = isMembershipRelevant(category);
     const milkHisabRelevant = isMilkHisabRelevant(category);
     const waterHisabRelevant = isWaterHisabRelevant(category);
@@ -1376,7 +1377,16 @@ export function DashboardTabs({
 
                 <TabsContent value="installments" forceMount={shouldForceMount('installments')} className="space-y-6 outline-none data-[state=inactive]:hidden">
                     {wrapTab(
-                        <TabGuard tabKey="installments" role={role} planTier={planTier} featureName="Installment Plans" onUpgrade={() => handleTabChange('settings')}>
+                        <TabGuard
+                            tabKey="installments"
+                            role={role}
+                            planTier={planTier}
+                            domainCheck={installmentRelevant}
+                            domainTitle="Installment Plans not applicable to this domain"
+                            domainMessage="Installment financing models are designed for vehicle showrooms, EV bikes, electronics, solar, real estate, furniture, and heavy equipment verticals."
+                            featureName="Installment Plans"
+                            onUpgrade={() => handleTabChange('settings')}
+                        >
                             <InstallmentsHub business={business} products={products} customers={customers} currency={currency} />
                         </TabGuard>
                     )}

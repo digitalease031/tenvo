@@ -5,7 +5,7 @@ import {
     BookOpen, Receipt, CalendarRange, RefreshCcw,
     Globe, TrendingUp, TrendingDown, ChevronLeft,
     LayoutDashboard, ChevronRight, Loader2, FileText, ListTree, PenLine, Landmark,
-    CreditCard, BadgeDollarSign,
+    CreditCard, BadgeDollarSign, Scale,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -555,21 +555,70 @@ function FinanceOverview({
                 </div>
             )}
 
-            <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('statements', 'pl')}>Run P&amp;L</Button>
-                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('statements', 'tb')}>Trial Balance</Button>
-                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('statements', 'day-book')}>Day Book</Button>
-                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={() => onNavigate?.('reconciliation')}>Bank reconciliation</Button>
-                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={onGoToPayments}>Payments &amp; vouchers</Button>
-                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900" onClick={onGoToTax}>Tax / GST</Button>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900 h-8" onClick={() => onNavigate?.('statements', 'pl')}>
+                    <FileText className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400" /> Run P&amp;L
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900 h-8" onClick={() => onNavigate?.('statements', 'tb')}>
+                    <Scale className="w-3.5 h-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400" /> Trial Balance
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900 h-8" onClick={() => onNavigate?.('statements', 'day-book')}>
+                    <BookOpen className="w-3.5 h-3.5 mr-1.5 text-amber-600 dark:text-amber-400" /> Day Book
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900 h-8" onClick={() => onNavigate?.('reconciliation')}>
+                    <Landmark className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400" /> Bank Reconciliation
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900 h-8" onClick={onGoToPayments}>
+                    <CreditCard className="w-3.5 h-3.5 mr-1.5 text-rose-600 dark:text-rose-400" /> Payments &amp; vouchers
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl bg-white dark:bg-slate-950 border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-semibold text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-slate-900 h-8" onClick={onGoToTax}>
+                    <BadgeDollarSign className="w-3.5 h-3.5 mr-1.5 text-purple-600 dark:text-purple-400" /> Tax / GST
+                </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white dark:bg-slate-950 rounded-2xl border border-neutral-200/80 dark:border-slate-800 p-4 shadow-sm">
                     <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Recent Expenses</h4>
+                        <div>
+                            <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Recent Expenses</h4>
+                            <p className="text-[11px] text-neutral-500 mt-0.5">Top expenditure categories & recent ledger postings</p>
+                        </div>
                         <button onClick={() => onNavigate?.('expenses')} className="text-xs font-semibold text-brand-primary hover:underline">View All</button>
                     </div>
+
+                    {/* Visual Category Distribution */}
+                    {expenses.length > 0 && (
+                        <div className="mb-3.5 space-y-1.5 bg-neutral-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-neutral-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between text-[11px] font-semibold text-neutral-600 dark:text-neutral-400">
+                                <span>Expense Breakdown</span>
+                                <span>{currency} {totalExpenses.toLocaleString()}</span>
+                            </div>
+                            <div className="w-full bg-neutral-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden flex">
+                                {(() => {
+                                    const catMap = new Map();
+                                    expenses.forEach((e) => {
+                                        const c = e.category || 'other';
+                                        catMap.set(c, (catMap.get(c) || 0) + Number(e.amount || 0));
+                                    });
+                                    const colors = ['bg-rose-500', 'bg-amber-500', 'bg-indigo-500', 'bg-emerald-500', 'bg-blue-500'];
+                                    let idx = 0;
+                                    return Array.from(catMap.entries()).slice(0, 5).map(([cat, amt]) => {
+                                        const pct = totalExpenses > 0 ? (amt / totalExpenses) * 100 : 0;
+                                        const color = colors[idx++ % colors.length];
+                                        return (
+                                            <div
+                                                key={cat}
+                                                style={{ width: `${pct}%` }}
+                                                className={`h-full ${color}`}
+                                                title={`${formatCategoryName(cat)}: ${pct.toFixed(1)}%`}
+                                            />
+                                        );
+                                    });
+                                })()}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="divide-y divide-neutral-100 dark:divide-slate-800/60">
                         {expenses.slice(0, 5).map(e => (
                             <div key={e.id} className="flex items-center justify-between py-2 text-sm">
@@ -583,7 +632,10 @@ function FinanceOverview({
 
                 <div className="bg-white dark:bg-slate-950 rounded-2xl border border-neutral-200/80 dark:border-slate-800 p-4 shadow-sm">
                     <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Account Categories</h4>
+                        <div>
+                            <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Account Categories &amp; Books Health</h4>
+                            <p className="text-[11px] text-neutral-500 mt-0.5">Chart of Accounts distribution &amp; active ledger status</p>
+                        </div>
                         <button onClick={() => onNavigate?.('accounts')} className="text-xs font-semibold text-brand-primary hover:underline">Manage COA</button>
                     </div>
                     <div className="divide-y divide-neutral-100 dark:divide-slate-800/60">

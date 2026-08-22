@@ -78,8 +78,8 @@ for (const name of ['getQuotationsAction', 'getSalesOrdersAction', 'getChallansA
 }
 
 const vendors = read('lib/actions/basic/vendor.js');
-if (!/getVendorsAction[\s\S]*take:\s*2000/.test(vendors)) {
-  fail('getVendorsAction must cap findMany with take');
+if (!/getVendorsAction[\s\S]*(take:\s*2000|LIMIT 2000)/.test(vendors)) {
+  fail('getVendorsAction must cap findMany or query with take / LIMIT 2000');
 } else {
   pass('getVendorsAction has take cap');
 }

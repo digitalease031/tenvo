@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -25,7 +25,8 @@ import {
   Zap,
   LayoutGrid,
   Search,
-  List
+  List,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TenvoTextLogo } from '@/components/branding/TenvoTextLogo';
@@ -109,6 +110,8 @@ export default function MultiBusinessPage() {
     biz.city?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const isPartner = user?.role === 'partner' || user?.role === 'affiliate';
+
   if (loading || authLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
@@ -136,6 +139,16 @@ export default function MultiBusinessPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              {(isPartner || isPlatformAdmin) && (
+                <Button
+                  variant="outline"
+                  onClick={() => router.push('/partner')}
+                  className="border-amber-500/30 text-amber-800 bg-amber-50/50 hover:bg-amber-100 font-semibold rounded-xl px-4 py-2 sm:py-2.5 text-xs uppercase tracking-widest"
+                >
+                  <Sparkles className="w-4 h-4 mr-0 sm:mr-2 text-amber-600" />
+                  <span className="hidden sm:inline">Partner Showcase</span>
+                </Button>
+              )}
               {isPlatformAdmin && (
                 <>
                   <Button

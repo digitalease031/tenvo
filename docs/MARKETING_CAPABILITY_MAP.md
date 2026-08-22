@@ -19,7 +19,7 @@ Public marketing must stay aligned with **what ships** in the product. This doc 
 - Finance: journal entries, GL hub, fiscal periods (Professional+)
 - CRM: loyalty, promotions (Professional+), campaigns hub (Business+)
 - Sales pipeline: B2B quotations, sales orders, delivery challans with stock context
-- Domain commercial suites: clothing, pharmacy, auto-parts, vehicle showroom, furniture, fitness, milk (`/solutions/[slug]`)
+- Domain commercial suites: clothing, pharmacy, auto-parts, vehicle showroom, furniture, fitness, milk, water, EV bikes, construction, lubricant distribution (`/solutions/[slug]`)
 - AI: Business Analyst, forecasting signals (Business+, API keys)
 - Billing: Stripe subscriptions, manual/offline path, optional NOWPayments
 - Email: Resend transactional (OTP, orders, leads)

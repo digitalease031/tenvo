@@ -121,19 +121,19 @@ export default function SolutionsPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="font-semibold text-lg text-gray-900 group-hover:text-teal-700 transition-colors mb-1">
-                      {pkg.displayName}
+                      {pkg.name}
                     </h3>
-                    <p className="text-sm text-gray-500">{pkg.description}</p>
+                    <p className="text-sm text-gray-500 line-clamp-2">{pkg.tagline || pkg.summary}</p>
                   </div>
                   <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-teal-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </div>
 
-                {pkg.features && pkg.features.length > 0 && (
+                {Array.isArray(pkg.moduleGroups) && pkg.moduleGroups.length > 0 && (
                   <ul className="space-y-2">
-                    {pkg.features.slice(0, 3).map((feature, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
+                    {pkg.moduleGroups.slice(0, 3).map((mod) => (
+                      <li key={mod.id || mod.title} className="flex items-center gap-2 text-sm text-gray-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-teal-500 flex-shrink-0" />
-                        <span>{feature}</span>
+                        <span className="line-clamp-1">{mod.title}</span>
                       </li>
                     ))}
                   </ul>

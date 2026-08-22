@@ -355,9 +355,8 @@ export function DashboardTabs({
         handleKitchenStatusUpdate,
     } = handlers;
 
-    const isWholesale = isWholesaleDomain(category);
-
     const tabVariants = {
+
         initial: { opacity: 0 },
         animate: { opacity: 1 },
         exit: { opacity: 0 }

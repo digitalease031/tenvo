@@ -6,7 +6,7 @@ import { getDemoStoreListSchema } from '@/lib/marketing/demoStoreSchema';
 export const metadata = buildMarketingMetadata({
   title: 'Live Demo Stores - See TENVO in Action Across Industries',
   description:
-    'Explore 19+ live demo storefronts powered by TENVO across retail, restaurants, auto parts, pharmacy, fitness, and more. See how TENVO works for your industry with real product catalogs and working checkout.',
+    'Explore 28+ live demo storefronts powered by TENVO across retail, restaurants, auto parts, pharmacy, fitness, and more. See how TENVO works for your industry with real product catalogs and working checkout.',
   path: '/demo-stores',
   keywords: [
     'tenvo demo',

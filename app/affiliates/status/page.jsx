@@ -1,4 +1,4 @@
-﻿import MarketingLayout from '@/components/marketing/layout/MarketingLayout';
+import MarketingLayout from '@/components/marketing/layout/MarketingLayout';
 import { MARKETING_CONTAINER } from '@/lib/utils/marketingLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Search, Loader2, XCircle, Users, DollarSign, Clock, ArrowRight, BadgeCheck } from 'lucide-react';
 import CopyReferralLink from './CopyReferralLink';
 import { prismaBase as prisma } from '@/lib/db';
+import { getServerSession } from '@/lib/auth/rbac';
 import Link from 'next/link';
 
 export const metadata = {
@@ -18,7 +19,9 @@ export const dynamic = 'force-dynamic';
 export default async function AffiliateStatusPage({ searchParams }) {
   // Next.js App Router: searchParams may be a Promise in v15+
   const resolvedParams = await Promise.resolve(searchParams);
-  const email = resolvedParams?.email?.toString()?.trim() || '';
+  const session = await getServerSession();
+  const paramEmail = resolvedParams?.email?.toString()?.trim() || '';
+  const email = paramEmail || session?.user?.email || '';
 
   let affiliate = null;
   let error = null;

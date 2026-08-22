@@ -58,7 +58,7 @@ export function DemoStoresShowcase() {
       <div className="mx-auto max-w-3xl text-center mb-12">
         <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-4 py-1.5 text-sm font-medium text-teal-700 mb-4">
           <Store className="h-4 w-4" />
-          <span>19+ Live Demo Storefronts</span>
+          <span>{CLIENT_DEMO_STORES.length}+ Live Demo Storefronts</span>
         </div>
         
         <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl mb-4">

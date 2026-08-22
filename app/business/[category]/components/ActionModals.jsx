@@ -31,6 +31,9 @@ import { useBusiness } from '@/lib/context/BusinessContext';
 import { isPosRelevant } from '@/lib/config/domains';
 import { useResolvedBusinessId } from '@/lib/hooks/useResolvedBusinessId';
 import { isTextileWholesale } from '@/lib/utils/textileWholesaleDomainFilter';
+import { recordInvoicePaymentAction } from '@/lib/actions/standard/invoice-payments';
+import { createInvoiceAction } from '@/lib/actions/basic/invoice';
+import { queueOfflinePayment, flushOfflineInvoicesAndPayments } from '@/lib/utils/invoiceOfflineSync';
 
 const VendorForm = dynamic(
     () => import('@/components/VendorForm').then((m) => ({ default: m.VendorForm })),
@@ -153,6 +156,31 @@ export function ActionModals({
     const posRelevant = isPosRelevant(category, domainKnowledge);
     const { moduleAccess } = useBusiness();
     const [showExcelCustomerGrid, setShowExcelCustomerGrid] = React.useState(false);
+
+    // Auto-sync offline queued invoices and payments upon internet reconnection
+    React.useEffect(() => {
+        if (!activeBusinessId) return;
+        const handleOnline = async () => {
+            try {
+                const { syncedInvoices, syncedPayments } = await flushOfflineInvoicesAndPayments(activeBusinessId, {
+                    createInvoiceAction,
+                    recordInvoicePaymentAction,
+                });
+                if (syncedInvoices > 0 || syncedPayments > 0) {
+                    toast.success(`Synced ${syncedInvoices} offline invoice(s) & ${syncedPayments} payment(s)!`);
+                    refreshData?.();
+                }
+            } catch (err) {
+                console.warn('[ActionModals] Auto-sync offline flush error:', err);
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+            handleOnline().catch(() => {});
+        }
+        return () => window.removeEventListener('online', handleOnline);
+    }, [activeBusinessId, refreshData]);
 
     const canOpenTab = (tabKey) => {
         const access = getNavItemAccess(tabKey, role, planTier, business?.settings, business?.platformFeatureOverrides, moduleAccess);
@@ -403,8 +431,7 @@ export function ActionModals({
                     invoice={selectedInvoiceForPayment}
                     currency={currency}
                     onRecordPayment={async (paymentData) => {
-                        const { recordInvoicePaymentAction } = await import('@/lib/actions/standard/invoice-payments');
-                        const result = await recordInvoicePaymentAction({
+                        const payload = {
                             businessId: activeBusinessId,
                             invoiceId: selectedInvoiceForPayment.id,
                             amount: paymentData.amount,
@@ -413,36 +440,90 @@ export function ActionModals({
                             referenceNumber: paymentData.referenceNumber,
                             notes: paymentData.notes,
                             userId: user?.id
-                        });
+                        };
 
-                        if (result.success) {
-                            const paidInvoice = result.invoice;
-                            if (paidInvoice?.id && typeof upsertInvoiceInState === 'function') {
-                                const rawBalance = paidInvoice.balance ?? paidInvoice.new_balance;
-                                const nextBalance = rawBalance !== undefined && rawBalance !== null ? Number(rawBalance) : 0;
-                                const grand = Number(paidInvoice.grand_total ?? selectedInvoiceForPayment.grand_total ?? 0);
-                                const isFullyPaid = nextBalance <= 0.009 && grand > 0;
+                        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-                                const patch = {
-                                    id: paidInvoice.id,
-                                    business_id: activeBusinessId,
-                                    payment_status: isFullyPaid ? 'paid' : (paidInvoice.payment_status || 'partial'),
-                                    status: isFullyPaid ? 'paid' : (paidInvoice.status || selectedInvoiceForPayment.status || 'pending'),
-                                    balance: nextBalance,
-                                    grand_total: grand,
-                                    invoice_number: paidInvoice.invoice_number || selectedInvoiceForPayment.invoice_number,
-                                    customer_name: selectedInvoiceForPayment.customer_name || paidInvoice.customer_name || null,
-                                    customer_id: selectedInvoiceForPayment.customer_id || paidInvoice.customer_id || null,
-                                    items: selectedInvoiceForPayment.items || paidInvoice.items || [],
-                                };
+                        if (isOffline) {
+                            await queueOfflinePayment(activeBusinessId, payload);
+                            const grand = Number(selectedInvoiceForPayment.grand_total || 0);
+                            const currentBal = Number(selectedInvoiceForPayment.balance ?? grand);
+                            const nextBalance = Math.max(0, Math.round((currentBal - paymentData.amount) * 100) / 100);
+                            const isFullyPaid = nextBalance <= 0.009 && grand > 0;
+
+                            const patch = {
+                                ...selectedInvoiceForPayment,
+                                business_id: activeBusinessId,
+                                payment_status: isFullyPaid ? 'paid' : (nextBalance < grand ? 'partial' : 'unpaid'),
+                                status: isFullyPaid ? 'paid' : (selectedInvoiceForPayment.status || 'pending'),
+                                balance: nextBalance,
+                            };
+                            if (typeof upsertInvoiceInState === 'function') {
                                 upsertInvoiceInState(patch);
                             }
                             setShowPaymentModal(false);
                             setSelectedInvoiceForPayment(null);
-                            onPaymentRecorded?.(paidInvoice);
-                            // Do not refresh inventory here — sales list is already patched.
-                        } else {
-                            throw new Error(result.error || 'Failed to record payment');
+                            onPaymentRecorded?.(patch);
+                            toast.success('Payment recorded offline! Will sync automatically when reconnected.');
+                            return;
+                        }
+
+                        try {
+                            const result = await recordInvoicePaymentAction(payload);
+                            if (result.success) {
+                                const paidInvoice = result.invoice;
+                                if (paidInvoice?.id && typeof upsertInvoiceInState === 'function') {
+                                    const rawBalance = paidInvoice.balance ?? paidInvoice.new_balance;
+                                    const nextBalance = rawBalance !== undefined && rawBalance !== null ? Number(rawBalance) : 0;
+                                    const grand = Number(paidInvoice.grand_total ?? selectedInvoiceForPayment.grand_total ?? 0);
+                                    const isFullyPaid = nextBalance <= 0.009 && grand > 0;
+
+                                    const patch = {
+                                        id: paidInvoice.id,
+                                        business_id: activeBusinessId,
+                                        payment_status: isFullyPaid ? 'paid' : (paidInvoice.payment_status || 'partial'),
+                                        status: isFullyPaid ? 'paid' : (paidInvoice.status || selectedInvoiceForPayment.status || 'pending'),
+                                        balance: nextBalance,
+                                        grand_total: grand,
+                                        invoice_number: paidInvoice.invoice_number || selectedInvoiceForPayment.invoice_number,
+                                        customer_name: selectedInvoiceForPayment.customer_name || paidInvoice.customer_name || null,
+                                        customer_id: selectedInvoiceForPayment.customer_id || paidInvoice.customer_id || null,
+                                        items: selectedInvoiceForPayment.items || paidInvoice.items || [],
+                                    };
+                                    upsertInvoiceInState(patch);
+                                }
+                                setShowPaymentModal(false);
+                                setSelectedInvoiceForPayment(null);
+                                onPaymentRecorded?.(paidInvoice);
+                            } else {
+                                throw new Error(result.error || 'Failed to record payment');
+                            }
+                        } catch (err) {
+                            // Network failure during online attempt -> fallback to offline queue
+                            if (err.message?.includes('fetch') || err.message?.includes('NetworkError') || !navigator.onLine) {
+                                await queueOfflinePayment(activeBusinessId, payload);
+                                const grand = Number(selectedInvoiceForPayment.grand_total || 0);
+                                const currentBal = Number(selectedInvoiceForPayment.balance ?? grand);
+                                const nextBalance = Math.max(0, Math.round((currentBal - paymentData.amount) * 100) / 100);
+                                const isFullyPaid = nextBalance <= 0.009 && grand > 0;
+
+                                const patch = {
+                                    ...selectedInvoiceForPayment,
+                                    business_id: activeBusinessId,
+                                    payment_status: isFullyPaid ? 'paid' : (nextBalance < grand ? 'partial' : 'unpaid'),
+                                    status: isFullyPaid ? 'paid' : (selectedInvoiceForPayment.status || 'pending'),
+                                    balance: nextBalance,
+                                };
+                                if (typeof upsertInvoiceInState === 'function') {
+                                    upsertInvoiceInState(patch);
+                                }
+                                setShowPaymentModal(false);
+                                setSelectedInvoiceForPayment(null);
+                                onPaymentRecorded?.(patch);
+                                toast.success('Network connection interrupted. Payment recorded offline!');
+                                return;
+                            }
+                            throw err;
                         }
                     }}
                 />

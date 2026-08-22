@@ -137,7 +137,11 @@ export function PaymentModal({
                 paymentDate: new Date().toISOString(),
             });
 
-            toast.success('Payment recorded successfully!');
+            toast.success(
+                typeof navigator !== 'undefined' && !navigator.onLine
+                    ? 'Payment recorded offline! Will sync when reconnected.'
+                    : 'Payment recorded successfully!'
+            );
             // Parent closes the modal after a successful patch; avoid double onClose races.
         } catch (error) {
             console.error('Payment recording failed:', error);

@@ -343,33 +343,33 @@ export function TextileWholesaleHub({
   };
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-wine-900 via-wine-800 to-purple-950 p-6 rounded-xl text-white shadow-sm">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">
+    <div className="space-y-5 p-4 sm:p-6 bg-slate-50/50 min-h-screen">
+      {/* Light-themed & Theme-aware Compact Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200/90 rounded-xl p-4 sm:p-5 shadow-xs">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
               Textile Wholesale Command Center
             </h1>
-            <Badge className="bg-wine-700/80 text-amber-200 border-amber-500/30 text-xs px-2 py-0.5">
+            <Badge className="bg-wine-100/90 text-wine-900 border border-wine-200/80 text-[11px] font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
               Jama Cloth & Azam Market Verified
             </Badge>
           </div>
-          <p className="text-sm text-wine-100/90 mt-1 max-w-2xl">
+          <p className="text-xs sm:text-sm text-slate-600 font-normal max-w-3xl">
             One-window management for cloth merchants: thaans, party ledgers, broker commissions, kora fabric balances, and seasonal restocking.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2.5">
-          <Button onClick={() => handleQuickAction('new-invoice')} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm">
-            <FileText className="h-4 w-4 mr-2" />
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button onClick={() => handleQuickAction('new-invoice')} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs h-9 px-3">
+            <FileText className="h-4 w-4 mr-1.5" />
             Quick Invoice
           </Button>
-          <Button onClick={() => handleQuickAction('record-payment')} variant="outline" className="bg-white/10 hover:bg-white/20 text-white border-white/30">
-            <Wallet className="h-4 w-4 mr-2" />
+          <Button onClick={() => handleQuickAction('record-payment')} size="sm" variant="outline" className="border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-xs h-9 px-3">
+            <Wallet className="h-4 w-4 mr-1.5" />
             Receive Payment
           </Button>
-          <Button onClick={() => handleQuickAction('add-stock')} variant="outline" className="bg-white/10 hover:bg-white/20 text-white border-white/30">
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => handleQuickAction('add-stock')} size="sm" variant="outline" className="border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-xs h-9 px-3">
+            <Plus className="h-4 w-4 mr-1.5" />
             Add Thaans
           </Button>
         </div>
@@ -377,18 +377,18 @@ export function TextileWholesaleHub({
 
       {/* Seasonal & Demand Forecast Alert */}
       {isPeakSeason && (
-        <Card className="border-l-4 border-l-amber-500 bg-amber-50/80">
-          <CardContent className="pt-5 pb-5">
+        <Card className="border-l-4 border-l-amber-500 bg-amber-50/90 border border-amber-200/80 shadow-xs">
+          <CardContent className="p-4 sm:p-4.5">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div className="flex items-start gap-3">
                 <Calendar className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-amber-900 text-base">Peak Demand Active - {currentMonth}</h3>
-                  <p className="text-sm text-amber-800 mt-0.5">
+                  <h3 className="font-semibold text-amber-900 text-sm sm:text-base">Peak Demand Active - {currentMonth}</h3>
+                  <p className="text-xs sm:text-sm text-amber-800 mt-0.5">
                     High demand period for lawn, cotton, chiffon & festive suits. Lock mill bookings early and maintain safety stock on top-selling design numbers.
                   </p>
                   {restockRecommendations.length > 0 && (
-                    <p className="text-xs font-medium text-amber-900 mt-1.5">
+                    <p className="text-xs font-semibold text-amber-900 mt-1.5">
                       ⚠️ {restockRecommendations.length} articles require urgent restocking to avoid stockouts.
                     </p>
                   )}
@@ -396,7 +396,7 @@ export function TextileWholesaleHub({
               </div>
               <Button 
                 size="sm" 
-                className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs shrink-0 h-8 px-3"
                 onClick={() => handleQuickAction('seasonal-restock')}
               >
                 View Restock Plan <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
@@ -407,105 +407,106 @@ export function TextileWholesaleHub({
       )}
 
       {/* Key Business Owner KPIs Grid (5 Core Metrics) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
         {/* Total Outstanding */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Party Receivables</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+        <Card className="bg-white border border-slate-200/80 rounded-xl shadow-xs hover:border-slate-300 transition-all">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Party Receivables</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                   {formatCurrency(partyMetrics.totalOutstanding)}
                 </p>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <Badge variant={partyMetrics.creditUtilization > 80 ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                  <Badge variant={partyMetrics.creditUtilization > 80 ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium">
                     {partyMetrics.creditUtilization}% Limit Used
                   </Badge>
-                  <span className="text-xs text-gray-500 font-tabular">{partyMetrics.partiesWithBalance} parties</span>
+                  <span className="text-xs text-slate-500 font-medium whitespace-nowrap">{partyMetrics.partiesWithBalance} parties</span>
                 </div>
               </div>
-              <div className="h-11 w-11 rounded-xl bg-rose-100/80 flex items-center justify-center shrink-0">
-                <Users className="h-5 w-5 text-rose-700" />
+              <div className="h-10 w-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
+                <Users className="h-5 w-5 text-rose-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* High Risk Credit Alert */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">High Risk Udhar</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+        <Card className="bg-white border border-slate-200/80 rounded-xl shadow-xs hover:border-slate-300 transition-all">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">High Risk Udhar</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                   {highRiskParties.length}
                 </p>
-                <p className="text-xs text-rose-600 font-medium mt-1.5 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3 inline" /> Exceeding &gt;80% Limit
+                <p className="text-xs text-rose-600 font-medium pt-0.5 flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <span>Exceeding &gt;80% Limit</span>
                 </p>
               </div>
-              <div className="h-11 w-11 rounded-xl bg-amber-100/80 flex items-center justify-center shrink-0">
-                <AlertCircle className="h-5 w-5 text-amber-700" />
+              <div className="h-10 w-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Thaan & Meter Stock */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Thaan & Meter Stock</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {stockSummary.totalThaans} <span className="text-xs font-normal text-gray-500">Thaans</span>
+        <Card className="bg-white border border-slate-200/80 rounded-xl shadow-xs hover:border-slate-300 transition-all">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Thaan & Meter Stock</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 font-tabular tracking-tight">
+                  {stockSummary.totalThaans} <span className="text-xs font-normal text-slate-500">Thaans</span>
                 </p>
-                <p className="text-xs text-blue-600 font-medium mt-1.5 font-tabular">
+                <p className="text-xs text-blue-600 font-medium pt-0.5 font-tabular">
                   ≈ {stockSummary.totalMeters?.toLocaleString()} meters total
                 </p>
               </div>
-              <div className="h-11 w-11 rounded-xl bg-blue-100/80 flex items-center justify-center shrink-0">
-                <Package className="h-5 w-5 text-blue-700" />
+              <div className="h-10 w-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                <Package className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Stock Valuation & Profit Margin Potential */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Valuation</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+        <Card className="bg-white border border-slate-200/80 rounded-xl shadow-xs hover:border-slate-300 transition-all">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Stock Valuation</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                   {formatCurrency(stockSummary.stockValue)}
                 </p>
-                <p className="text-xs text-emerald-600 font-medium mt-1.5 font-tabular">
+                <p className="text-xs text-emerald-600 font-medium pt-0.5 font-tabular">
                   +{stockSummary.marginPercentage}% Selling Margin
                 </p>
               </div>
-              <div className="h-11 w-11 rounded-xl bg-emerald-100/80 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-5 w-5 text-emerald-700" />
+              <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Broker Commission Payout */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Broker Commission</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+        <Card className="bg-white border border-slate-200/80 rounded-xl shadow-xs hover:border-slate-300 transition-all">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Broker Commission</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                   {formatCurrency(totalBrokerCommission)}
                 </p>
-                <p className="text-xs text-purple-600 font-medium mt-1.5 font-tabular">
+                <p className="text-xs text-purple-600 font-medium pt-0.5 font-tabular">
                   {brokerLedger.length} Active Dalals
                 </p>
               </div>
-              <div className="h-11 w-11 rounded-xl bg-purple-100/80 flex items-center justify-center shrink-0">
-                <BadgePercent className="h-5 w-5 text-purple-700" />
+              <div className="h-10 w-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0">
+                <BadgePercent className="h-5 w-5 text-purple-600" />
               </div>
             </div>
           </CardContent>
